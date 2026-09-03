@@ -6,7 +6,7 @@ from config.constants import GRAVITY, MAX_FALL_SPEED, ACCELERATION, MAX_SPEED, J
 from engine.input_manager import INPUT
 import engine.resource_manager as rm
 from utils.math_utils import clamp
-from engine.animation import AnimationManager, load_animation_folder
+from engine.animation import AnimationManager, load_animation_folder, load_spritesheet
 
 class AfterImage:
     """Ghost trail image left behind during a dash."""
@@ -232,22 +232,37 @@ class UltimateShockwaveRing:
         surface.blit(ring_surf, (cx - rc, cy - rc), special_flags=pygame.BLEND_RGBA_ADD)
 
 class Player:
-    def __init__(self, x: float, y: float):
+    def __init__(self, x: float, y: float, character_id: str = None):
+        from entities.character_data import get_character_profile
+        from config.settings import SETTINGS
+        if character_id is None:
+            character_id = getattr(SETTINGS, "CURRENT_CHARACTER", "shaia")
+            
+        self.profile = get_character_profile(character_id)
+        self.character_id = self.profile.id
+        self.archetype = self.profile.archetype
+        
         # Position & Physics
         self.pos = pygame.math.Vector2(x, y)
         self.velocity = pygame.math.Vector2(0, 0)
-        self.rect = pygame.FRect(x, y, 32, 80)
+        self.rect = pygame.FRect(x, y, self.profile.hitbox_size[0], self.profile.hitbox_size[1])
         
         # State
         self.on_ground = False
         self.can_double_jump = False
         
         # Stats
-        self.max_health = 20 # 20 HP as requested
+        self.max_health = self.profile.hp_max
         self.health = self.max_health
-        self.max_mana = 100.0
+        self.max_mana = float(self.profile.mp_max)
         self.mana = self.max_mana
-        self.stamina = 100.0
+        self.max_stamina = float(self.profile.sp_max)
+        self.stamina = self.max_stamina
+        self.mana_regen = self.profile.mana_regen
+        self.stamina_regen = self.profile.stamina_regen
+        self.speed = self.profile.move_speed
+        self.dash_speed = self.profile.dash_speed
+        self.jump_speed = self.profile.jump_speed
         
         # Combat & Inventory
         self.invulnerable = False
@@ -257,7 +272,6 @@ class Player:
         self.dash_timer = 0.0
         self.dash_duration = 0.22
         self.dash_cooldown = 0.0
-        self.dash_speed = 750.0
         self.dash_ghost_timer = 0.0
         self.after_images: list[AfterImage] = []
         
@@ -300,34 +314,91 @@ class Player:
         # Visuals & Animation
         self.facing_right = True
         self.anim_manager = AnimationManager()
+        self.shield_anim = None
         
-        base_path = os.path.join("assets", "sprites", "shaia", "sprites_common")
-        attack_path = os.path.join("assets", "sprites", "shaia", "sprites_attack")
-        append_path = os.path.join("assets", "sprites", "shaia", "sprites_append")
-        scale = 0.65
-        
-        self.anim_manager.add_animation("idle", load_animation_folder(base_path, "common_00_idle_stand_A", 15, True, scale))
-        self.anim_manager.add_animation("walk", load_animation_folder(base_path, "common_11_walk", 15, True, scale))
-        self.anim_manager.add_animation("jump", load_animation_folder(base_path, "common_21_jump_up", 15, False, scale))
-        self.anim_manager.add_animation("fall", load_animation_folder(base_path, "common_21_jump_down", 15, True, scale))
-        self.anim_manager.add_animation("attack", load_animation_folder(attack_path, "attack_01_cobination01", 14, False, scale))
-        self.anim_manager.add_animation("cast_magic", load_animation_folder(attack_path, "attack_03_cobination03", 22, False, scale))
-        self.anim_manager.add_animation("dash", load_animation_folder(append_path, "common_12_guard_dash", 24, False, scale))
-        self.anim_manager.add_animation("whirlwind", load_animation_folder(attack_path, "attack_04_cobination04", 18, False, scale))
-        self.anim_manager.add_animation("heavy_slash", load_animation_folder(attack_path, "attack_03_cobination03", 16, False, scale))
-        self.anim_manager.add_animation("jump_attack", load_animation_folder(attack_path, "attack_21_jump_attack", 16, True, scale))
-        self.anim_manager.add_animation("landing", load_animation_folder(base_path, "common_22_landing", 14, False, scale))
-        
-        damage_path = os.path.join("assets", "sprites", "shaia", "sprites_damage")
-        self.anim_manager.add_animation("dead", load_animation_folder(damage_path, "damage_11_blow_landing_A", 10, False, scale))
-        self.anim_manager.add_animation("guard", load_animation_folder(base_path, "common_31_guard_stand", 10, True, scale))
-        
-        # Guard shield barrier visual effect
-        vfx_guard_path = os.path.join("assets", "sprites", "vfx", "vfx_guard")
-        self.shield_anim = load_animation_folder(vfx_guard_path, "vfx_guard", 18, True, 1.3)
+        if self.profile.sprite_type == "folder":
+            base_path = os.path.join("assets", "sprites", "shaia", "sprites_common")
+            attack_path = os.path.join("assets", "sprites", "shaia", "sprites_attack")
+            append_path = os.path.join("assets", "sprites", "shaia", "sprites_append")
+            scale = self.profile.sprite_scale
+            
+            self.anim_manager.add_animation("idle", load_animation_folder(base_path, "common_00_idle_stand_A", 15, True, scale))
+            self.anim_manager.add_animation("walk", load_animation_folder(base_path, "common_11_walk", 15, True, scale))
+            self.anim_manager.add_animation("jump", load_animation_folder(base_path, "common_21_jump_up", 15, False, scale))
+            self.anim_manager.add_animation("fall", load_animation_folder(base_path, "common_21_jump_down", 15, True, scale))
+            self.anim_manager.add_animation("attack", load_animation_folder(attack_path, "attack_01_cobination01", 14, False, scale))
+            self.anim_manager.add_animation("cast_magic", load_animation_folder(attack_path, "attack_03_cobination03", 22, False, scale))
+            self.anim_manager.add_animation("dash", load_animation_folder(append_path, "common_12_guard_dash", 24, False, scale))
+            self.anim_manager.add_animation("whirlwind", load_animation_folder(attack_path, "attack_04_cobination04", 18, False, scale))
+            self.anim_manager.add_animation("heavy_slash", load_animation_folder(attack_path, "attack_03_cobination03", 16, False, scale))
+            self.anim_manager.add_animation("jump_attack", load_animation_folder(attack_path, "attack_21_jump_attack", 16, True, scale))
+            self.anim_manager.add_animation("landing", load_animation_folder(base_path, "common_22_landing", 14, False, scale))
+            
+            damage_path = os.path.join("assets", "sprites", "shaia", "sprites_damage")
+            self.anim_manager.add_animation("dead", load_animation_folder(damage_path, "damage_11_blow_landing_A", 10, False, scale))
+            self.anim_manager.add_animation("guard", load_animation_folder(base_path, "common_31_guard_stand", 10, True, scale))
+            
+            vfx_guard_path = os.path.join("assets", "sprites", "vfx", "vfx_guard")
+            self.shield_anim = load_animation_folder(vfx_guard_path, "vfx_guard", 18, True, 1.3)
+        else:
+            scale = self.profile.sprite_scale
+            bf = self.profile.base_folder
+            fw, fh = self.profile.frame_size
+            
+            if self.profile.archetype == "mage":
+                idle_p = os.path.join(bf, "Idle.png")
+                walk_p = os.path.join(bf, "Walk.png")
+                atk_p = os.path.join(bf, "Attack.png")
+                prot_p = os.path.join(bf, "Protection.png")
+                dial_p = os.path.join(bf, "Dialogue.png")
+                book_p = os.path.join(bf, "Book.png")
+                
+                self.anim_manager.add_animation("idle", load_spritesheet(idle_p, fw, fh, 10, True, scale))
+                self.anim_manager.add_animation("walk", load_spritesheet(walk_p, fw, fh, 12, True, scale))
+                self.anim_manager.add_animation("jump", load_spritesheet(walk_p, fw, fh, 12, False, scale, start_frame=1, max_frames=2))
+                self.anim_manager.add_animation("fall", load_spritesheet(walk_p, fw, fh, 12, True, scale, start_frame=4, max_frames=2))
+                self.anim_manager.add_animation("attack", load_spritesheet(atk_p, fw, fh, 16, False, scale))
+                
+                # Cast magic
+                cast_sheet = book_p if os.path.exists(book_p) else dial_p if os.path.exists(dial_p) else atk_p
+                cfw, cfh = (64, 64) if (cast_sheet == book_p) else (fw, fh)
+                self.anim_manager.add_animation("cast_magic", load_spritesheet(cast_sheet, cfw, cfh, 16, False, scale))
+                self.anim_manager.add_animation("whirlwind", load_spritesheet(atk_p, fw, fh, 20, False, scale))
+                self.anim_manager.add_animation("heavy_slash", load_spritesheet(atk_p, fw, fh, 16, False, scale))
+                self.anim_manager.add_animation("jump_attack", load_spritesheet(atk_p, fw, fh, 16, True, scale))
+                self.anim_manager.add_animation("landing", load_spritesheet(idle_p, fw, fh, 12, False, scale, start_frame=0, max_frames=2))
+                self.anim_manager.add_animation("guard", load_spritesheet(prot_p, fw, fh, 10, True, scale))
+                self.anim_manager.add_animation("dead", load_spritesheet(atk_p, fw, fh, 8, False, scale, start_frame=2, max_frames=4))
+                self.anim_manager.add_animation("dash", load_spritesheet(walk_p, fw, fh, 22, False, scale))
+            else:
+                idle_p = os.path.join(bf, "Idle.png")
+                walk_p = os.path.join(bf, "Walk.png")
+                run_p = os.path.join(bf, "Run.png")
+                jump_p = os.path.join(bf, "Jump.png")
+                atk1_p = os.path.join(bf, "Attack_1.png")
+                atk2_p = os.path.join(bf, "Attack_2.png")
+                atk3_p = os.path.join(bf, "Attack_3.png")
+                shield_p = os.path.join(bf, "Shield.png")
+                dead_p = os.path.join(bf, "Dead.png")
+                hurt_p = os.path.join(bf, "Hurt.png")
+                
+                self.anim_manager.add_animation("idle", load_spritesheet(idle_p, fw, fh, 10, True, scale))
+                self.anim_manager.add_animation("walk", load_spritesheet(walk_p, fw, fh, 12, True, scale))
+                self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 16, False, scale, start_frame=0, max_frames=6))
+                self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 14, True, scale, start_frame=6, max_frames=6))
+                self.anim_manager.add_animation("attack", load_spritesheet(atk1_p, fw, fh, 16, False, scale))
+                self.anim_manager.add_animation("cast_magic", load_spritesheet(atk2_p, fw, fh, 16, False, scale))
+                self.anim_manager.add_animation("whirlwind", load_spritesheet(atk3_p, fw, fh, 18, False, scale))
+                self.anim_manager.add_animation("heavy_slash", load_spritesheet(atk3_p, fw, fh, 16, False, scale))
+                self.anim_manager.add_animation("jump_attack", load_spritesheet(atk1_p, fw, fh, 16, True, scale))
+                self.anim_manager.add_animation("landing", load_spritesheet(jump_p, fw, fh, 14, False, scale, start_frame=6, max_frames=2))
+                self.anim_manager.add_animation("guard", load_spritesheet(shield_p, fw, fh, 10, True, scale))
+                self.anim_manager.add_animation("dead", load_spritesheet(dead_p, fw, fh, 10, False, scale))
+                self.anim_manager.add_animation("dash", load_spritesheet(run_p, fw, fh, 20, False, scale))
+                if os.path.exists(hurt_p):
+                    self.anim_manager.add_animation("hurt", load_spritesheet(hurt_p, fw, fh, 12, False, scale))
         
         self.anim_manager.play("idle")
-        
         self.is_attacking = False
         self.is_dead = False
         
@@ -464,7 +535,8 @@ class Player:
         if self.is_down_attacking:
             return pygame.FRect(self.rect.x - 12, self.rect.bottom - 10, self.rect.width + 24, 38)
             
-        if not self.is_attacking:
+        # Mages attack exclusively through magic projectiles, no melee sword collision
+        if not self.is_attacking or self.archetype == "mage":
             return None
         
         hitbox_width = 44
@@ -477,14 +549,15 @@ class Player:
             
     def trigger_aoe_damage(self, enemies: list, camera = None):
         """Applies radial AoE damage to all enemies in range if casting AoE, Plunge landing, or Ultimate."""
-        # 1. Whirlwind AoE Skill (Costs 35 MP - buffed damage)
+        # 1. Whirlwind / Special AoE Skill
         if self.is_casting_aoe and not self.aoe_hit_done:
             self.aoe_hit_done = True
+            dmg = self.profile.skills["e"].damage if hasattr(self, "profile") and "e" in self.profile.skills else 5
             for e in enemies:
                 if not e.is_dead:
                     dist = pygame.math.Vector2(e.rect.center).distance_to(pygame.math.Vector2(self.rect.center))
                     if dist <= self.aoe_radius:
-                        e.take_damage(5)
+                        e.take_damage(dmg)
                         # Knockback
                         e.velocity.y = -220
                         e.velocity.x = 260 if e.rect.centerx > self.rect.centerx else -260
@@ -512,9 +585,8 @@ class Player:
                         e.take_damage(4)
                         e.velocity.y = -120
                         
-        # 4. Ultimate Skill Screen-Clearing Devastation & Continuous Enemy Slow (Costs 100 MP - Devastating 80 Damage)
+        # 4. Ultimate Skill Screen-Clearing Devastation & Continuous Enemy Slow
         if self.is_casting_ultimate:
-            # Continuously apply slow to all active enemies during ultimate
             for e in enemies:
                 if not e.is_dead and hasattr(e, "apply_slow"):
                     e.apply_slow(duration=2.5, factor=0.25)
@@ -523,28 +595,29 @@ class Player:
                 self.ultimate_hit_done = True
                 if camera:
                     camera.shake(20.0, 0.75)
+                ult_dmg = self.profile.skills["r"].damage if hasattr(self, "profile") and "r" in self.profile.skills else 80
                 for e in enemies:
                     if not e.is_dead:
                         dist = pygame.math.Vector2(e.rect.center).distance_to(pygame.math.Vector2(self.rect.center))
                         if dist <= 460:
-                            e.take_damage(80) # Devastating Ultimate damage
+                            e.take_damage(ult_dmg)
                             e.velocity.y = -350
                             e.velocity.x = 420 if e.rect.centerx > self.rect.centerx else -420
         
     def _update_animation(self, dt: float):
-        # Mana regeneration (slowed down to 2.5 MP per second)
+        # Character-specific mana regeneration
         if self.mana < self.max_mana:
-            self.mana = min(self.max_mana, self.mana + 2.5 * dt)
+            self.mana = min(self.max_mana, self.mana + self.mana_regen * dt)
             
         if self.is_dead:
             self.anim_manager.play("dead")
         elif self.is_casting_ultimate:
             if self.ultimate_timer < 0.35:
-                self.anim_manager.play("guard") # Gathering celestial power
+                self.anim_manager.play("guard") # Gathering power
             elif self.ultimate_timer < 0.95:
-                self.anim_manager.play("whirlwind") # Blistering spin slashes
+                self.anim_manager.play("whirlwind") # Blistering slashes / storm
             else:
-                self.anim_manager.play("heavy_slash") # Finisher downward cleave
+                self.anim_manager.play("heavy_slash") # Finisher cleave
         elif self.is_casting_magic:
             self.anim_manager.play("cast_magic")
         elif self.is_dashing:
@@ -557,7 +630,8 @@ class Player:
             self.anim_manager.play("whirlwind")
         elif self.is_blocking:
             self.anim_manager.play("guard")
-            self.shield_anim.update(dt)
+            if self.shield_anim:
+                self.shield_anim.update(dt)
         elif self.is_attacking:
             self.anim_manager.play("attack")
         elif not self.on_ground:
@@ -605,9 +679,10 @@ class Player:
             self.velocity.y = max(self.velocity.y, 850)
             return
 
-        # Ultimate Skill [R] - Devastating Celestial Cleave (costs 100 MP)
+        # Ultimate Skill [R]
         if INPUT.is_action_just_pressed("ULTIMATE") and not self.is_attacking and not self.is_blocking and not self.is_dashing and not self.is_casting_magic:
-            if self.mana >= 100:
+            ult_cost = self.profile.skills["r"].cost_value if hasattr(self, "profile") else 100
+            if self.mana >= ult_cost:
                 self.mana = 0.0 # Drains all mana
                 self.is_casting_ultimate = True
                 self.ultimate_timer = 0.0
@@ -624,7 +699,7 @@ class Player:
                 self.ultimate_flare_timer = 0.0
                 return
 
-        # Dash [Q] - Reduced stamina cost to 12 SP
+        # Dash [Q]
         if INPUT.is_action_just_pressed("DASH") and not self.is_dashing and self.dash_cooldown <= 0 and self.stamina >= 12:
             self.stamina -= 12
             self.is_dashing = True
@@ -641,28 +716,41 @@ class Player:
         if self.is_dashing:
             return
             
-        # Whirlwind Tempest Skill [E]
+        # Skill [E] - AoE Nova / Whirlwind
         if INPUT.is_action_just_pressed("SKILL_AOE") and not self.is_casting_aoe and not self.is_attacking and not self.is_blocking:
-            if self.mana >= 35:
-                self.mana -= 35
-                self.is_casting_aoe = True
-                self.aoe_timer = 0.6
-                self.aoe_hit_done = False
-                self.anim_manager.play("whirlwind", force_reset=True)
-                
-        # Blocking [Shift] - Reduced stamina drain to 8 SP/s
-        if INPUT.is_action_pressed("DEFEND") and self.stamina > 0:
+            e_skill = self.profile.skills.get("e", None)
+            if e_skill:
+                can_cast = (self.mana >= e_skill.cost_value) if e_skill.cost_type == "MP" else (self.stamina >= e_skill.cost_value)
+                if can_cast:
+                    if e_skill.cost_type == "MP":
+                        self.mana -= e_skill.cost_value
+                    else:
+                        self.stamina -= e_skill.cost_value
+                    self.is_casting_aoe = True
+                    self.aoe_timer = 0.6
+                    self.aoe_hit_done = False
+                    self.anim_manager.play("whirlwind", force_reset=True)
+                    
+        # Blocking / Guard [Shift]
+        shift_skill = self.profile.skills.get("shift", None)
+        shift_cost = shift_skill.cost_value if shift_skill else 8
+        is_mage = (self.archetype == "mage")
+        can_block = (self.mana > 1) if is_mage else (self.stamina > 1)
+        
+        if INPUT.is_action_pressed("DEFEND") and can_block:
             self.is_blocking = True
-            self.stamina -= 8 * dt # Drain 8 stamina per second (reduced from 20)
-            self.velocity.x = 0 # Cannot move while blocking
-            return # Skip other inputs
+            if is_mage:
+                self.mana = max(0.0, self.mana - shift_cost * dt)
+            else:
+                self.stamina = max(0.0, self.stamina - shift_cost * dt)
+            self.velocity.x = 0
+            return
         else:
             self.is_blocking = False
-            # Regenerate stamina slowly
-            self.stamina = min(100.0, self.stamina + 8 * dt)
+            # Regenerate stamina
+            self.stamina = min(self.max_stamina, self.stamina + self.stamina_regen * dt)
             
         if self.is_attacking:
-            # Stop horizontal movement while attacking on ground
             if self.on_ground:
                 self.velocity.x *= FRICTION
                 if abs(self.velocity.x) < 5:
@@ -674,7 +762,7 @@ class Player:
         
         if axis.x != 0:
             self.velocity.x += axis.x * ACCELERATION * dt
-            self.velocity.x = clamp(self.velocity.x, -MAX_SPEED, MAX_SPEED)
+            self.velocity.x = clamp(self.velocity.x, -self.speed, self.speed)
             self.facing_right = axis.x > 0
         else:
             # Apply friction
@@ -685,32 +773,50 @@ class Player:
         # Jumping
         if INPUT.is_action_just_pressed("JUMP") and not self.is_blocking:
             if self.on_ground:
-                self.velocity.y = JUMP_FORCE
+                self.velocity.y = self.jump_speed
                 self.on_ground = False
                 self.can_double_jump = True
             elif self.can_double_jump:
-                self.velocity.y = JUMP_FORCE * 0.82
+                self.velocity.y = self.jump_speed * 0.82
                 self.can_double_jump = False
                 
-        # Ground Attack [J / X] - Consumes 8 stamina per swing!
+        # Ground Attack [J]
         if INPUT.is_action_just_pressed("ATTACK") and not self.is_attacking and not self.is_blocking:
-            if self.stamina >= 8:
-                self.stamina -= 8
-                self.is_attacking = True
-                self.anim_manager.play("attack", force_reset=True)
+            j_skill = self.profile.skills.get("j", None)
+            if j_skill:
+                is_mp = (j_skill.cost_type == "MP")
+                can_cast = (self.mana >= j_skill.cost_value) if is_mp else (self.stamina >= j_skill.cost_value)
+                if can_cast:
+                    if is_mp:
+                        self.mana -= j_skill.cost_value
+                    else:
+                        self.stamina -= j_skill.cost_value
+                    self.is_attacking = True
+                    self.anim_manager.play("attack", force_reset=True)
+                    
+                    # Mages shoot basic projectile on [J]
+                    if self.archetype == "mage":
+                        from entities.projectile import Projectile
+                        proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
+                        proj_y = self.rect.centery - 8
+                        ptype = j_skill.projectile_type or "arcane_bolt"
+                        self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type=ptype))
             
-        # Magic Projectile [K / C] - Costs 50 MP, has cast animation and fiery conjuration VFX
+        # Skill [K] - Ranged Projectile / Technique
         if INPUT.is_action_just_pressed("MAGIC") and not self.is_attacking and not self.is_blocking and not self.is_casting_magic and not self.is_casting_ultimate:
-            if self.mana >= 50:
-                self.mana -= 50
+            k_skill = self.profile.skills.get("k", None)
+            if k_skill and self.mana >= k_skill.cost_value:
+                self.mana -= k_skill.cost_value
                 self.is_casting_magic = True
                 self.magic_cast_timer = 0.32
                 self.magic_sigil_timer = 0.38
                 self.anim_manager.play("cast_magic", force_reset=True)
+                
                 from entities.projectile import Projectile
                 proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
                 proj_y = self.rect.centery - 8
-                self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type="fireball"))
+                ptype = k_skill.projectile_type or "fireball"
+                self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type=ptype))
                 
     def _apply_physics(self, dt: float, tiles: list[pygame.FRect]):
         if not self.is_dashing:
@@ -745,7 +851,7 @@ class Player:
                     self.rect.bottom = tile.top
                     self.on_ground = True
                     
-                    # If was diving with plunge attack, plant sword in ground with shockwave!
+                    # If was diving with plunge attack, plant weapon in ground with shockwave!
                     if self.is_down_attacking:
                         self.is_down_attacking = False
                         self.is_landing_plunge = True
@@ -763,28 +869,23 @@ class Player:
                 
     def take_damage(self, amount: int):
         if self.is_blocking or self.is_dashing or self.is_casting_ultimate:
-            return # 100% Blocked or Phased during Dash / Ultimate!
+            return
             
-        if not self.invulnerable and not self.is_dead:
+        if not self.invulnerable:
             self.health -= amount
+            self.invulnerable = True
+            self.invulnerability_timer = 0.8
             if self.health <= 0:
                 self.health = 0
                 self.is_dead = True
-                self.velocity.y = -150
-                self.velocity.x = -100 if self.facing_right else 100
                 self.anim_manager.play("dead", force_reset=True)
-            else:
-                self.invulnerable = True
-                self.invulnerability_timer = 1.0 # 1 second of i-frames
-                self.velocity.y = -150
-                self.velocity.x = -100 if self.facing_right else 100
-
-    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2 = pygame.math.Vector2(0, 0)):
-        # 1. Draw Impact Smokes (Dust clouds on floor)
+                
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        # 1. Draw Impact Smokes (Plunge VFX)
         for s in self.impact_smokes:
             s.draw(surface, camera_offset)
             
-        # 2. Draw After-Images (Ghost trail)
+        # 2. Draw Dash After-Images (Ghost trail)
         for ghost in self.after_images:
             ghost.draw(surface, camera_offset)
             
@@ -792,8 +893,9 @@ class Player:
         if self.mana >= 100 and not self.is_dead and not self.is_casting_ultimate:
             pulse_rad = int(32 + 3 * math.sin(pygame.time.get_ticks() * 0.006))
             aura_surf = pygame.Surface((pulse_rad * 2, pulse_rad * 2), pygame.SRCALPHA)
-            pygame.draw.circle(aura_surf, (255, 220, 90, 20), (pulse_rad, pulse_rad), pulse_rad)
-            pygame.draw.circle(aura_surf, (255, 240, 150, 45), (pulse_rad, pulse_rad), pulse_rad, width=2)
+            col = getattr(self.profile, "color_theme", (255, 220, 90))
+            pygame.draw.circle(aura_surf, (*col, 20), (pulse_rad, pulse_rad), pulse_rad)
+            pygame.draw.circle(aura_surf, (*col, 45), (pulse_rad, pulse_rad), pulse_rad, width=2)
             surface.blit(aura_surf, (self.rect.centerx - camera_offset.x - pulse_rad, self.rect.centery - camera_offset.y - pulse_rad), special_flags=pygame.BLEND_RGBA_ADD)
 
         # 4. Ultimate Visual Sequence (Subtle cinematic dimming, ground rune & clean shockwaves)
@@ -828,10 +930,11 @@ class Player:
 
         img = self.anim_manager.get_current_frame()
         
-        # Calculate rendering position (+7 ground offset so feet touch ground squarely)
+        # Calculate rendering position
         img_rect = img.get_rect()
         draw_x = self.rect.centerx - camera_offset.x - img_rect.width / 2
-        draw_y = self.rect.bottom - camera_offset.y - img_rect.height + 7
+        ground_off = getattr(self.profile, "ground_offset_y", 7)
+        draw_y = self.rect.bottom - camera_offset.y - img_rect.height + ground_off
         
         if not self.facing_right:
             img = pygame.transform.flip(img, True, False)
@@ -840,19 +943,35 @@ class Player:
         if self.is_dashing or self.is_casting_ultimate or not self.invulnerable or int(self.invulnerability_timer * 10) % 2 == 0:
             surface.blit(img, (draw_x, draw_y))
             
-            # Draw magical shield effect in front of player when blocking
+            # Draw magical barrier or shield effect when blocking
             if self.is_blocking:
-                shield_frame = self.shield_anim.get_current_frame()
-                if shield_frame:
-                    if not self.facing_right:
-                        shield_frame = pygame.transform.flip(shield_frame, True, False)
-                    shield_rect = shield_frame.get_rect()
-                    s_offset_x = 24 if self.facing_right else -24
-                    s_x = self.rect.centerx - camera_offset.x + s_offset_x - shield_rect.width / 2
-                    s_y = self.rect.centery - camera_offset.y - shield_rect.height / 2 + 7
-                    surface.blit(shield_frame, (s_x, s_y))
+                if self.archetype == "mage":
+                    rad = 36
+                    bar_surf = pygame.Surface((rad * 2 + 8, rad * 2 + 8), pygame.SRCALPHA)
+                    bc = rad + 4
+                    col = self.profile.color_theme
+                    pygame.draw.circle(bar_surf, (*col, 55), (bc, bc), rad)
+                    pygame.draw.circle(bar_surf, (255, 255, 255, 200), (bc, bc), rad, 2)
+                    pygame.draw.circle(bar_surf, (*col, 160), (bc, bc), max(1, rad - 3), 1)
+                    t_rot = pygame.time.get_ticks() * 0.005
+                    for i in range(6):
+                        ang = t_rot + i * (math.pi / 3)
+                        px = bc + int(math.cos(ang) * (rad - 5))
+                        py = bc + int(math.sin(ang) * (rad - 5))
+                        pygame.draw.circle(bar_surf, (255, 255, 255, 220), (px, py), 2)
+                    surface.blit(bar_surf, (self.rect.centerx - camera_offset.x - bc, self.rect.centery - camera_offset.y - bc), special_flags=pygame.BLEND_RGBA_ADD)
+                elif self.shield_anim:
+                    shield_frame = self.shield_anim.get_current_frame()
+                    if shield_frame:
+                        if not self.facing_right:
+                            shield_frame = pygame.transform.flip(shield_frame, True, False)
+                        shield_rect = shield_frame.get_rect()
+                        s_offset_x = 24 if self.facing_right else -24
+                        s_x = self.rect.centerx - camera_offset.x + s_offset_x - shield_rect.width / 2
+                        s_y = self.rect.centery - camera_offset.y - shield_rect.height / 2 + 7
+                        surface.blit(shield_frame, (s_x, s_y))
 
-        # 5. Fireball [K] Arcane Conjuration Sigil at hand
+        # 5. Magic Conjuration Sigil at hand
         if self.magic_sigil_timer > 0:
             sig_t = self.magic_sigil_timer / 0.38
             sig_alpha = int(220 * sig_t)
@@ -862,15 +981,16 @@ class Player:
             hy = self.rect.centery - camera_offset.y - 8
             sig_surf = pygame.Surface((sig_rad * 2 + 8, sig_rad * 2 + 8), pygame.SRCALPHA)
             sc = sig_rad + 4
-            pygame.draw.circle(sig_surf, (255, 140, 40, sig_alpha), (sc, sc), sig_rad, 2)
-            pygame.draw.circle(sig_surf, (255, 230, 100, int(sig_alpha * 0.7)), (sc, sc), max(1, sig_rad - 4), 1)
+            sig_col = getattr(self.profile, "color_theme", (255, 140, 40))
+            pygame.draw.circle(sig_surf, (*sig_col, sig_alpha), (sc, sc), sig_rad, 2)
+            pygame.draw.circle(sig_surf, (255, 255, 255, int(sig_alpha * 0.7)), (sc, sc), max(1, sig_rad - 4), 1)
             for i in range(4):
                 ang = (1.0 - sig_t) * 3.5 + i * (math.pi / 2)
                 sp_x = sc + int(math.cos(ang) * sig_rad)
                 sp_y = sc + int(math.sin(ang) * sig_rad)
                 ep_x = sc - int(math.cos(ang) * sig_rad)
                 ep_y = sc - int(math.sin(ang) * sig_rad)
-                pygame.draw.line(sig_surf, (255, 200, 70, sig_alpha), (sp_x, sp_y), (ep_x, ep_y), 1)
+                pygame.draw.line(sig_surf, (*sig_col, sig_alpha), (sp_x, sp_y), (ep_x, ep_y), 1)
             surface.blit(sig_surf, (hx - sc, hy - sc), special_flags=pygame.BLEND_RGBA_ADD)
 
         # 6. Crisp Dimensional Blade Cleaves across screen

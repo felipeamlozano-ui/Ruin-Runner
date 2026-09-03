@@ -21,21 +21,43 @@ class HUD:
         self.font_cost = pygame.font.SysFont("Arial", 8, bold=True)
         self.font_boss = pygame.font.SysFont("Arial", 14, bold=True)
         
-        # Load Skill Icons from 32_free_fantasy_skills
-        skills_dir = os.path.join("assets", "sprites", "fantasy_skills", "64x64")
+        # Load Skill Icons from skills directory
+        skills_dir = os.path.join("assets", "sprites", "icons", "skills")
+        if not os.path.exists(skills_dir):
+            skills_dir = os.path.join("assets", "sprites", "fantasy_skills", "64x64")
+            
         self.skill_icons = {}
-        icon_map = {
-            "attack": ("human_combat_01.png", "J", "8 SP"),
-            "magic": ("arcane_magic_06.png", "K", "50 MP"),
-            "dash": ("elf_support_05.png", "Q", "12 SP"),
-            "aoe": ("arcane_combat_01.png", "E", "35 MP"),
-            "shield": ("human_defense_07.png", "Shift", "8 SP/s"),
-            "ultimate": ("demon_combat_12.png", "R", "100 MP")
-        }
+        prof = getattr(self.player, "profile", None)
+        if prof and hasattr(prof, "skills") and prof.skills:
+            j_s = prof.skills.get("j")
+            k_s = prof.skills.get("k")
+            e_s = prof.skills.get("e")
+            sh_s = prof.skills.get("shift")
+            r_s = prof.skills.get("r")
+            
+            icon_map = {
+                "attack": (j_s.icon_file if j_s else "human_combat_01.png", "J", f"{j_s.cost_value} {j_s.cost_type}" if j_s else "8 SP"),
+                "magic": (k_s.icon_file if k_s else "demon_magic_01.png", "K", f"{k_s.cost_value} {k_s.cost_type}" if k_s else "50 MP"),
+                "dash": ("elf_support_05.png", "Q", "12 SP"),
+                "aoe": (e_s.icon_file if e_s else "human_support_02.png", "E", f"{e_s.cost_value} {e_s.cost_type}" if e_s else "35 MP"),
+                "shield": (sh_s.icon_file if sh_s else "human_defense_07.png", "Shift", f"{sh_s.cost_value} {sh_s.cost_type}" if sh_s else "8 SP/s"),
+                "ultimate": (r_s.icon_file if r_s else "demon_combat_12.png", "R", f"{r_s.cost_value} {r_s.cost_type}" if r_s else "100 MP")
+            }
+        else:
+            icon_map = {
+                "attack": ("human_combat_01.png", "J", "8 SP"),
+                "magic": ("arcane_magic_06.png", "K", "50 MP"),
+                "dash": ("elf_support_05.png", "Q", "12 SP"),
+                "aoe": ("arcane_combat_01.png", "E", "35 MP"),
+                "shield": ("human_defense_07.png", "Shift", "8 SP/s"),
+                "ultimate": ("demon_combat_12.png", "R", "100 MP")
+            }
         
         slot_size = 28
         for key, (fname, hotkey, cost) in icon_map.items():
             p = os.path.join(skills_dir, fname)
+            if not os.path.exists(p):
+                p = os.path.join("assets", "sprites", "fantasy_skills", "64x64", fname)
             if os.path.exists(p):
                 img = pygame.image.load(p).convert_alpha()
                 scaled = pygame.transform.smoothscale(img, (slot_size, slot_size))
@@ -63,10 +85,10 @@ class HUD:
         
         # Value text
         val_surf = self.font_stat.render(value_text, True, (255, 255, 255))
-        surface.blit(val_surf, (x + width + 5, y - 1))
+        surface.blit(val_surf, (x + width - val_surf.get_width() - 4, y - 1))
 
     def draw(self, surface: pygame.Surface):
-        # 1. Main Player Stats Frame (Top-Left)
+        # 1. Player Status Glassmorphic Panel (Top-Left)
         panel_x, panel_y = 12, 10
         panel_w, panel_h = 210, 62
         
@@ -96,8 +118,9 @@ class HUD:
         )
         
         # Stamina Bar (SP)
-        sp_ratio = self.player.stamina / 100.0
-        sp_text = f"{int(self.player.stamina)}/100"
+        max_sp = float(getattr(self.player, "max_stamina", 100.0))
+        sp_ratio = self.player.stamina / max(1.0, max_sp)
+        sp_text = f"{int(self.player.stamina)}/{int(max_sp)}"
         self.draw_bar(
             surface, panel_x + 28, panel_y + 42, 120, 11, sp_ratio,
             (35, 190, 70), (120, 245, 140), (12, 45, 20), "SP", sp_text
@@ -114,7 +137,8 @@ class HUD:
             sy = hotbar_y
             
             is_ult = (s_key == "ultimate")
-            ult_ready = is_ult and (self.player.mana >= 100.0)
+            ult_cost = float(getattr(self.player, "max_mana", 100.0))
+            ult_ready = is_ult and (self.player.mana >= ult_cost * 0.95)
             
             # Slot background
             s_bg = pygame.Surface((slot_w, slot_h), pygame.SRCALPHA)

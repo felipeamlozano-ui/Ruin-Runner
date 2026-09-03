@@ -277,6 +277,52 @@ def test_all():
         boss_sc.draw(surf)
     print("BossScene with Dynamic Lights simulation verified!")
 
+    print("\n=== Testing Multi-Character Class System & CharacterSelectScene ===")
+    from entities.character_data import CHARACTER_REGISTRY, CHARACTER_ORDER, get_character_profile
+    from scenes.character_select_scene import CharacterSelectScene
+    from scenes.main_menu import MainMenuScene
+
+    assert len(CHARACTER_ORDER) == 7, "Must have exactly 7 playable characters registered!"
+    
+    # Check each character profile and animations
+    for cid in CHARACTER_ORDER:
+        prof = get_character_profile(cid)
+        assert prof.id == cid
+        assert len(prof.skills) >= 5, f"Character {cid} must have at least 5 skills defined!"
+        
+        p = Player(100, 100, character_id=cid)
+        assert p.character_id == cid
+        assert p.max_health == prof.hp_max
+        assert p.max_mana == prof.mp_max
+        assert p.archetype == prof.archetype
+        
+        # Test core animations exist
+        for a_name in ["idle", "walk", "attack", "cast_magic", "whirlwind", "guard", "jump", "fall", "dash"]:
+            p.anim_manager.play(a_name, force_reset=True)
+            frame = p.anim_manager.get_current_frame()
+            assert frame is not None, f"Missing frame for {cid} animation {a_name}"
+            
+        print(f"Verified profile & 9 animations for: {prof.name} ({prof.title}) - {prof.archetype}")
+
+    # Test CharacterSelectScene & Interactive Dojo Move Tester
+    cs_scene = CharacterSelectScene(sm)
+    cs_scene.update(0.016)
+    cs_scene.draw(surf)
+    
+    for idx in range(len(CHARACTER_ORDER)):
+        cs_scene._select_character(idx)
+        for move_key in ["j", "k", "e", "shift", "q", "r", "space"]:
+            cs_scene._trigger_dojo_move(move_key)
+            cs_scene.update(0.016)
+            cs_scene.draw(surf)
+    print("Interactive CharacterSelectScene Dojo move tester verified for all 7 characters!")
+
+    # Verify Main Menu has Selecionar Personagem option
+    menu_sc = MainMenuScene(sm)
+    option_titles = [opt.text for opt in menu_sc.menu.options]
+    assert "Selecionar Personagem" in option_titles, "Main Menu must contain 'Selecionar Personagem' option!"
+    print("Main Menu 'Selecionar Personagem' integration verified!")
+
     print("\n==========================================")
     print(">>> ALL UNIT & INTEGRATION TESTS PASSED! <<<")
     print("==========================================")

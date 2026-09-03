@@ -12,9 +12,10 @@ class MainMenuScene(Scene):
         self.scene_manager = scene_manager
         
         self.menu = Menu("RUIN RUNNER", [
-            MenuOption("New Game", self.start_game),
-            MenuOption("Settings", self.open_settings),
-            MenuOption("Quit", self.quit_game)
+            MenuOption("Novo Jogo", self.start_game),
+            MenuOption("Selecionar Personagem", self.open_character_select),
+            MenuOption("Configurações", self.open_settings),
+            MenuOption("Sair", self.quit_game)
         ])
         
         # Retro animated background setup (placeholder logic)
@@ -28,9 +29,13 @@ class MainMenuScene(Scene):
             self.scene_manager,
             lvl1,
             title="FASE 1: AS CATACUMBAS",
-            tip="Dica: Use [Shift] para erguer o escudo e bloquear danos!"
+            tip="Dica: Use [Shift] para erguer o escudo ou barreira e bloquear danos!"
         )
         self.scene_manager.change_scene(loading)
+        
+    def open_character_select(self):
+        from scenes.character_select_scene import CharacterSelectScene
+        self.scene_manager.change_scene(CharacterSelectScene(self.scene_manager, self))
         
     def open_settings(self):
         from scenes.settings_menu import SettingsMenuScene

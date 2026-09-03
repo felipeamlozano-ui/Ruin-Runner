@@ -30,6 +30,9 @@ class Settings:
     DYNAMIC_LIGHTS: bool = True     # Point lights on fireballs, portal, and player
     AMBIENT_PARTICLES: bool = True  # Windblown leaves in forest & glowing embers in dungeons
     VIGNETTE_ENABLED: bool = True   # Cinematic border darkening
+    
+    # Gameplay & Character Selection
+    CURRENT_CHARACTER: str = "shaia"  # "shaia", "lunaria", "ignis", "astra", "shinobi", "samurai", "fighter"
 
 # Global Settings Instance
 SETTINGS = Settings()
