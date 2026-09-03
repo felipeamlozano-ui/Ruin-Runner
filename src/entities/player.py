@@ -404,7 +404,7 @@ class Player:
                 self.ultimate_shockwave_active = True
                 self.ultimate_shockwave_pos = (self.rect.centerx, self.rect.bottom)
                 self.ultimate_shockwave_timer = 0.8
-                self.ultimate_shockwave_anim.play("vfx_ground_shock", force_reset=True)
+                self.ultimate_shockwave_anim.reset()
                 return
 
         # Dash [Q] - Reduced stamina cost to 12 SP

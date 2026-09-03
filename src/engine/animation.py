@@ -35,6 +35,9 @@ class Animation:
         self.timer = 0.0
         self.finished = False
         
+    def play(self, *args, **kwargs):
+        self.reset()
+        
     def is_finished(self, *args, **kwargs) -> bool:
         return self.finished
         
