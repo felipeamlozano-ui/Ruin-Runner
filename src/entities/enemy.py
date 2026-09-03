@@ -18,6 +18,14 @@ class Enemy:
         
         self.anim_manager = AnimationManager()
         self.state = "IDLE"
+        self.slow_timer = 0.0
+        self.slow_factor = 1.0
+
+    def apply_slow(self, duration: float = 2.5, factor: float = 0.25):
+        """Applies slow-motion status effect from player Ultimate skill."""
+        if not self.is_dead:
+            self.slow_timer = max(self.slow_timer, duration)
+            self.slow_factor = factor
 
     def take_damage(self, amount: int):
         if self.is_dead:
@@ -38,12 +46,18 @@ class Enemy:
         self.state = new_state
         
     def _apply_physics(self, dt: float, tiles: list[pygame.FRect]):
+        if self.slow_timer > 0:
+            self.slow_timer -= dt
+            effective_dt = dt * self.slow_factor
+        else:
+            effective_dt = dt
+            
         # Apply Gravity
-        self.velocity.y += GRAVITY
+        self.velocity.y += GRAVITY * (self.slow_factor if self.slow_timer > 0 else 1.0)
         self.velocity.y = min(self.velocity.y, MAX_FALL_SPEED)
         
         # Move X
-        self.pos.x += self.velocity.x * dt
+        self.pos.x += self.velocity.x * effective_dt
         self.rect.x = self.pos.x
         
         # Collide X
@@ -58,7 +72,7 @@ class Enemy:
                 break
                 
         # Move Y
-        self.pos.y += self.velocity.y * dt
+        self.pos.y += self.velocity.y * effective_dt
         self.rect.y = self.pos.y
         
         self.on_ground = False
@@ -90,7 +104,13 @@ class Enemy:
         if not self.facing_right:
             img = pygame.transform.flip(img, True, False)
             
-        surface.blit(img, (draw_x, draw_y))
+        # Draw icy tint when slowed
+        if self.slow_timer > 0 and not self.is_dead:
+            tinted = img.copy()
+            tinted.fill((130, 205, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            surface.blit(tinted, (draw_x, draw_y))
+        else:
+            surface.blit(img, (draw_x, draw_y))
 
 
 class Skeleton(Enemy):
@@ -201,7 +221,8 @@ class Skeleton(Enemy):
                     
 
         self._apply_physics(dt, tiles)
-        self.anim_manager.update(dt)
+        anim_dt = dt * (self.slow_factor if self.slow_timer > 0 else 1.0)
+        self.anim_manager.update(anim_dt)
 
 class MageSkeleton(Skeleton):
     def __init__(self, x: float, y: float):
@@ -274,7 +295,8 @@ class MageSkeleton(Skeleton):
                         self.anim_manager.play("walk")
 
         self._apply_physics(dt, tiles)
-        self.anim_manager.update(dt)
+        anim_dt = dt * (self.slow_factor if self.slow_timer > 0 else 1.0)
+        self.anim_manager.update(anim_dt)
         
     def get_attack_hitbox(self) -> pygame.FRect:
         # Mage skeleton doesn't do melee damage
@@ -292,9 +314,12 @@ class MageSkeleton(Skeleton):
         if not self.facing_right:
             img = pygame.transform.flip(img, True, False)
             
-        # Tint mage skeleton purple to distinguish from regular skeleton
+        # Tint mage skeleton purple to distinguish; if slowed, tint icy cyan
         tinted = img.copy()
-        tinted.fill((200, 100, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        if self.slow_timer > 0 and not self.is_dead:
+            tinted.fill((120, 190, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        else:
+            tinted.fill((200, 100, 255), special_flags=pygame.BLEND_RGBA_MULT)
         surface.blit(tinted, (draw_x, draw_y))
 
 
@@ -379,7 +404,8 @@ class WildBoar(Enemy):
                     self.velocity.x = self.charge_speed * self.patrol_dir
                     
         self._apply_physics(dt, tiles)
-        self.anim_manager.update(dt)
+        anim_dt = dt * (self.slow_factor if self.slow_timer > 0 else 1.0)
+        self.anim_manager.update(anim_dt)
         
     def get_attack_hitbox(self) -> pygame.FRect:
         # Full body attack during charge

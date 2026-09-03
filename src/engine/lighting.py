@@ -132,41 +132,8 @@ class LightingEngine:
                 p.update(dt, SETTINGS.GAME_WIDTH * 3, SETTINGS.GAME_HEIGHT)
 
     def draw_god_rays(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
-        """Renders subtle, soft volumetric light shafts (God Rays) casting down through canopy/windows."""
-        if not SETTINGS.RAYTRACING_ENABLED:
-            return
-            
-        gw = SETTINGS.GAME_WIDTH
-        ground_y = 338 # Stop gracefully right above the grass line
-        ray_surface = pygame.Surface((gw, ground_y), pygame.SRCALPHA)
-        
-        if self.theme == "forest":
-            base_color = (255, 235, 170) # Warm morning sun
-            angle_rad = math.radians(22) # 22 degrees downward slant
-        else:
-            base_color = (150, 195, 255) # Ethereal moonlight
-            angle_rad = math.radians(16)
-            
-        dx = math.tan(angle_rad) * ground_y
-        
-        # Draw rays with soft alpha pulse (delicate, non-intrusive cinematic light)
-        for i in range(self.num_rays):
-            base_x = (i * 110 + 20) - (camera_offset.x * 0.22) % (gw + 140)
-            width = self.ray_widths[i] * 0.8
-            pulse = math.sin(self.time * 1.2 + i * 1.4) * 0.15 + 0.85
-            # Soft, delicate translucent alpha for cinematic ray tracing
-            alpha = max(14, int(36 * pulse))
-            
-            top_left = (base_x, 0)
-            top_right = (base_x + width, 0)
-            bottom_right = (base_x + width + dx, ground_y)
-            bottom_left = (base_x + dx, ground_y)
-            
-            color = (*base_color, alpha)
-            pygame.draw.polygon(ray_surface, color, [top_left, top_right, bottom_right, bottom_left])
-            
-        # Blit with standard alpha blend for soft, atmospheric cinematic light
-        surface.blit(ray_surface, (0, 0))
+        """God rays removed per user request to improve visual clarity and interaction."""
+        return
 
     def draw_point_lights(self, surface: pygame.Surface, lights: list[LightSource], camera_offset: pygame.math.Vector2):
         """Draws dynamic point lights (fireballs, player aura, torches) with soft radiance."""

@@ -54,6 +54,9 @@ class SkeletonBoss:
         self.enraged = False
         self.hit_count = 0
         self.potions_to_spawn = []
+        self.potion_dropped_50 = False # Drop only 1 potion at 50% HP
+        self.slow_timer = 0.0
+        self.slow_factor = 1.0
         
         # Boss Combat & AI State
         self.state = "IDLE" # IDLE, CHASE, ATTACK, FLAME_BURST, JUMP_SLAM, SHADOW_STEP, ROAR
@@ -95,6 +98,12 @@ class SkeletonBoss:
         
         self.anim_manager.play("idle")
         
+    def apply_slow(self, duration: float = 2.5, factor: float = 0.35):
+        """Applies slow-motion status effect from player Ultimate skill."""
+        if not self.is_dead:
+            self.slow_timer = max(self.slow_timer, duration)
+            self.slow_factor = factor
+
     def take_damage(self, amount: int):
         if self.is_dead or self.state == "SHADOW_STEP":
             return
@@ -102,8 +111,9 @@ class SkeletonBoss:
         self.health -= amount
         self.hit_count += 1
         
-        # Drop a healing potion every 30 hits with bouncing physics!
-        if self.hit_count % 30 == 0:
+        # Drop ONLY ONE healing potion when health drops to 50% or below per user request!
+        if self.health <= self.max_health // 2 and not self.potion_dropped_50:
+            self.potion_dropped_50 = True
             self.potions_to_spawn.append((self.rect.centerx, self.rect.centery - 20))
             
         if self.health <= 0:
@@ -133,11 +143,17 @@ class SkeletonBoss:
                 self.minions_to_spawn.extend([("mage", self.rect.x - 160), ("mage", self.rect.x + 160)])
 
     def update(self, dt: float, tiles: list[pygame.FRect], player = None):
-        self.anim_manager.update(dt)
+        if self.slow_timer > 0:
+            self.slow_timer -= dt
+            effective_dt = dt * self.slow_factor
+        else:
+            effective_dt = dt
+            
+        self.anim_manager.update(effective_dt)
         
         if self.smoke_active:
-            self.smoke_anim.update(dt)
-            self.smoke_timer -= dt
+            self.smoke_anim.update(effective_dt)
+            self.smoke_timer -= effective_dt
             if self.smoke_timer <= 0 or self.smoke_anim.finished:
                 self.smoke_active = False
                 
@@ -335,8 +351,12 @@ class SkeletonBoss:
         if not self.facing_right:
             img = pygame.transform.flip(img, True, False)
             
-        # If enraged, tint slightly red/purple
-        if self.enraged and not self.is_dead:
+        # If slowed by ultimate, tint icy cyan; if enraged, tint red/purple
+        if self.slow_timer > 0 and not self.is_dead:
+            tinted = img.copy()
+            tinted.fill((140, 205, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            surface.blit(tinted, (draw_x, draw_y))
+        elif self.enraged and not self.is_dead:
             tinted = img.copy()
             tinted.fill((255, 120, 120), special_flags=pygame.BLEND_RGBA_MULT)
             surface.blit(tinted, (draw_x, draw_y))

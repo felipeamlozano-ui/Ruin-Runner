@@ -31,7 +31,6 @@ class SettingsMenuScene(Scene):
         self.options = [
             ("Resolução", res_text, self.toggle_resolution),
             ("Modo de Tela", fs_text, self.toggle_fullscreen),
-            ("Ray Tracing Leve", rt_text, self.toggle_raytracing),
             ("Iluminação Dinâmica", dl_text, self.toggle_dynamic_lights),
             ("Partículas de Ambiente", pt_text, self.toggle_ambient_particles),
             ("Anti-Aliasing", aa_text, self.toggle_antialiasing),

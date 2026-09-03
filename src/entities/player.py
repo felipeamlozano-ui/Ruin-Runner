@@ -229,8 +229,11 @@ class Player:
         # Update Ultimate Skill State
         if self.is_casting_ultimate:
             self.ultimate_timer += dt
+            # Absolute invulnerability while power persists
             self.invulnerable = True
             self.invulnerability_timer = 0.5
+            self.velocity.x = 0
+            self.velocity.y = min(self.velocity.y, 0)
             
             # Spawn phantom blade slashes during phase 1 (0.30s to 1.15s)
             if 0.30 <= self.ultimate_timer <= 1.15 and random.random() < 0.65:
@@ -251,6 +254,8 @@ class Player:
                     
             if self.ultimate_timer >= 1.35:
                 self.is_casting_ultimate = False
+                self.invulnerable = True
+                self.invulnerability_timer = 0.5 # Grace period after ultimate ends
                 
         # Update active Ultimate slashes
         for slash in self.ultimate_slashes[:]:
@@ -315,18 +320,24 @@ class Player:
                         e.take_damage(2)
                         e.velocity.y = -120
                         
-        # 4. Ultimate Skill Screen-Clearing Devastation
-        if self.is_casting_ultimate and not self.ultimate_hit_done and self.ultimate_timer >= 0.45:
-            self.ultimate_hit_done = True
-            if camera:
-                camera.shake(16.0, 0.65)
+        # 4. Ultimate Skill Screen-Clearing Devastation & Continuous Enemy Slow
+        if self.is_casting_ultimate:
+            # Continuously apply slow to all active enemies during ultimate
             for e in enemies:
-                if not e.is_dead:
-                    dist = pygame.math.Vector2(e.rect.center).distance_to(pygame.math.Vector2(self.rect.center))
-                    if dist <= 380:
-                        e.take_damage(15) # Devastating Ultimate damage
-                        e.velocity.y = -320
-                        e.velocity.x = 350 if e.rect.centerx > self.rect.centerx else -350
+                if not e.is_dead and hasattr(e, "apply_slow"):
+                    e.apply_slow(duration=2.5, factor=0.25)
+                    
+            if not self.ultimate_hit_done and self.ultimate_timer >= 0.45:
+                self.ultimate_hit_done = True
+                if camera:
+                    camera.shake(16.0, 0.65)
+                for e in enemies:
+                    if not e.is_dead:
+                        dist = pygame.math.Vector2(e.rect.center).distance_to(pygame.math.Vector2(self.rect.center))
+                        if dist <= 380:
+                            e.take_damage(15) # Devastating Ultimate damage
+                            e.velocity.y = -320
+                            e.velocity.x = 350 if e.rect.centerx > self.rect.centerx else -350
         
     def _update_animation(self, dt: float):
         # Mana regeneration (slowed down to 2.5 MP per second)

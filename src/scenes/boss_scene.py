@@ -113,7 +113,7 @@ class BossScene(Scene):
                     self.projectiles.append(e.projectiles.pop(0))
             
             # Simple Combat Logic (Melee / Body)
-            if not self.player.is_dashing and not e.is_dead:
+            if not self.player.is_dashing and not self.player.is_casting_ultimate and not e.is_dead:
                 attack_hitbox = getattr(e, "get_attack_hitbox", lambda: None)()
                 if attack_hitbox and attack_hitbox.colliderect(self.player.rect):
                     self.player.take_damage(1)
@@ -136,7 +136,7 @@ class BossScene(Scene):
                 continue
                 
             if proj.is_enemy:
-                if not self.player.is_dashing and proj.rect.colliderect(self.player.rect):
+                if not self.player.is_dashing and not self.player.is_casting_ultimate and proj.rect.colliderect(self.player.rect):
                     self.player.take_damage(proj.damage)
                     proj.explode()
             else:
@@ -177,9 +177,6 @@ class BossScene(Scene):
         surface.blit(self.bg_imgs[1], (512 - self.camera.offset.x, 0 - self.camera.offset.y))
         surface.blit(self.bg_imgs[2], (1024 - self.camera.offset.x, 0 - self.camera.offset.y))
         
-        # Draw Light Ray Tracing (God Rays)
-        self.lighting.draw_god_rays(surface, self.camera.offset)
-            
         # Y-Sort entities
         drawables = [self.player] + self.props + [e for e in self.enemies if not (e.is_dead and e.anim_manager.is_finished("dead"))]
         drawables.sort(key=lambda x: x.rect.bottom)

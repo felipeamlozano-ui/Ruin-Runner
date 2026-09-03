@@ -274,14 +274,14 @@ class LevelScene(Scene):
                     if getattr(e, "state", "") != "HURT":
                         e.take_damage(1)
                 
-                # Enemy collision damage (ignored if dashing or blocking)
-                if not self.player.is_dashing and e.rect.colliderect(self.player.rect):
+                # Enemy collision damage (ignored if dashing, casting ultimate or blocking)
+                if not self.player.is_dashing and not self.player.is_casting_ultimate and e.rect.colliderect(self.player.rect):
                     self.player.take_damage(1)
                 
                 # Enemy attack hitbox damage
                 if hasattr(e, "get_attack_hitbox"):
                     e_atk_rect = e.get_attack_hitbox()
-                    if e_atk_rect and not self.player.is_dashing and e_atk_rect.colliderect(self.player.rect):
+                    if e_atk_rect and not self.player.is_dashing and not self.player.is_casting_ultimate and e_atk_rect.colliderect(self.player.rect):
                         self.player.take_damage(1)
                         
         # Update projectiles
@@ -292,7 +292,7 @@ class LevelScene(Scene):
                 continue
                 
             if proj.is_enemy:
-                if not self.player.is_dashing and proj.rect.colliderect(self.player.rect):
+                if not self.player.is_dashing and not self.player.is_casting_ultimate and proj.rect.colliderect(self.player.rect):
                     self.player.take_damage(proj.damage)
                     proj.explode()
             else:
@@ -385,9 +385,6 @@ class LevelScene(Scene):
             # 4. Right Foreground Wall Overlay
             if self.right_overlay:
                 surface.blit(self.right_overlay, (self.map_width - 128 - self.camera.offset.x, 0 - self.camera.offset.y))
-            
-        # Draw Light Ray Tracing (God Rays) through trees / arches
-        self.lighting.draw_god_rays(surface, self.camera.offset)
             
         # Draw Traps & Checkpoints
         self.checkpoint.draw(surface, self.camera.offset)
