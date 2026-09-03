@@ -272,7 +272,7 @@ class LevelScene(Scene):
                 # Player attacks enemy with sword
                 if player_atk_rect and player_atk_rect.colliderect(e.rect):
                     if getattr(e, "state", "") != "HURT":
-                        e.take_damage(1)
+                        e.take_damage(2)
                 
                 # Enemy collision damage (ignored if dashing, casting ultimate or blocking)
                 if not self.player.is_dashing and not self.player.is_casting_ultimate and e.rect.colliderect(self.player.rect):

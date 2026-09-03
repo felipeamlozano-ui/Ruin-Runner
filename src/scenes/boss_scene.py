@@ -126,7 +126,7 @@ class BossScene(Scene):
             for e in self.enemies:
                 if not e.is_dead and p_hitbox.colliderect(e.rect):
                     if getattr(e, "state", "") != "HURT":
-                        e.take_damage(1)
+                        e.take_damage(2)
                         
         # Update projectiles
         for proj in self.projectiles[:]:

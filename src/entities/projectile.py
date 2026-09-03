@@ -89,9 +89,18 @@ class Projectile:
         self.velocity = pygame.math.Vector2(500 if facing_right else -500, 0)
         self.active = True
         self.is_enemy = is_enemy
-        self.damage = 1
         self.facing_right = facing_right
         self.state = "fly" # "fly" or "hit"
+        
+        # Enhanced spell damage balancing
+        if is_enemy:
+            if projectile_type in ("boss_fireball", "fireball_blue"):
+                self.damage = 2
+            else:
+                self.damage = 1
+        else:
+            # Player fireball costs 50 MP - deals heavy impactful damage
+            self.damage = 6
         
         self.anim_manager = AnimationManager()
         
