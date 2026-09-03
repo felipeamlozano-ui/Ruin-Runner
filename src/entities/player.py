@@ -55,13 +55,13 @@ class ImpactSmoke:
             surface.blit(frame, r)
 
 class UltimateSlash:
-    """AAA Tapered Dimensional Blade Cleave cutting through space during Ultimate."""
-    def __init__(self, start_pos: tuple, end_pos: tuple, color=(255, 240, 150), width=8):
+    """Crisp, sharp dimensional anime blade cut slicing across enemies."""
+    def __init__(self, start_pos: tuple, end_pos: tuple, color=(255, 235, 120), width=3.5):
         self.start = start_pos
         self.end = end_pos
         self.color = color
         self.max_width = width
-        self.life = 0.38
+        self.life = 0.28 # Snappy anime cut
         self.timer = 0.0
         
     def update(self, dt: float) -> bool:
@@ -91,73 +91,47 @@ class UltimateSlash:
         gw, gh = surface.get_size()
         slash_surf = pygame.Surface((gw, gh), pygame.SRCALPHA)
         
-        # 1. Wide ethereal outer aura (celestial cyan/amber)
-        w_outer = cur_w * 2.8
+        # 1. Subtle soft glow edge (thin)
+        w_outer = cur_w * 2.0
         pts_outer = [p1, (mx + nx * w_outer, my + ny * w_outer), p2, (mx - nx * w_outer, my - ny * w_outer)]
-        pygame.draw.polygon(slash_surf, (120, 210, 255, int(alpha * 0.35)), pts_outer)
+        pygame.draw.polygon(slash_surf, (*self.color, int(alpha * 0.35)), pts_outer)
         
-        # 2. Brilliant golden mid blade
-        w_mid = cur_w * 1.5
-        pts_mid = [p1, (mx + nx * w_mid, my + ny * w_mid), p2, (mx - nx * w_mid, my - ny * w_mid)]
-        pygame.draw.polygon(slash_surf, (255, 220, 80, int(alpha * 0.75)), pts_mid)
-        
-        # 3. Pure blinding white diamond core
-        w_core = cur_w * 0.6
+        # 2. Razor-sharp brilliant core
+        w_core = cur_w * 0.65
         pts_core = [p1, (mx + nx * w_core, my + ny * w_core), p2, (mx - nx * w_core, my - ny * w_core)]
         pygame.draw.polygon(slash_surf, (255, 255, 255, alpha), pts_core)
         
         surface.blit(slash_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
 
-class VolumetricRays:
-    """Dynamic Volumetric God Rays radiating 360 degrees outward with additive bloom."""
-    def __init__(self, num_rays: int = 16):
-        self.num_rays = num_rays
-        self.angle_offset = 0.0
-        
-    def update(self, dt: float, speed: float = 1.6):
-        self.angle_offset += dt * speed
-        
-    def draw(self, surface: pygame.Surface, center: tuple[float, float], radius: float, alpha_mult: float = 1.0, color=(255, 235, 120)):
-        if alpha_mult <= 0:
-            return
-        gw, gh = surface.get_size()
-        ray_surf = pygame.Surface((gw, gh), pygame.SRCALPHA)
-        
-        cx, cy = center
-        r_inner = 22.0
-        # Render each volumetric light shaft
-        for i in range(self.num_rays):
-            base_ang = self.angle_offset + i * (2 * math.pi / self.num_rays)
-            w_ang = 0.080 + 0.02 * math.sin(base_ang * 3 + self.angle_offset)
-            r_len = radius * (0.80 + 0.20 * math.cos(base_ang * 2))
-            
-            p0_a = (cx + math.cos(base_ang - w_ang * 0.7) * r_inner, cy + math.sin(base_ang - w_ang * 0.7) * r_inner)
-            p0_b = (cx + math.cos(base_ang + w_ang * 0.7) * r_inner, cy + math.sin(base_ang + w_ang * 0.7) * r_inner)
-            p1 = (cx + math.cos(base_ang - w_ang) * r_len, cy + math.sin(base_ang - w_ang) * r_len)
-            p2 = (cx + math.cos(base_ang + w_ang) * r_len, cy + math.sin(base_ang + w_ang) * r_len)
-            
-            beam_alpha = int(24 * alpha_mult)
-            pygame.draw.polygon(ray_surf, (*color, beam_alpha), [p0_a, p1, p2, p0_b])
-            
-            # Inner intense beam core
-            p0_ca = (cx + math.cos(base_ang - w_ang * 0.35) * r_inner, cy + math.sin(base_ang - w_ang * 0.35) * r_inner)
-            p0_cb = (cx + math.cos(base_ang + w_ang * 0.35) * r_inner, cy + math.sin(base_ang + w_ang * 0.35) * r_inner)
-            p1_inner = (cx + math.cos(base_ang - w_ang * 0.35) * r_len * 0.75, cy + math.sin(base_ang - w_ang * 0.35) * r_len * 0.75)
-            p2_inner = (cx + math.cos(base_ang + w_ang * 0.35) * r_len * 0.75, cy + math.sin(base_ang + w_ang * 0.35) * r_len * 0.75)
-            pygame.draw.polygon(ray_surf, (255, 255, 255, int(28 * alpha_mult)), [p0_ca, p1_inner, p2_inner, p0_cb])
-            
-        surface.blit(ray_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
-
 def draw_sacred_runic_circle(surface: pygame.Surface, center: tuple[float, float], radius: float, angle: float, alpha: int):
-    """Draws a complex sacred geometry summoning circle with runes, concentric rings and star spokes."""
+    """Draws a subtle, sleek arcane rune circle on the ground beneath the hero."""
     if alpha <= 0 or radius < 5:
         return
-    rc = int(radius) + 8
+    rc = int(radius) + 4
     circle_surf = pygame.Surface((rc * 2, rc * 2), pygame.SRCALPHA)
     
-    # Outer ring
-    pygame.draw.circle(circle_surf, (255, 220, 90, int(alpha * 0.85)), (rc, rc), int(radius), 2)
-    pygame.draw.circle(circle_surf, (120, 240, 255, int(alpha * 0.55)), (rc, rc), int(radius - 5), 1)
+    # Elegant outer rune ring
+    pygame.draw.circle(circle_surf, (255, 220, 90, int(alpha * 0.75)), (rc, rc), int(radius), 1)
+    pygame.draw.circle(circle_surf, (120, 220, 255, int(alpha * 0.45)), (rc, rc), int(radius - 4), 1)
+    
+    # 8 delicate sacred runes
+    for i in range(8):
+        a = angle + i * (math.pi / 4)
+        p_start = (rc + math.cos(a) * (radius - 5), rc + math.sin(a) * (radius - 5))
+        p_end = (rc + math.cos(a) * (radius + 2), rc + math.sin(a) * (radius + 2))
+        pygame.draw.line(circle_surf, (255, 240, 160, int(alpha * 0.8)), p_start, p_end, 1)
+        
+    # Inner star
+    star_angle = -angle * 1.2
+    pts = []
+    for i in range(12):
+        a = star_angle + i * (math.pi / 6)
+        r = (radius * 0.62) if (i % 2 == 0) else (radius * 0.32)
+        pts.append((rc + math.cos(a) * r, rc + math.sin(a) * r))
+    if len(pts) >= 3:
+        pygame.draw.polygon(circle_surf, (255, 215, 80, int(alpha * 0.5)), pts, 1)
+        
+    surface.blit(circle_surf, (center[0] - rc, center[1] - rc), special_flags=pygame.BLEND_RGBA_ADD)
     
     # 12 Celestial Rune notches on outer ring
     for i in range(12):
@@ -307,11 +281,9 @@ class Player:
         self.ultimate_shockwave_active = False
         self.ultimate_shockwave_pos = (0, 0)
         self.ultimate_shockwave_timer = 0.0
-        self.ultimate_rays = VolumetricRays(num_rays=16)
         self.ultimate_rune_angle = 0.0
         self.ultimate_particles: list[UltimateEnergyParticle] = []
         self.ultimate_shockwave_rings: list[UltimateShockwaveRing] = []
-        self.ultimate_flare_timer = 0.0
         self.ultimate_slash_spawn_timer = 0.0
         
         # Downward Aerial Plunge Attack
@@ -430,48 +402,40 @@ class Player:
             self.velocity.x = 0
             self.velocity.y = min(self.velocity.y, 0)
             
-            # Update volumetric rays and sacred runes
-            ray_speed = 2.4 if self.ultimate_timer < 0.45 else 1.2
-            self.ultimate_rays.update(dt, speed=ray_speed)
-            self.ultimate_rune_angle += dt * 1.8
+            # Rotate ground rune array
+            self.ultimate_rune_angle += dt * 1.6
             
             # Target center for energy implosion: sword tip
             sword_pos = (self.rect.centerx + (16 if self.facing_right else -16), self.rect.centery - 10)
             
-            # Spawn implosion starlight particles during phase 1 (0.0s to 0.45s)
-            if self.ultimate_timer < 0.45:
-                if len(self.ultimate_particles) < 45 and random.random() < 0.85:
-                    self.ultimate_particles.append(UltimateEnergyParticle(sword_pos, start_dist=random.uniform(160, 320)))
+            # Spawn a few elegant starlight particles during windup
+            if self.ultimate_timer < 0.40:
+                if len(self.ultimate_particles) < 18 and random.random() < 0.5:
+                    self.ultimate_particles.append(UltimateEnergyParticle(sword_pos, start_dist=random.uniform(120, 220)))
                     
             # Update implosion particles
             self.ultimate_particles = [p for p in self.ultimate_particles if p.update(dt, sword_pos)]
             
-            # Detonation at t=0.45s: Lens flare flash and explosive shockwave rings
+            # Detonation at t=0.45s: 1 clean expanding shockwave ring
             if 0.44 <= self.ultimate_timer <= 0.49 and len(self.ultimate_shockwave_rings) == 0:
-                self.ultimate_flare_timer = 0.38
-                self.ultimate_shockwave_rings.append(UltimateShockwaveRing((self.rect.centerx, self.rect.centery), max_radius=420, speed=750))
-                self.ultimate_shockwave_rings.append(UltimateShockwaveRing((self.rect.centerx, self.rect.centery), max_radius=320, speed=540, color=(140, 220, 255)))
-                
-            # Decay lens flare
-            if self.ultimate_flare_timer > 0:
-                self.ultimate_flare_timer -= dt
+                self.ultimate_shockwave_rings.append(UltimateShockwaveRing((self.rect.centerx, self.rect.centery), max_radius=250, speed=550, color=(140, 220, 255)))
                 
             # Update shockwave rings
             self.ultimate_shockwave_rings = [r for r in self.ultimate_shockwave_rings if r.update(dt)]
             
-            # Spawn dynamic anime dimensional slashes during phase 2 (0.42s to 1.15s)
+            # Spawn crisp, clean anime dimensional cuts (1 every 0.14s, total 4-5 slashes)
             self.ultimate_slash_spawn_timer += dt
-            if 0.42 <= self.ultimate_timer <= 1.20:
-                if self.ultimate_slash_spawn_timer >= 0.085:
+            if 0.40 <= self.ultimate_timer <= 1.05:
+                if self.ultimate_slash_spawn_timer >= 0.14:
                     self.ultimate_slash_spawn_timer = 0.0
-                    angle = random.choice([-0.75, 0.75, -1.10, 0.35, -0.30, 1.0, 0.0]) + random.uniform(-0.1, 0.1)
-                    cx = self.rect.centerx + random.uniform(-60, 60)
-                    cy = self.rect.centery + random.uniform(-40, 30)
-                    length = random.uniform(190, 270)
+                    angle = random.choice([-0.70, 0.70, -1.05, 0.35, -0.30, 0.95]) + random.uniform(-0.08, 0.08)
+                    cx = self.rect.centerx + random.uniform(-45, 45)
+                    cy = self.rect.centery + random.uniform(-25, 15)
+                    length = random.uniform(150, 220)
                     dx = math.cos(angle) * length
                     dy = math.sin(angle) * length
-                    slash_col = random.choice([(255, 240, 150), (140, 230, 255), (255, 215, 90)])
-                    self.ultimate_slashes.append(UltimateSlash((cx - dx, cy - dy), (cx + dx, cy + dy), color=slash_col, width=6.5))
+                    slash_col = random.choice([(255, 235, 130), (140, 220, 255), (255, 255, 255)])
+                    self.ultimate_slashes.append(UltimateSlash((cx - dx, cy - dy), (cx + dx, cy + dy), color=slash_col, width=3.5))
                 
             # Ground shockwave at feet
             if self.ultimate_shockwave_active:
@@ -832,42 +796,33 @@ class Player:
             pygame.draw.circle(aura_surf, (255, 240, 150, 45), (pulse_rad, pulse_rad), pulse_rad, width=2)
             surface.blit(aura_surf, (self.rect.centerx - camera_offset.x - pulse_rad, self.rect.centery - camera_offset.y - pulse_rad), special_flags=pygame.BLEND_RGBA_ADD)
 
-        # 4. Ultimate Visual Sequence (Void Eclipse, Sacred Runic Array, Volumetric Ray Casting & Particles)
+        # 4. Ultimate Visual Sequence (Subtle cinematic dimming, ground rune & clean shockwaves)
         core_cx = self.rect.centerx - camera_offset.x
         core_cy = self.rect.centery - camera_offset.y - 4
         
         if self.is_casting_ultimate:
             gw, gh = surface.get_size()
             dark_surf = pygame.Surface((gw, gh), pygame.SRCALPHA)
-            if self.ultimate_timer < 0.45:
-                dark_alpha = int(145 * (self.ultimate_timer / 0.45))
-            elif self.ultimate_timer < 1.25:
-                dark_alpha = 145
+            if self.ultimate_timer < 0.35:
+                dark_alpha = int(65 * (self.ultimate_timer / 0.35))
+            elif self.ultimate_timer < 1.10:
+                dark_alpha = 65
             else:
-                dark_alpha = max(0, int(145 * (1.0 - (self.ultimate_timer - 1.25) / 0.40)))
-            dark_surf.fill((8, 5, 18, dark_alpha))
+                dark_alpha = max(0, int(65 * (1.0 - (self.ultimate_timer - 1.10) / 0.40)))
+            dark_surf.fill((6, 4, 14, dark_alpha))
             surface.blit(dark_surf, (0, 0))
             
-            # Sacred Runic Summoning Array on the ground
-            runic_alpha = int(240 * (min(1.0, self.ultimate_timer / 0.35) if self.ultimate_timer < 1.25 else max(0.0, 1.0 - (self.ultimate_timer - 1.25) / 0.40)))
+            # Subtle Sacred Runic Circle on the floor (radius 44)
+            runic_alpha = int(180 * (min(1.0, self.ultimate_timer / 0.30) if self.ultimate_timer < 1.10 else max(0.0, 1.0 - (self.ultimate_timer - 1.10) / 0.40)))
             runic_cx = self.rect.centerx - camera_offset.x
             runic_cy = self.rect.bottom - camera_offset.y + 6
-            draw_sacred_runic_circle(surface, (runic_cx, runic_cy), radius=72, angle=self.ultimate_rune_angle, alpha=runic_alpha)
+            draw_sacred_runic_circle(surface, (runic_cx, runic_cy), radius=44, angle=self.ultimate_rune_angle, alpha=runic_alpha)
             
-            # Dynamic Volumetric Ray Casting (God Rays radiating 360 degrees outward)
-            if self.ultimate_timer < 0.45:
-                ray_alpha = self.ultimate_timer / 0.45
-            elif self.ultimate_timer < 1.20:
-                ray_alpha = 1.0
-            else:
-                ray_alpha = max(0.0, 1.0 - (self.ultimate_timer - 1.20) / 0.45)
-            self.ultimate_rays.draw(surface, (core_cx, core_cy), radius=480, alpha_mult=ray_alpha)
-            
-            # Imploding Starlight Particles converging into the sword tip
+            # Gentle starlight particles
             for p in self.ultimate_particles:
                 p.draw(surface, camera_offset)
                 
-            # Expanding chromatic shockwave rings
+            # Expanding shockwave ripples (thin, clean)
             for ring in self.ultimate_shockwave_rings:
                 ring.draw(surface, camera_offset)
 
@@ -883,14 +838,6 @@ class Player:
             
         # Blink when invulnerable (unless dashing/ultimate)
         if self.is_dashing or self.is_casting_ultimate or not self.invulnerable or int(self.invulnerability_timer * 10) % 2 == 0:
-            # Celestial white-gold radiant aura during ultimate
-            if self.is_casting_ultimate:
-                aura_w = img_rect.width + 20
-                aura_h = img_rect.height + 20
-                aura_s = pygame.Surface((aura_w, aura_h), pygame.SRCALPHA)
-                pygame.draw.ellipse(aura_s, (255, 240, 140, 65), (0, 0, aura_w, aura_h))
-                surface.blit(aura_s, (draw_x - 10, draw_y - 10), special_flags=pygame.BLEND_RGBA_ADD)
-                
             surface.blit(img, (draw_x, draw_y))
             
             # Draw magical shield effect in front of player when blocking
@@ -926,18 +873,6 @@ class Player:
                 pygame.draw.line(sig_surf, (255, 200, 70, sig_alpha), (sp_x, sp_y), (ep_x, ep_y), 1)
             surface.blit(sig_surf, (hx - sc, hy - sc), special_flags=pygame.BLEND_RGBA_ADD)
 
-        # 6. AAA Tapered Dimensional Blade Cleaves across screen
+        # 6. Crisp Dimensional Blade Cleaves across screen
         for slash in self.ultimate_slashes:
             slash.draw(surface, camera_offset)
-            
-        # 7. Blinding Lens Flare Bloom Flash at impact detonation
-        if self.is_casting_ultimate and self.ultimate_flare_timer > 0:
-            fl_t = self.ultimate_flare_timer / 0.38
-            fl_alpha = int(120 * fl_t)
-            fl_r = int(55 * fl_t)
-            if fl_r > 3:
-                fl_surf = pygame.Surface((fl_r * 2 + 10, fl_r * 2 + 10), pygame.SRCALPHA)
-                fc = fl_r + 5
-                pygame.draw.circle(fl_surf, (255, 255, 255, fl_alpha), (fc, fc), fl_r)
-                pygame.draw.circle(fl_surf, (255, 230, 140, int(fl_alpha * 0.4)), (fc, fc), int(fl_r * 1.35))
-                surface.blit(fl_surf, (core_cx - fc, core_cy - fc), special_flags=pygame.BLEND_RGBA_ADD)
