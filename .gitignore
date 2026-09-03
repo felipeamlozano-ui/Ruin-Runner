@@ -1,0 +1,16 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches & Test artifacts
+.pytest_cache/
+stage2_debug.png
+
+# Redundant zip packages
+*.zip
+ruin_runners_shaia/
+
+# OS files
+.DS_Store
+Thumbs.db
