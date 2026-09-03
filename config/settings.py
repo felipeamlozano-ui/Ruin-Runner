@@ -13,6 +13,7 @@ class Settings:
     FPS: int = 60
     VSYNC: int = 0
     FULLSCREEN: bool = False
+    FULLSCREEN_STRETCH: bool = True  # Fill screen edge-to-edge (no black pillarbox bars)
     
     # Audio Settings
     MASTER_VOLUME: float = 1.0

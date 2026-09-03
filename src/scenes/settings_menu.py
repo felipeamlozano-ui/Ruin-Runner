@@ -27,10 +27,13 @@ class SettingsMenuScene(Scene):
         vg_text = "Ativado" if SETTINGS.VIGNETTE_ENABLED else "Desativado"
         tq_text = SETTINGS.TEXTURE_QUALITY
         crt_text = "Ativado" if SETTINGS.SCANLINES_ENABLED else "Desativado (Nítido)"
+        stretch_text = "Preencher (Sem Barras)" if SETTINGS.FULLSCREEN_STRETCH else "Proporção 4:3 (Barras)"
+
         
         self.options = [
             ("Resolução", res_text, self.toggle_resolution),
             ("Modo de Tela", fs_text, self.toggle_fullscreen),
+            ("Formato de Tela", stretch_text, self.toggle_stretch),
             ("Iluminação Dinâmica", dl_text, self.toggle_dynamic_lights),
             ("Partículas de Ambiente", pt_text, self.toggle_ambient_particles),
             ("Anti-Aliasing", aa_text, self.toggle_antialiasing),
@@ -39,6 +42,7 @@ class SettingsMenuScene(Scene):
             ("Linhas CRT (Scanlines)", crt_text, self.toggle_scanlines),
             ("Voltar", "", self.go_back)
         ]
+
 
     def toggle_resolution(self, direction: int = 1):
         SETTINGS.RESOLUTION_INDEX = (SETTINGS.RESOLUTION_INDEX + direction) % len(SETTINGS.RESOLUTIONS)
@@ -53,6 +57,11 @@ class SettingsMenuScene(Scene):
         if Game.instance:
             Game.instance.apply_display_settings()
         self._update_options_text()
+
+    def toggle_stretch(self, direction: int = 1):
+        SETTINGS.FULLSCREEN_STRETCH = not SETTINGS.FULLSCREEN_STRETCH
+        self._update_options_text()
+
         
     def toggle_raytracing(self, direction: int = 1):
         SETTINGS.RAYTRACING_ENABLED = not SETTINGS.RAYTRACING_ENABLED

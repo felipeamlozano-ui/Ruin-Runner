@@ -105,18 +105,25 @@ class Game:
         sw, sh = self.screen.get_size()
         gw, gh = SETTINGS.GAME_WIDTH, SETTINGS.GAME_HEIGHT
         
-        scale_factor = min(sw / gw, sh / gh)
-        target_w = int(gw * scale_factor)
-        target_h = int(gh * scale_factor)
-        target_x = (sw - target_w) // 2
-        target_y = (sh - target_h) // 2
+        # Edge-to-edge mode: fill the whole screen (no black bars)
+        if SETTINGS.FULLSCREEN_STRETCH:
+            target_w, target_h = sw, sh
+            target_x, target_y = 0, 0
+        else:
+            # Maintain 4:3 aspect ratio with letterbox/pillarbox bars
+            scale_factor = min(sw / gw, sh / gh)
+            target_w = int(gw * scale_factor)
+            target_h = int(gh * scale_factor)
+            target_x = (sw - target_w) // 2
+            target_y = (sh - target_h) // 2
         
         if SETTINGS.ANTIALIASING:
             scaled_buf = pygame.transform.smoothscale(self.game_surface, (target_w, target_h))
         else:
             scaled_buf = pygame.transform.scale(self.game_surface, (target_w, target_h))
             
-        self.screen.fill((10, 10, 15)) # Clean letterbox background
+        self.screen.fill((10, 10, 15)) # Clean letterbox background (only visible when not stretching)
         self.screen.blit(scaled_buf, (target_x, target_y))
         
         pygame.display.flip()
+
