@@ -36,7 +36,7 @@ class Game:
         self.scene_manager = SceneManager()
         self.running = True
         
-        # Initial Scene
+        # Initial Scene — Sempre inicializa no Menu Principal
         from scenes.main_menu import MainMenuScene
         self.scene_manager.change_scene(MainMenuScene(self.scene_manager))
         

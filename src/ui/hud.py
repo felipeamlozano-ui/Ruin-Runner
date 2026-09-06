@@ -19,15 +19,21 @@ class HUD:
         self.font_keys = pygame.font.SysFont("Arial", 10, bold=True)
         self.font_badge = pygame.font.SysFont("Arial", 9, bold=True)
         self.font_cost = pygame.font.SysFont("Arial", 8, bold=True)
-        self.font_boss = pygame.font.SysFont("Arial", 14, bold=True)
+        self.font_boss = pygame.font.SysFont("Arial", 13, bold=True)
+        self.font_boss_val = pygame.font.SysFont("Courier New", 9, bold=True)
         
         # Load Skill Icons from skills directory
+        self._load_skill_icons()
+        
+    def _load_skill_icons(self):
         skills_dir = os.path.join("assets", "sprites", "icons", "skills")
         if not os.path.exists(skills_dir):
             skills_dir = os.path.join("assets", "sprites", "fantasy_skills", "64x64")
             
         self.skill_icons = {}
         prof = getattr(self.player, "profile", None)
+        self._cached_char_id = getattr(self.player, "character_id", None)
+        
         if prof and hasattr(prof, "skills") and prof.skills:
             j_s = prof.skills.get("j")
             k_s = prof.skills.get("k")
@@ -35,35 +41,79 @@ class HUD:
             sh_s = prof.skills.get("shift")
             r_s = prof.skills.get("r")
             
-            icon_map = {
-                "attack": (j_s.icon_file if j_s else "human_combat_01.png", "J", f"{j_s.cost_value} {j_s.cost_type}" if j_s else "8 SP"),
-                "magic": (k_s.icon_file if k_s else "demon_magic_01.png", "K", f"{k_s.cost_value} {k_s.cost_type}" if k_s else "50 MP"),
-                "dash": ("elf_support_05.png", "Q", "12 SP"),
-                "aoe": (e_s.icon_file if e_s else "human_support_02.png", "E", f"{e_s.cost_value} {e_s.cost_type}" if e_s else "35 MP"),
-                "shield": (sh_s.icon_file if sh_s else "human_defense_07.png", "Shift", f"{sh_s.cost_value} {sh_s.cost_type}" if sh_s else "8 SP/s"),
-                "ultimate": (r_s.icon_file if r_s else "demon_combat_12.png", "R", f"{r_s.cost_value} {r_s.cost_type}" if r_s else "100 MP")
+            icon_files = {
+                "attack": (j_s.icon_file if j_s else "human_combat_01.png", "J"),
+                "magic": (k_s.icon_file if k_s else "demon_magic_01.png", "K"),
+                "dash": ("elf_support_05.png", "Q"),
+                "aoe": (e_s.icon_file if e_s else "human_support_02.png", "E"),
+                "shield": (sh_s.icon_file if sh_s else "human_defense_07.png", "Shift"),
+                "ultimate": (r_s.icon_file if r_s else "demon_combat_12.png", "R")
             }
         else:
-            icon_map = {
-                "attack": ("human_combat_01.png", "J", "8 SP"),
-                "magic": ("arcane_magic_06.png", "K", "50 MP"),
-                "dash": ("elf_support_05.png", "Q", "12 SP"),
-                "aoe": ("arcane_combat_01.png", "E", "35 MP"),
-                "shield": ("human_defense_07.png", "Shift", "8 SP/s"),
-                "ultimate": ("demon_combat_12.png", "R", "100 MP")
+            icon_files = {
+                "attack": ("human_combat_01.png", "J"),
+                "magic": ("arcane_magic_06.png", "K"),
+                "dash": ("elf_support_05.png", "Q"),
+                "aoe": ("arcane_combat_01.png", "E"),
+                "shield": ("human_defense_07.png", "Shift"),
+                "ultimate": ("demon_combat_12.png", "R")
             }
         
         slot_size = 28
-        for key, (fname, hotkey, cost) in icon_map.items():
+        for key, (fname, hotkey) in icon_files.items():
             p = os.path.join(skills_dir, fname)
             if not os.path.exists(p):
                 p = os.path.join("assets", "sprites", "fantasy_skills", "64x64", fname)
             if os.path.exists(p):
                 img = pygame.image.load(p).convert_alpha()
                 scaled = pygame.transform.smoothscale(img, (slot_size, slot_size))
-                self.skill_icons[key] = (scaled, hotkey, cost)
+                self.skill_icons[key] = (scaled, hotkey)
             else:
-                self.skill_icons[key] = (None, hotkey, cost)
+                self.skill_icons[key] = (None, hotkey)
+
+    def get_dynamic_skill_cost(self, s_key: str) -> str:
+        """Dynamically retrieves and formats skill cost from player profile and live state."""
+        prof = getattr(self.player, "profile", None)
+        skills = getattr(prof, "skills", {}) if prof else {}
+        is_mage = getattr(self.player, "archetype", "") == "mage"
+        
+        if s_key == "attack":
+            skill = skills.get("j")
+            if skill:
+                return f"{skill.cost_value} {skill.cost_type}"
+            return "3 MP" if is_mage else "8 SP"
+            
+        elif s_key == "magic":
+            skill = skills.get("k")
+            if skill:
+                return f"{skill.cost_value} {skill.cost_type}"
+            return "35 MP" if is_mage else "30 MP"
+            
+        elif s_key == "dash":
+            dash_cost = 15 if getattr(self.player, "passive_id", "") == "shinobi_shadow_step" else 25
+            return f"{dash_cost} SP"
+            
+        elif s_key == "aoe":
+            skill = skills.get("e")
+            if skill:
+                return f"{skill.cost_value} {skill.cost_type}"
+            return "30 MP" if is_mage else "30 SP"
+            
+        elif s_key == "shield":
+            skill = skills.get("shift")
+            if skill:
+                return f"{skill.cost_value} {skill.cost_type}"
+            cost_type = "MP/s" if is_mage else "SP/s"
+            return f"3 {cost_type}"
+            
+        elif s_key == "ultimate":
+            skill = skills.get("r")
+            if skill:
+                return f"{skill.cost_value} {skill.cost_type}"
+            cost_val = int(getattr(self.player, "max_mana", 100))
+            return f"{cost_val} MP"
+            
+        return ""
         
     def draw_bar(self, surface: pygame.Surface, x: int, y: int, width: int, height: int, ratio: float, fill_color: tuple, highlight_color: tuple, bg_color: tuple, label: str, value_text: str):
         # Background box
@@ -88,6 +138,10 @@ class HUD:
         surface.blit(val_surf, (x + width - val_surf.get_width() - 4, y - 1))
 
     def draw(self, surface: pygame.Surface):
+        # Verify if player profile changed (e.g. character swap)
+        if getattr(self.player, "character_id", None) != getattr(self, "_cached_char_id", None):
+            self._load_skill_icons()
+
         # 1. Player Status Glassmorphic Panel (Top-Left)
         panel_x, panel_y = 12, 10
         panel_w, panel_h = 210, 62
@@ -128,8 +182,8 @@ class HUD:
         
         # 2. Skill Hotbar Frame (Bottom-Left)
         hotbar_x = 12
-        hotbar_y = SETTINGS.GAME_HEIGHT - 48
-        slot_w, slot_h = 32, 32
+        hotbar_y = surface.get_height() - 52
+        slot_w, slot_h = 30, 30
         
         skill_keys = ["attack", "magic", "dash", "aoe", "shield", "ultimate"]
         for idx, s_key in enumerate(skill_keys):
@@ -158,33 +212,38 @@ class HUD:
             else:
                 pygame.draw.rect(surface, (70, 85, 120), (sx, sy, slot_w, slot_h), 1, border_radius=3)
             
-            icon_surf, hotkey, cost = self.skill_icons.get(s_key, (None, "", ""))
+            icon_surf, hotkey = self.skill_icons.get(s_key, (None, ""))
             if icon_surf:
                 if is_ult and not ult_ready:
                     dimmed = icon_surf.copy()
                     dimmed.set_alpha(150)
-                    surface.blit(dimmed, (sx + 2, sy + 2))
+                    surface.blit(dimmed, (sx + 1, sy + 1))
                 else:
-                    surface.blit(icon_surf, (sx + 2, sy + 2))
+                    surface.blit(icon_surf, (sx + 1, sy + 1))
                 
-            # Key badge
+            # Key badge (centered horizontally above slot)
             badge_col = (255, 235, 120) if not ult_ready else (255, 255, 100)
             badge_text = f"[{hotkey}]" if not ult_ready else f"[{hotkey}] READY!"
             badge_surf = self.font_badge.render(badge_text, True, badge_col)
-            surface.blit(badge_surf, (sx + 2, sy - 10))
+            badge_x = sx + (slot_w - badge_surf.get_width()) // 2
+            badge_y = sy - badge_surf.get_height() - 1
+            surface.blit(badge_surf, (badge_x, badge_y))
             
-            # Cost label
+            # Dynamic Cost label (centered horizontally below slot, no bottom cutoff)
+            cost = self.get_dynamic_skill_cost(s_key)
             if cost:
-                cost_col = (255, 215, 120) if is_ult else ((160, 220, 255) if "MP" in cost else (140, 255, 160))
+                cost_col = (255, 220, 120) if is_ult else ((160, 225, 255) if "MP" in cost else (140, 255, 160))
                 cost_surf = self.font_cost.render(cost, True, cost_col)
-                surface.blit(cost_surf, (sx + 2, sy + slot_h + 1))
+                cost_x = sx + (slot_w - cost_surf.get_width()) // 2
+                cost_y = sy + slot_h + 2
+                surface.blit(cost_surf, (cost_x, cost_y))
         
-        # 3. Stage Title Badge (Top-Right)
-        if self.stage_title:
+        # 3. Stage Title Badge (Top-Right) - only display when not in an active boss fight
+        if self.stage_title and not (self.active_boss and not self.active_boss.is_dead):
             stage_surf = self.font_title.render(self.stage_title, True, (255, 215, 100))
             stg_w = stage_surf.get_width() + 16
             stg_h = stage_surf.get_height() + 8
-            stg_x = SETTINGS.GAME_WIDTH - stg_w - 12
+            stg_x = surface.get_width() - stg_w - 12
             stg_y = 10
             
             badge_bg = pygame.Surface((stg_w, stg_h), pygame.SRCALPHA)
@@ -193,32 +252,63 @@ class HUD:
             pygame.draw.rect(surface, (120, 100, 50), (stg_x, stg_y, stg_w, stg_h), 1, border_radius=3)
             surface.blit(stage_surf, (stg_x + 8, stg_y + 4))
 
-        # 4. Boss Health Bar (Top-Center)
+        # 4. Dual Boss Bar (Top-Center: 10,000 HP + 2,000 Poise Shield)
         if self.active_boss and not self.active_boss.is_dead:
-            boss_health_ratio = self.active_boss.health / max(1, self.active_boss.max_health)
-            bar_width = 340
-            bar_height = 14
-            bar_x = (SETTINGS.GAME_WIDTH - bar_width) // 2
-            bar_y = 28
+            boss = self.active_boss
+            boss_hp_ratio = boss.health / max(1, boss.max_health)
+            boss_shield_max = getattr(boss, "max_shield", 2000)
+            boss_shield = getattr(boss, "shield", 0)
+            boss_shield_ratio = boss_shield / max(1, boss_shield_max)
             
-            # Boss Frame
-            boss_bg = pygame.Surface((bar_width + 20, bar_height + 26), pygame.SRCALPHA)
-            boss_bg.fill((20, 10, 10, 220))
-            surface.blit(boss_bg, (bar_x - 10, bar_y - 18))
-            pygame.draw.rect(surface, (150, 40, 40), (bar_x - 10, bar_y - 18, bar_width + 20, bar_height + 26), 1, border_radius=4)
+            bar_width = 240
+            hp_h = 10
+            shield_h = 6
+            bar_x = (surface.get_width() - bar_width) // 2
+            bar_y = 16
             
-            # Label
-            boss_name = self.font_boss.render("👑 REI ESQUELETO 👑", True, (255, 220, 120))
-            surface.blit(boss_name, (bar_x + (bar_width - boss_name.get_width()) // 2, bar_y - 16))
+            # Boss Frame Box
+            total_h = 44
+            boss_bg = pygame.Surface((bar_width + 20, total_h), pygame.SRCALPHA)
+            boss_bg.fill((15, 10, 15, 230))
+            surface.blit(boss_bg, (bar_x - 10, bar_y - 12))
+            pygame.draw.rect(surface, (150, 40, 40), (bar_x - 10, bar_y - 12, bar_width + 20, total_h), 1, border_radius=4)
             
-            # Boss HP Bar
-            pygame.draw.rect(surface, (40, 10, 10), (bar_x, bar_y + 3, bar_width, bar_height), border_radius=3)
-            fill_boss_w = int(bar_width * max(0.0, min(1.0, boss_health_ratio)))
-            if fill_boss_w > 0:
-                # If enraged, glow reddish orange
-                hp_bar_col = (240, 60, 20) if self.active_boss.enraged else (200, 20, 20)
-                pygame.draw.rect(surface, hp_bar_col, (bar_x, bar_y + 3, fill_boss_w, bar_height), border_radius=3)
-                pygame.draw.line(surface, (255, 140, 100), (bar_x + 2, bar_y + 4), (bar_x + fill_boss_w - 2, bar_y + 4))
-            pygame.draw.rect(surface, (220, 180, 80), (bar_x, bar_y + 3, bar_width, bar_height), 1, border_radius=3)
+            # Title & Stagger Alert Label
+            if getattr(boss, "state", "") == "STAGGERED" or boss_shield <= 0:
+                import math
+                pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() * 0.018)
+                lbl_col = (255, int(220 + 35 * pulse), int(40 * pulse))
+                boss_name = self.font_boss.render("⚡ POSTURA QUEBRADA - VULNERÁVEL! ⚡", True, lbl_col)
+            elif getattr(boss, "enraged", False):
+                boss_name = self.font_boss.render("🔥 REI ESQUELETO (FÚRIA) 🔥", True, (255, 110, 50))
+            else:
+                boss_name = self.font_boss.render("— REI ESQUELETO —", True, (255, 220, 120))
+            surface.blit(boss_name, (bar_x + (bar_width - boss_name.get_width()) // 2, bar_y - 11))
+            
+            # 1. HP Bar (Red)
+            pygame.draw.rect(surface, (40, 10, 10), (bar_x, bar_y + 8, bar_width, hp_h), border_radius=2)
+            fill_hp = int(bar_width * max(0.0, min(1.0, boss_hp_ratio)))
+            if fill_hp > 0:
+                hp_col = (240, 50, 20) if getattr(boss, "enraged", False) else (210, 25, 25)
+                pygame.draw.rect(surface, hp_col, (bar_x, bar_y + 8, fill_hp, hp_h), border_radius=2)
+                pygame.draw.line(surface, (255, 150, 120), (bar_x + 1, bar_y + 9), (bar_x + fill_hp - 1, bar_y + 9))
+            pygame.draw.rect(surface, (180, 50, 50), (bar_x, bar_y + 8, bar_width, hp_h), 1, border_radius=2)
+            
+            # HP numeric readout
+            hp_txt = self.font_boss_val.render(f"HP: {int(boss.health):,}/{int(boss.max_health):,}".replace(",", "."), True, (255, 240, 240))
+            surface.blit(hp_txt, (bar_x + 5, bar_y + 8))
+            
+            # 2. Poise Shield Bar (Gold / Cyan)
+            pygame.draw.rect(surface, (15, 25, 35), (bar_x, bar_y + 21, bar_width, shield_h), border_radius=2)
+            fill_sh = int(bar_width * max(0.0, min(1.0, boss_shield_ratio)))
+            if fill_sh > 0:
+                sh_col = (70, 210, 255)
+                pygame.draw.rect(surface, sh_col, (bar_x, bar_y + 21, fill_sh, shield_h), border_radius=2)
+                pygame.draw.line(surface, (200, 245, 255), (bar_x + 1, bar_y + 21), (bar_x + fill_sh - 1, bar_y + 21))
+            pygame.draw.rect(surface, (100, 180, 220), (bar_x, bar_y + 21, bar_width, shield_h), 1, border_radius=2)
+            
+            # Shield numeric readout
+            sh_txt = self.font_boss_val.render(f"POSTURA: {int(boss_shield):,}/{int(boss_shield_max):,}".replace(",", "."), True, (180, 230, 255))
+            surface.blit(sh_txt, (bar_x + 5, bar_y + 20))
 
 

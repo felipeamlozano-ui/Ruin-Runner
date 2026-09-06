@@ -5,8 +5,10 @@ from utils.math_utils import lerp, clamp
 
 class Camera:
     """Advanced camera with smooth follow, deadzone, boundaries, and screen shake."""
-    def __init__(self, width: int, height: int):
-        self.camera_rect = pygame.FRect(0, 0, SETTINGS.GAME_WIDTH, SETTINGS.GAME_HEIGHT)
+    def __init__(self, width: int, height: int, viewport_w: int = None, viewport_h: int = None):
+        self.vw = viewport_w if viewport_w is not None else SETTINGS.GAME_WIDTH
+        self.vh = viewport_h if viewport_h is not None else SETTINGS.GAME_HEIGHT
+        self.camera_rect = pygame.FRect(0, 0, self.vw, self.vh)
         self.map_width = width
         self.map_height = height
         self.smoothness = 5.0
@@ -41,16 +43,16 @@ class Camera:
         if self.locked:
             return
             
-        target_x = target.centerx - SETTINGS.GAME_WIDTH // 2
-        target_y = target.centery - SETTINGS.GAME_HEIGHT // 2
+        target_x = target.centerx - self.vw // 2
+        target_y = target.centery - self.vh // 2
         
         # Smooth interpolation
         self.camera_rect.x = lerp(self.camera_rect.x, target_x, self.smoothness * dt)
         self.camera_rect.y = lerp(self.camera_rect.y, target_y, self.smoothness * dt)
         
         # Clamp to bounds
-        self.camera_rect.x = clamp(self.camera_rect.x, 0, max(0, self.map_width - SETTINGS.GAME_WIDTH))
-        self.camera_rect.y = clamp(self.camera_rect.y, 0, max(0, self.map_height - SETTINGS.GAME_HEIGHT))
+        self.camera_rect.x = clamp(self.camera_rect.x, 0, max(0, self.map_width - self.vw))
+        self.camera_rect.y = clamp(self.camera_rect.y, 0, max(0, self.map_height - self.vh))
         
     @property
     def offset(self) -> pygame.math.Vector2:

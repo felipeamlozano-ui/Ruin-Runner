@@ -50,12 +50,29 @@ class Enemy:
         self.state = "IDLE"
         self.slow_timer = 0.0
         self.slow_factor = 1.0
+        self.burn_timer = 0.0
+        self.burn_dps = 3.0
+        self.burn_tick = 0.0
+
+    def apply_burn(self, duration: float = 4.0, dps: float = 3.0):
+        """Applies burning status effect from Ignis fire skills."""
+        if not self.is_dead:
+            self.burn_timer = max(self.burn_timer, duration)
+            self.burn_dps = dps
 
     def apply_slow(self, duration: float = 2.5, factor: float = 0.25):
         """Applies slow-motion status effect from player Ultimate skill."""
         if not self.is_dead:
             self.slow_timer = max(self.slow_timer, duration)
             self.slow_factor = factor
+
+    def update_burn(self, dt: float):
+        if self.burn_timer > 0 and not self.is_dead:
+            self.burn_timer -= dt
+            self.burn_tick += dt
+            if self.burn_tick >= 1.0:
+                self.burn_tick = 0.0
+                self.take_damage(int(self.burn_dps))
 
     def take_damage(self, amount: int):
         if self.is_dead:
@@ -128,6 +145,14 @@ class Enemy:
         img = self.anim_manager.get_current_frame()
         img_rect = img.get_rect()
         
+        # Draw soft contact drop shadow under feet (Grounded presence)
+        if not self.is_dead:
+            shadow_w = int(self.rect.width * 1.1)
+            shadow_h = 10
+            shadow_surf = pygame.Surface((shadow_w, shadow_h), pygame.SRCALPHA)
+            pygame.draw.ellipse(shadow_surf, (0, 0, 0, 90), (0, 0, shadow_w, shadow_h))
+            surface.blit(shadow_surf, (self.rect.centerx - camera_offset.x - shadow_w // 2, self.rect.bottom - camera_offset.y - shadow_h // 2 + 2))
+            
         draw_x = self.rect.centerx - camera_offset.x - img_rect.width / 2
         draw_y = self.rect.bottom - camera_offset.y - img_rect.height
         
@@ -147,35 +172,35 @@ class Enemy:
 class Skeleton(Enemy):
     def __init__(self, x: float, y: float):
         super().__init__(x, y, 32, 70)
-        self.health = 4 # Increased difficulty (doubled HP)
+        self.health = 160 # Reescalado para novo balanceamento tático (2x)
+        self.attack_damage = 22 # Espadada pesada telegrafada
+        self.touch_damage = 5 # Body collision
         
         scale = 0.65
         base_path = os.path.join("assets", "sprites", "skeleton")
         
         self.anim_manager.add_animation("idle", load_animation_folder(base_path, "common_01_idle", 10, True, scale))
-        self.anim_manager.add_animation("walk", load_animation_folder(base_path, "common_11_walk", 12, True, scale))
-        self.anim_manager.add_animation("attack", load_animation_folder(base_path, "attack_01_sword", 12, False, scale))
+        self.anim_manager.add_animation("walk", load_animation_folder(base_path, "common_11_walk", 9, True, scale))
+        self.anim_manager.add_animation("attack", load_animation_folder(base_path, "attack_01_sword", 9, False, scale))
         self.anim_manager.add_animation("hurt", load_animation_folder(base_path, "damage_02_damage_body", 10, False, scale))
         self.anim_manager.add_animation("dead", load_animation_folder(base_path, "damage_11_blow_landing", 10, False, scale))
         
         self.anim_manager.play("idle")
         
-        # AI variables (Enhanced aggression & speed)
+        # AI variables (Deliberate pacing)
         self.state_timer = 0.0
         self.patrol_dir = -1
-        self.speed = 90.0
-        self.chase_speed = 160.0
+        self.speed = 50.0
+        self.chase_speed = 95.0
         self.vision_range = 380.0
         self.attack_range = 65.0
 
-        # ── VFX state ──────────────────────────────────────────────────────
+        # ── VFX & Telegraphed Wind-up state ───────────────────────────────
         self._time = 0.0
-        # Sword slash arc drawn over attack frames 2-5
-        self._slash_timer = 0.0          # countdown for how long arc is visible
-        self._slash_dir = 1              # +1 right / -1 left
-        # Eye glow during windup (frame 0-1 of attack)
+        self._slash_timer = 0.0
+        self._slash_dir = 1
         self._eye_glow_timer = 0.0
-        # Particles
+        self._windup_timer = 0.0 # Telegraphed wind-up before swing hits
         self._particles: list[_Particle] = []
 
     def _spawn_slash_particles(self):
@@ -206,10 +231,11 @@ class Skeleton(Enemy):
         elif self.state == "CHASE":
             self.anim_manager.play("walk")
         elif self.state == "ATTACK":
-            # Fast aggressive lunge forward when attacking
-            self.velocity.x = (150.0 if self.facing_right else -150.0)
+            # Telegraphed windup: sword raised, glowing eye
+            self.velocity.x = (70.0 if self.facing_right else -70.0)
             self.anim_manager.play("attack", force_reset=True)
-            self._eye_glow_timer = 0.25    # eye flash on windup
+            self._eye_glow_timer = 0.45    # eye flash on windup
+            self._windup_timer = 0.45      # 0.45s telegraphed preparation window
         elif self.state == "HURT":
             self.velocity.x = 0
             self.anim_manager.play("hurt", force_reset=True)
@@ -219,15 +245,15 @@ class Skeleton(Enemy):
 
     def get_attack_hitbox(self) -> pygame.FRect:
         """Returns the hitbox for the attack if currently attacking, else None."""
-        if self.state != "ATTACK":
+        if self.state != "ATTACK" or self._windup_timer > 0:
             return None
         
         # Only deal damage in the middle of the attack animation
         if self.anim_manager.animations["attack"].current_frame < 3:
             return None
             
-        hitbox_width = 32
-        hitbox_height = 42
+        hitbox_width = 36
+        hitbox_height = 46
         hitbox_y = self.rect.centery - hitbox_height / 2
         if self.facing_right:
             return pygame.FRect(self.rect.right, hitbox_y, hitbox_width, hitbox_height)
@@ -236,9 +262,12 @@ class Skeleton(Enemy):
 
     def update(self, dt: float, tiles: list[pygame.FRect], player):
         self._time += dt
-        # Decay VFX timers
+        self.update_burn(dt)
+        # Decay VFX and windup timers
         if self._eye_glow_timer > 0:
             self._eye_glow_timer -= dt
+        if self._windup_timer > 0:
+            self._windup_timer -= dt
         if self._slash_timer > 0:
             self._slash_timer -= dt
 
@@ -295,15 +324,15 @@ class Skeleton(Enemy):
 
     def _draw_eye_glow(self, surface, cx, cy, cam_x, cam_y):
         """Draw red crimson eye glow flare during windup."""
-        t = max(0, self._eye_glow_timer) / 0.25
+        t = min(1.0, max(0.0, self._eye_glow_timer / 0.45))
         if t <= 0:
             return
-        alpha = int(220 * t)
-        glow_r = int(7 * t)
+        alpha = int(max(0, min(255, 220 * t)))
+        glow_r = int(max(1, 7 * t))
         eye_offset_x = 5 if self.facing_right else -5
-        ex = cx + eye_offset_x - cam_x
-        ey = cy - cam_y - 28
-        if glow_r > 0:
+        ex = int(cx + eye_offset_x - cam_x)
+        ey = int(cy - cam_y - 28)
+        if glow_r > 0 and alpha > 0:
             gs = pygame.Surface((glow_r * 4, glow_r * 4), pygame.SRCALPHA)
             pygame.draw.circle(gs, (255, 30, 30, alpha), (glow_r * 2, glow_r * 2), glow_r * 2)
             surface.blit(gs, (ex - glow_r * 2, ey - glow_r * 2))
@@ -312,8 +341,8 @@ class Skeleton(Enemy):
         """Draw a glowing crimson sword-slash arc."""
         if self._slash_timer <= 0:
             return
-        progress = max(0, self._slash_timer / 0.18)  # 0→1 fade in/out
-        alpha = int(200 * progress)
+        progress = min(1.0, max(0.0, self._slash_timer / 0.18))  # 0→1 fade in/out
+        alpha = max(0, min(255, int(200 * progress)))
         arc_r = 26
         start_angle = -math.pi * 0.5
         span = math.pi * 1.0
@@ -325,7 +354,7 @@ class Skeleton(Enemy):
         tip_y = cy - cam_y - 10
         rect_size = arc_r * 2 + 10
         arc_surf = pygame.Surface((rect_size + 10, rect_size + 10), pygame.SRCALPHA)
-        for glow_w, glow_col in [(7, (255, 80, 20, alpha // 3)), (4, (255, 150, 50, alpha // 2)), (2, (255, 240, 120, alpha))]:
+        for glow_w, glow_col in [(7, (255, 80, 20, max(0, min(255, alpha // 3)))), (4, (255, 150, 50, max(0, min(255, alpha // 2)))), (2, (255, 240, 120, alpha))]:
             pygame.draw.arc(arc_surf, glow_col,
                             pygame.Rect(5, 5, rect_size, rect_size),
                             start_angle, start_angle + span, glow_w)
@@ -368,10 +397,12 @@ class Skeleton(Enemy):
 class MageSkeleton(Skeleton):
     def __init__(self, x: float, y: float):
         super().__init__(x, y)
-        self.health = 2
-        # Different AI parameters for ranged
-        self.speed = 60.0
-        self.chase_speed = 90.0
+        self.health = 60 # Reescalado para novo balanceamento tático (2x)
+        self.attack_damage = 12 # Projétil mágico contínuo
+        self.touch_damage = 3
+        # Different AI parameters for ranged (deliberate caster pacing)
+        self.speed = 40.0
+        self.chase_speed = 60.0
         self.vision_range = 500.0
         self.attack_range = 350.0
         
@@ -403,8 +434,8 @@ class MageSkeleton(Skeleton):
             return
 
         radius = int(14 + self._cast_charge * 18)
-        alpha_scale = min(1.0, self._cast_charge * 2)
-        alpha_base = int(160 * alpha_scale)
+        alpha_scale = min(1.0, max(0.0, self._cast_charge * 2))
+        alpha_base = max(0, min(255, int(160 * alpha_scale)))
 
         tip_x = (cx + 16 * (1 if self.facing_right else -1)) - cam_x
         tip_y = cy - cam_y - 10
@@ -413,18 +444,20 @@ class MageSkeleton(Skeleton):
         ring_surf = pygame.Surface((radius * 2 + 8, radius * 2 + 8), pygame.SRCALPHA)
         rc = radius + 4
         for i, (rr, col_alpha) in enumerate([(radius, alpha_base), (radius - 3, alpha_base // 2)]):
-            col = (200 - i * 40, 30 + i * 20, 255, col_alpha)
+            c_alpha = max(0, min(255, int(col_alpha)))
+            col = (200 - i * 40, 30 + i * 20, 255, c_alpha)
             if rr > 0:
                 pygame.draw.circle(ring_surf, col, (rc, rc), rr, 2)
 
         # Spinning rune spokes
+        spoke_alpha = max(0, min(255, alpha_base // 2))
         for i in range(6):
             angle = self._rune_angle + i * (math.pi / 3)
             sx = rc + int(math.cos(angle) * radius)
             sy = rc + int(math.sin(angle) * radius)
             ex = rc + int(math.cos(angle + math.pi) * (radius // 2))
             ey = rc + int(math.sin(angle + math.pi) * (radius // 2))
-            pygame.draw.line(ring_surf, (220, 100, 255, alpha_base // 2), (sx, sy), (ex, ey), 1)
+            pygame.draw.line(ring_surf, (220, 100, 255, spoke_alpha), (sx, sy), (ex, ey), 1)
 
         surface.blit(ring_surf, (tip_x - rc, tip_y - rc))
 
@@ -432,7 +465,8 @@ class MageSkeleton(Skeleton):
         pulse = 0.5 + 0.5 * math.sin(self._cast_charge * math.pi * 4)
         if radius > 4:
             glow_s = pygame.Surface((radius, radius), pygame.SRCALPHA)
-            pygame.draw.circle(glow_s, (200, 80, 255, int(80 * pulse * alpha_scale)),
+            inner_alpha = max(0, min(255, int(80 * pulse * alpha_scale)))
+            pygame.draw.circle(glow_s, (200, 80, 255, inner_alpha),
                                (radius // 2, radius // 2), radius // 2)
             surface.blit(glow_s, (tip_x - radius // 2, tip_y - radius // 2))
 
@@ -441,13 +475,15 @@ class MageSkeleton(Skeleton):
         tip_x = (cx + 20 * (1 if self.facing_right else -1)) - cam_x
         tip_y = cy - cam_y - 8
         burst_r = 14
+        alpha = max(0, min(255, int(alpha)))
         bs = pygame.Surface((burst_r * 2, burst_r * 2), pygame.SRCALPHA)
         pygame.draw.circle(bs, (255, 150, 255, alpha), (burst_r, burst_r), burst_r)
-        pygame.draw.circle(bs, (255, 255, 255, alpha // 2), (burst_r, burst_r), burst_r // 2)
+        pygame.draw.circle(bs, (255, 255, 255, max(0, min(255, alpha // 2))), (burst_r, burst_r), burst_r // 2)
         surface.blit(bs, (tip_x - burst_r, tip_y - burst_r))
 
     def update(self, dt: float, tiles: list[pygame.FRect], player):
         self._time += dt
+        self.update_burn(dt)
         self._rune_angle += dt * 2.8  # spin rune ring
 
         # Levitation: smooth sinusoidal bob
@@ -610,7 +646,9 @@ class WildBoar(Enemy):
     """Charging Beast from Legacy-Fantasy that rushes at Arani upon seeing her."""
     def __init__(self, x: float, y: float):
         super().__init__(x, y, 46, 38)
-        self.health = 3
+        self.health = 1200 # Reescalado para mini-tank tático (2x)
+        self.attack_damage = 45 # Investida pesada telegrafada
+        self.touch_damage = 10
         
         boar_base = os.path.join("Legacy-Fantasy - High Forest 2.3", "Mob", "Boar")
         from engine.animation import load_spritesheet
@@ -622,19 +660,30 @@ class WildBoar(Enemy):
         hit_path = os.path.join(boar_base, "Hit-Vanish", "Hit-Sheet.png")
         
         self.anim_manager.add_animation("idle", load_spritesheet(idle_path, 48, 32, fps=8, loop=True, scale=scale))
-        self.anim_manager.add_animation("walk", load_spritesheet(walk_path, 48, 32, fps=10, loop=True, scale=scale))
-        self.anim_manager.add_animation("run", load_spritesheet(run_path, 48, 32, fps=14, loop=True, scale=scale))
+        self.anim_manager.add_animation("walk", load_spritesheet(walk_path, 48, 32, fps=7, loop=True, scale=scale))
+        self.anim_manager.add_animation("run", load_spritesheet(run_path, 48, 32, fps=9, loop=True, scale=scale))
         self.anim_manager.add_animation("hurt", load_spritesheet(hit_path, 48, 32, fps=12, loop=False, scale=scale))
         self.anim_manager.add_animation("dead", load_spritesheet(hit_path, 48, 32, fps=10, loop=False, scale=scale))
         
         self.anim_manager.play("idle")
         
-        self.speed = 70.0
-        self.charge_speed = 230.0
+        self.speed = 35.0
+        self.charge_speed = 135.0
         self.vision_range = 450.0
         self.state_timer = 0.0
         self.patrol_dir = -1
+        self.scrape_timer = 0.0 # Telegraphed paw scrape before charge
+        self.dust_particles: list[_Particle] = []
         
+    def _spawn_dust(self):
+        px = self.rect.centerx + (-12 if self.facing_right else 12)
+        py = self.rect.bottom - 4
+        for _ in range(3):
+            vx = random.uniform(-40, -10) if self.facing_right else random.uniform(10, 40)
+            vy = random.uniform(-25, -5)
+            col = random.choice([(140, 120, 90), (180, 160, 120), (110, 90, 70)])
+            self.dust_particles.append(_Particle(px, py, vx, vy, random.uniform(0.2, 0.4), col, radius=random.uniform(2, 4), gravity=80))
+
     def change_state(self, new_state: str):
         super().change_state(new_state)
         self.state_timer = 0.0
@@ -647,6 +696,10 @@ class WildBoar(Enemy):
             self.state_timer = random.uniform(2.0, 3.5)
             self.patrol_dir = random.choice([-1, 1])
             self.facing_right = self.patrol_dir > 0
+        elif self.state == "WINDUP":
+            self.velocity.x = 0
+            self.scrape_timer = 0.6 # Raspa a pata no chão por 0.6s
+            self.anim_manager.play("idle")
         elif self.state == "CHARGE":
             self.anim_manager.play("run")
         elif self.state == "HURT":
@@ -657,6 +710,9 @@ class WildBoar(Enemy):
             self.anim_manager.play("dead", force_reset=True)
             
     def update(self, dt: float, tiles: list[pygame.FRect], player):
+        self.update_burn(dt)
+        self.dust_particles = [p for p in self.dust_particles if p.update(dt)]
+        
         if not self.is_dead:
             self.state_timer -= dt
             dist_to_player = player.rect.centerx - self.rect.centerx
@@ -665,19 +721,28 @@ class WildBoar(Enemy):
             
             if self.state == "HURT":
                 if self.anim_manager.is_finished("hurt"):
-                    self.change_state("CHARGE")
+                    self.change_state("WINDUP")
             elif self.state == "IDLE":
                 if player_in_range and not player.invulnerable:
-                    self.change_state("CHARGE")
+                    self.facing_right = dist_to_player > 0
+                    self.change_state("WINDUP")
                 elif self.state_timer <= 0:
                     self.change_state("PATROL")
             elif self.state == "PATROL":
                 if player_in_range and not player.invulnerable:
-                    self.change_state("CHARGE")
+                    self.facing_right = dist_to_player > 0
+                    self.change_state("WINDUP")
                 elif self.state_timer <= 0:
                     self.change_state("IDLE")
                 else:
                     self.velocity.x = self.speed * self.patrol_dir
+            elif self.state == "WINDUP":
+                self.velocity.x = 0
+                self.scrape_timer -= dt
+                if random.random() < 0.4:
+                    self._spawn_dust()
+                if self.scrape_timer <= 0:
+                    self.change_state("CHARGE")
             elif self.state == "CHARGE":
                 if not player_in_range:
                     self.change_state("IDLE")
@@ -695,3 +760,8 @@ class WildBoar(Enemy):
         if self.state == "CHARGE" and not self.is_dead:
             return self.rect
         return None
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        super().draw(surface, camera_offset)
+        for p in self.dust_particles:
+            p.draw(surface, camera_offset.x, camera_offset.y)

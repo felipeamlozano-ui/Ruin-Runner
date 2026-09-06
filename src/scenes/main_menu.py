@@ -22,16 +22,27 @@ class MainMenuScene(Scene):
         self.bg_timer = 0.0
         
     def start_game(self):
-        from scenes.level_scene import LevelScene
         from scenes.loading_scene import LoadingScene
-        lvl1 = LevelScene(stage=1, scene_manager=self.scene_manager)
-        loading = LoadingScene(
-            self.scene_manager,
-            lvl1,
-            title="FASE 1: AS CATACUMBAS",
-            tip="Dica: Use [Shift] para erguer o escudo ou barreira e bloquear danos!"
-        )
-        self.scene_manager.change_scene(loading)
+        if SETTINGS.DEV_MODE and SETTINGS.DEV_START_BOSS:
+            from scenes.boss_scene import BossScene
+            boss_scene = BossScene(self.scene_manager)
+            loading = LoadingScene(
+                self.scene_manager,
+                boss_scene,
+                title="SALA DO BOSS: O REI ESQUELETO",
+                tip="Modo Dev Ativo: Iniciando confronto diretamente na sala do Boss!"
+            )
+            self.scene_manager.change_scene(loading)
+        else:
+            from scenes.level_scene import LevelScene
+            lvl1 = LevelScene(stage=1, scene_manager=self.scene_manager)
+            loading = LoadingScene(
+                self.scene_manager,
+                lvl1,
+                title="FASE 1: AS CATACUMBAS",
+                tip="Dica: Use [Shift] para erguer o escudo ou barreira e bloquear danos!"
+            )
+            self.scene_manager.change_scene(loading)
         
     def open_character_select(self):
         from scenes.character_select_scene import CharacterSelectScene
@@ -59,5 +70,12 @@ class MainMenuScene(Scene):
         offset = int(self.bg_timer * 20) % 20
         for y in range(0, SETTINGS.GAME_HEIGHT, 20):
             pygame.draw.line(surface, (30, 30, 40), (0, y + offset), (SETTINGS.GAME_WIDTH, y + offset))
+            
+        # Dev mode indicator badge
+        if SETTINGS.DEV_MODE:
+            dev_font = pygame.font.SysFont("Arial", 11, bold=True)
+            dev_surf = dev_font.render("[MODO DEV: INÍCIO NO BOSS ATIVADO]", True, (255, 140, 70))
+            dev_rect = dev_surf.get_rect(center=(SETTINGS.GAME_WIDTH // 2, 24))
+            surface.blit(dev_surf, dev_rect)
             
         self.menu.draw(surface, SETTINGS.GAME_WIDTH // 2, SETTINGS.GAME_HEIGHT // 2 - 40)

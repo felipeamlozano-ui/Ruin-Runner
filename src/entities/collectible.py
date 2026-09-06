@@ -88,12 +88,16 @@ class Collectible:
             player.inventory['crystals'] += self.value
             print(f"Got Orb! Total: {player.inventory['crystals']}")
         elif self.item_type == "potion":
-            player.health = player.max_health # Heals to full 20 HP!
-            print(f"Full Heal ({int(player.max_health)} HP)!")
+            if hasattr(player, "start_drinking_potion"):
+                player.start_drinking_potion(heal_amount=40)
+            else:
+                player.health = min(player.max_health, player.health + 40)
         elif self.item_type == "chicken":
-            player.health = player.max_health # Heals to full 20 HP!
-            player.stamina = 100.0
-            print("Full Heal + Full Stamina!")
+            if hasattr(player, "start_drinking_potion"):
+                player.start_drinking_potion(heal_amount=40)
+            else:
+                player.health = min(player.max_health, player.health + 40)
+            player.stamina = min(getattr(player, "max_stamina", 120.0), player.stamina + 35.0)
             
         self.active = False
         

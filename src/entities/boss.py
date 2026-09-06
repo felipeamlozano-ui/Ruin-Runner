@@ -39,9 +39,9 @@ class BossShockwave:
     """Ground shockwave traveling along the floor created by Boss Jump Slam."""
     def __init__(self, x: float, y: float, moving_right: bool):
         self.rect = pygame.FRect(x, y - 20, 36, 40)
-        self.velocity_x = 350.0 if moving_right else -350.0
+        self.velocity_x = 200.0 if moving_right else -200.0
         self.active = True
-        self.damage = 1
+        self.damage = 35
         self.moving_right = moving_right
         
         shock_path = os.path.join("assets", "sprites", "vfx", "vfx_ground_shock")
@@ -80,8 +80,13 @@ class SkeletonBoss:
         self.velocity = pygame.math.Vector2(0, 0)
         self.rect = pygame.FRect(x, y, 54, 96)
         
-        self.max_health = 450 # Significantly increased HP for challenging boss fight
+        self.max_health = 20000 # Epic 20,000 HP boss
         self.health = self.max_health
+        self.max_shield = 2000  # 2,000 Poise Shield
+        self.shield = self.max_shield
+        self.shield_recharge_cooldown = 0.0 # 20s cooldown after stagger before shield recharge begins
+        self.attack_damage = 35 # Sword cleave damage (35)
+        self.touch_damage = 0   # No contact/body collision damage
         self.is_dead = False
         self.facing_right = False
         self.enraged = False
@@ -91,8 +96,13 @@ class SkeletonBoss:
         self.slow_timer = 0.0
         self.slow_factor = 1.0
         
+        # Ignis Burn passive support
+        self.burn_timer = 0.0
+        self.burn_dps = 0.0
+        self.burn_tick_timer = 0.0
+        
         # Boss Combat & AI State
-        self.state = "IDLE" # IDLE, CHASE, ATTACK, FLAME_BURST, JUMP_SLAM, SHADOW_STEP, ROAR
+        self.state = "IDLE" # IDLE, CHASE, ATTACK, FLAME_BURST, JUMP_SLAM, ROAR, STAGGERED
         self.state_timer = 0.0
         self.skill_cooldown = 2.0
         self.attack_cooldown = 0.8
@@ -114,6 +124,10 @@ class SkeletonBoss:
         self.smoke_pos = pygame.math.Vector2(0, 0)
         vfx_smoke_path = os.path.join("assets", "sprites", "vfx", "vfx_smoke")
         self.smoke_anim = load_animation_folder(vfx_smoke_path, "vfx_smoke", 22, False, 2.0)
+        
+        # Stun VFX Animation
+        vfx_stun_path = os.path.join("assets", "sprites", "vfx", "vfx_stun")
+        self.stun_anim = load_animation_folder(vfx_stun_path, "vfx_stun", 16, True, 1.4)
         
         # Animations
         self.anim_manager = AnimationManager()
@@ -157,6 +171,19 @@ class SkeletonBoss:
         # ATTACK melee: giant slash arc
         self._melee_slash_timer = 0.0
         self._melee_slash_dir = 1
+        self._attack_windup = 0.0  # telegraph pause before lunge
+
+    @property
+    def poise_shield(self) -> int:
+        return self.shield
+
+    @poise_shield.setter
+    def poise_shield(self, val: int):
+        self.shield = val
+
+    @property
+    def is_staggered(self) -> bool:
+        return self.state == "STAGGERED"
 
     # ──────────────────────────────────────────────────────────────────────────
     def apply_slow(self, duration: float = 2.5, factor: float = 0.35):
@@ -165,27 +192,41 @@ class SkeletonBoss:
             self.slow_timer = max(self.slow_timer, duration)
             self.slow_factor = factor
 
+    def apply_burn(self, duration: float = 4.0, dps: float = 3.0):
+        """Applies burn damage over time (Ignis passive)."""
+        if not self.is_dead:
+            self.burn_timer = max(self.burn_timer, duration)
+            self.burn_dps = dps
+
     def take_damage(self, amount: int):
-        if self.is_dead or self.state == "SHADOW_STEP":
+        if self.is_dead:
             return
             
-        self.health -= amount
         self.hit_count += 1
         
-        # Drop ONLY ONE healing potion when health drops to 50% or below per user request!
-        if self.health <= self.max_health // 2 and not self.potion_dropped_50:
-            self.potion_dropped_50 = True
-            self.potions_to_spawn.append((self.rect.centerx, self.rect.centery - 20))
-            
-        if self.health <= 0:
-            self.health = 0
-            self.is_dead = True
-            self.state = "DEAD"
-            self.anim_manager.play("dead", force_reset=True)
-            self.velocity.x = 0
-            self.velocity.y = -100
+        # Poise Shield absorption:
+        if self.shield > 0:
+            self.shield -= amount
+            if self.shield <= 0:
+                self.shield = 0
+                self.shield_recharge_cooldown = 20.0 # 20 seconds cooldown before shield can start regenerating
+                self.state = "STAGGERED"
+                self.state_timer = 4.5
+                self.velocity.x = 0
+                self.anim_manager.play("hurt", force_reset=True)
         else:
-            # Check Enrage at 50% HP
+            # Shield is down: direct damage to HP
+            self.health -= amount
+            if self.health <= 0:
+                self.health = 0
+                self.is_dead = True
+                self.state = "DEAD"
+                self.anim_manager.play("dead", force_reset=True)
+                self.velocity.x = 0
+                self.velocity.y = -100
+                return
+                
+            # Check Enrage at 50% HP (10,000 HP)
             if self.health <= self.max_health // 2 and not self.enraged:
                 self.enraged = True
                 self.state = "ROAR"
@@ -195,17 +236,22 @@ class SkeletonBoss:
                 self._roar_ring_radius = 5.0
                 self._roar_ring_timer = 0.7
                 self._spawn_roar_burst()
-                
-            # Check Minion Reinforcements
-            if self.health <= 335 and not self.summoned_75:
-                self.summoned_75 = True
-                self.minions_to_spawn.extend([("skeleton", self.rect.x - 120), ("mage", self.rect.x + 120)])
-            if self.health <= 225 and not self.summoned_50:
-                self.summoned_50 = True
-                self.minions_to_spawn.extend([("boar", self.rect.x - 140), ("mage", self.rect.x + 140)])
-            if self.health <= 110 and not self.summoned_25:
-                self.summoned_25 = True
-                self.minions_to_spawn.extend([("mage", self.rect.x - 160), ("mage", self.rect.x + 160)])
+
+        # Drop ONLY ONE healing potion when health drops to 50% or below per user request!
+        if self.health <= self.max_health // 2 and not self.potion_dropped_50:
+            self.potion_dropped_50 = True
+            self.potions_to_spawn.append((self.rect.centerx, self.rect.centery - 20))
+            
+        # Check Minion Reinforcements
+        if self.health <= 15000 and not self.summoned_75:
+            self.summoned_75 = True
+            self.minions_to_spawn.extend([("skeleton", self.rect.x - 120), ("mage", self.rect.x + 120)])
+        if self.health <= 10000 and not self.summoned_50:
+            self.summoned_50 = True
+            self.minions_to_spawn.extend([("boar", self.rect.x - 140), ("mage", self.rect.x + 140)])
+        if self.health <= 5000 and not self.summoned_25:
+            self.summoned_25 = True
+            self.minions_to_spawn.extend([("mage", self.rect.x - 160), ("mage", self.rect.x + 160)])
 
     # ── VFX helpers ────────────────────────────────────────────────────────
     def _spawn_roar_burst(self):
@@ -347,7 +393,19 @@ class SkeletonBoss:
                 player.take_damage(sw.damage)
                 sw.active = False
                 self.shockwaves.remove(sw)
-                
+
+        # Burn damage tick (Ignis passive)
+        if self.burn_timer > 0 and not self.is_dead:
+            self.burn_timer -= dt
+            self.burn_tick_timer += dt
+            if self.burn_tick_timer >= 1.0:
+                self.burn_tick_timer = 0.0
+                self.take_damage(int(round(self.burn_dps)))
+            if random.random() < 0.25:
+                bx = self.rect.centerx + random.uniform(-16, 16)
+                by = self.rect.centery + random.uniform(-25, 25)
+                self._particles.append(_BossParticle(bx, by, random.uniform(-10, 10), random.uniform(-40, -80), 0.35, (255, 120, 20), radius=2.5, gravity=-20))
+
         if self.is_dead:
             # Gravity for corpse
             self.velocity.y += 800 * dt
@@ -364,6 +422,17 @@ class SkeletonBoss:
             self.skill_cooldown -= dt
         if self.attack_cooldown > 0:
             self.attack_cooldown -= dt
+        if self.shield_recharge_cooldown > 0:
+            self.shield_recharge_cooldown -= dt
+            if self.shield_recharge_cooldown <= 0 and self.shield <= 0 and self.state != "STAGGERED" and not self.is_dead:
+                # 20s cooldown elapsed after stagger: restore 2,000 shield and roar
+                self.shield = self.max_shield
+                self.state = "ROAR"
+                self.state_timer = 1.0
+                self.anim_manager.play("cast", force_reset=True)
+                self._roar_ring_radius = 5.0
+                self._roar_ring_timer = 0.7
+                self._spawn_roar_burst()
             
         if player:
             self.facing_right = player.rect.centerx > self.rect.centerx
@@ -373,7 +442,21 @@ class SkeletonBoss:
             speed_mult = 1.35 if self.enraged else 1.0
             
             # State Machine
-            if self.state == "IDLE":
+            if self.state == "STAGGERED":
+                self.velocity.x = 0
+                self.state_timer -= dt
+                self.anim_manager.play("hurt")
+                self.stun_anim.update(effective_dt)
+                if self.state_timer <= 0:
+                    # Stagger stun ends: boss resumes action without shield (shield has 20s recharge cooldown)
+                    self.state = "CHASE"
+                    self.anim_manager.play("walk", force_reset=True)
+                    if dist < 140:
+                        repel_dir = 1 if player.rect.centerx > self.rect.centerx else -1
+                        player.velocity.x = repel_dir * 320
+                        player.velocity.y = -180
+
+            elif self.state == "IDLE":
                 self.anim_manager.play("idle")
                 self.velocity.x = 0
                 self.state_timer -= dt
@@ -382,19 +465,20 @@ class SkeletonBoss:
                     
             elif self.state == "CHASE":
                 self.anim_manager.play("walk")
-                self.velocity.x = (140.0 * speed_mult) if self.facing_right else (-140.0 * speed_mult)
+                self.velocity.x = (90.0 * speed_mult) if self.facing_right else (-90.0 * speed_mult)
                 
-                # Check Melee Attack
+                # Check Melee Attack (35 damage) — wind-up gives player time to run!
                 if dist < 75 and self.attack_cooldown <= 0:
                     self.state = "ATTACK"
                     self.has_hit_player = False
-                    self.velocity.x = (180.0 * speed_mult) if self.facing_right else (-180.0 * speed_mult) # lunge
+                    self.velocity.x = 0  # stop during wind-up
                     self.anim_manager.play("attack", force_reset=True)
                     self._melee_slash_timer = 0.0  # reset
+                    self._attack_windup = 1.0  # 1.0s telegraph before lunge
                     
-                # Check Special Skills
+                # Check Special Skills (No teleport; ground pursuit only!)
                 elif self.skill_cooldown <= 0:
-                    chosen_skill = random.choice(["FLAME_BURST", "JUMP_SLAM", "SHADOW_STEP"])
+                    chosen_skill = random.choice(["FLAME_BURST", "JUMP_SLAM"])
                     self.state = chosen_skill
                     self.state_timer = 0.0
                     self.skill_cooldown = 2.8 if not self.enraged else 1.8
@@ -402,62 +486,38 @@ class SkeletonBoss:
                     if chosen_skill == "FLAME_BURST":
                         self.velocity.x = 0
                         self.anim_manager.play("cast", force_reset=True)
-                        self.state_timer = 0.6
+                        self.state_timer = 0.75 # Telegraph cast wind-up!
                         self._flame_active = True
                         self._flame_charge = 0.0
                         
                     elif chosen_skill == "JUMP_SLAM":
-                        self.velocity.y = -650 # Huge jump
-                        self.velocity.x = (250.0 * speed_mult) if self.facing_right else (-250.0 * speed_mult)
+                        self.velocity.y = -560 # Heavy jump slam
+                        self.velocity.x = (160.0 * speed_mult) if self.facing_right else (-160.0 * speed_mult)
                         self.anim_manager.play("jump", force_reset=True)
                         
-                    elif chosen_skill == "SHADOW_STEP":
-                        # Save after-image
-                        try:
-                            ghost_img = self.anim_manager.get_current_frame().copy()
-                            ghost_img.set_alpha(160)
-                            self._shadow_afterimages.append({
-                                "surf": ghost_img,
-                                "x": self.rect.centerx, "y": self.rect.bottom,
-                                "timer": 0.45
-                            })
-                        except Exception:
-                            pass
-                        # Departure vortex
-                        self._spawn_shadow_vortex(self.rect.centerx, self.rect.centery, is_arrival=False)
-                        self.smoke_active = True
-                        self.smoke_timer = 0.5
-                        self.smoke_pos = pygame.math.Vector2(self.rect.centerx, self.rect.centery)
-                        self.smoke_anim.reset()
-                        
-                        target_x = player.rect.centerx + (-90 if player.facing_right else 90)
-                        self.rect.x = max(100, min(1400, target_x))
-                        self.pos.x = self.rect.x
-                        self.facing_right = player.rect.centerx > self.rect.centerx
-                        # Arrival VFX
-                        self._spawn_shadow_vortex(self.rect.centerx, self.rect.centery, is_arrival=True)
-                        self._shadow_arrive_flash = 0.28
-                        self.state = "ATTACK"
-                        self.has_hit_player = False
-                        self.anim_manager.play("attack", force_reset=True)
-                        
             elif self.state == "ATTACK":
-                self.velocity.x *= 0.9
+                # Wind-up telegraph: boss is stationary letting player react
+                if self._attack_windup > 0:
+                    self._attack_windup -= dt
+                    self.velocity.x = 0
+                else:
+                    # Lunge phase after wind-up
+                    self.velocity.x = (140.0 * speed_mult) if self.facing_right else (-140.0 * speed_mult)
                 cur_frame = self.anim_manager.animations["attack"].current_frame
-                # Trigger melee slash arc at frame 2
-                if cur_frame == 2 and self._melee_slash_timer <= 0:
+                # Trigger melee slash arc at frame 4 (late in animation)
+                if cur_frame >= 4 and self._melee_slash_timer <= 0:
                     self._melee_slash_timer = 0.22
                     self._melee_slash_dir = 1 if self.facing_right else -1
                 if self.anim_manager.is_finished("attack"):
                     self.state = "IDLE"
-                    self.state_timer = 0.4
-                    self.attack_cooldown = 0.9 if not self.enraged else 0.5
+                    self.state_timer = 0.5
+                    self.attack_cooldown = 2.0 if not self.enraged else 1.2
                     
             elif self.state == "FLAME_BURST":
                 self.velocity.x = 0
                 self.state_timer -= dt
                 if self.state_timer <= 0:
-                    # Shoot 3 fireballs
+                    # Shoot 3 fireballs (85 dmg each)
                     proj_x = self.rect.right if self.facing_right else self.rect.left - 24
                     proj_y = self.rect.centery - 10
                     
@@ -505,18 +565,21 @@ class SkeletonBoss:
                     self.rect.bottom = t.top
                     self.pos.y = self.rect.y
                     
-                    # If was jump-slamming, create shockwaves upon hitting ground!
+                    # If was jump-slamming, create shockwaves and deal crater impact upon hitting ground!
                     if self.state == "JUMP_SLAM":
                         self.state = "IDLE"
-                        self.state_timer = 0.5
+                        self.state_timer = 0.6
                         self.anim_manager.play("slam", force_reset=True)
-                        # Shockwaves left and right
+                        # Shockwaves left and right (deal 35 dmg)
                         sw_left = BossShockwave(self.rect.left, self.rect.bottom, moving_right=False)
                         sw_right = BossShockwave(self.rect.right, self.rect.bottom, moving_right=True)
                         self.shockwaves.extend([sw_left, sw_right])
+                        # Heavy crater impact damage: 85 dmg if caught in direct slam impact
+                        if player and abs(player.rect.centerx - self.rect.centerx) < 70 and abs(player.rect.bottom - self.rect.bottom) < 40:
+                            player.take_damage(85)
                         # Slam debris particles
                         self._spawn_slam_debris()
-                        self._slam_impact_timer = 0.18  # crater flash timer
+                        self._slam_impact_timer = 0.22
                         
                     self.velocity.y = 0
                 elif self.velocity.y < 0:
@@ -546,7 +609,7 @@ class SkeletonBoss:
         if not self._flame_active or self._flame_charge <= 0:
             return
         t = self._flame_charge
-        alpha = int(200 * min(1.0, t * 2))
+        alpha = max(0, min(255, int(200 * min(1.0, t * 2))))
         radius = int(30 + t * 36)
         cx = self.rect.centerx - cam_x
         cy = self.rect.bottom - cam_y - 4  # on ground level
@@ -556,7 +619,7 @@ class SkeletonBoss:
 
         # Outer circle
         pygame.draw.circle(sigil_surf, (140, 30, 200, alpha), (rc, rc), radius, 2)
-        pygame.draw.circle(sigil_surf, (200, 60, 255, alpha // 2), (rc, rc), radius - 6, 1)
+        pygame.draw.circle(sigil_surf, (200, 60, 255, max(0, min(255, alpha // 2))), (rc, rc), radius - 6, 1)
 
         # Pentagram / star rune spokes
         num_pts = 5
@@ -575,7 +638,7 @@ class SkeletonBoss:
         if radius > 10:
             inner_r = radius // 2
             ig = pygame.Surface((inner_r * 2, inner_r * 2), pygame.SRCALPHA)
-            pygame.draw.circle(ig, (200, 80, 255, int(90 * pulse * min(1.0, t * 2))), (inner_r, inner_r), inner_r)
+            pygame.draw.circle(ig, (200, 80, 255, max(0, min(255, int(90 * pulse * min(1.0, t * 2))))), (inner_r, inner_r), inner_r)
             sigil_surf.blit(ig, (rc - inner_r, rc - inner_r))
 
         surface.blit(sigil_surf, (cx - rc, cy - 8))
@@ -584,8 +647,8 @@ class SkeletonBoss:
         """Giant dark crimson slash arc during boss melee attack."""
         if self._melee_slash_timer <= 0:
             return
-        progress = self._melee_slash_timer / 0.22
-        alpha = int(210 * progress)
+        progress = max(0.0, min(1.0, self._melee_slash_timer / 0.22))
+        alpha = max(0, min(255, int(210 * progress)))
         arc_r = 44
         start_angle = -math.pi * 0.6
         span = math.pi * 1.2
@@ -599,8 +662,8 @@ class SkeletonBoss:
         rect_size = arc_r * 2 + 12
         arc_surf = pygame.Surface((rect_size + 12, rect_size + 12), pygame.SRCALPHA)
         for gw, col in [
-            (11, (200, 30, 10, alpha // 4)),
-            (7,  (255, 70, 20, alpha // 2)),
+            (11, (200, 30, 10, max(0, min(255, alpha // 4)))),
+            (7,  (255, 70, 20, max(0, min(255, alpha // 2)))),
             (3,  (255, 180, 60, alpha)),
         ]:
             pygame.draw.arc(arc_surf, col,
@@ -612,15 +675,15 @@ class SkeletonBoss:
         """Purple lightning burst when shadow-stepping to arrival point."""
         if self._shadow_arrive_flash <= 0:
             return
-        t = self._shadow_arrive_flash / 0.28
-        alpha = int(220 * t)
+        t = max(0.0, min(1.0, self._shadow_arrive_flash / 0.28))
+        alpha = max(0, min(255, int(220 * t)))
         radius = int(50 * t)
         cx = self.rect.centerx - cam_x
         cy = self.rect.centery - cam_y
         if radius > 0:
             fs = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
             pygame.draw.circle(fs, (180, 40, 255, alpha), (radius, radius), radius)
-            pygame.draw.circle(fs, (255, 200, 255, alpha // 2), (radius, radius), radius // 2)
+            pygame.draw.circle(fs, (255, 200, 255, max(0, min(255, alpha // 2))), (radius, radius), radius // 2)
             surface.blit(fs, (cx - radius, cy - radius))
 
     def _draw_roar_ring(self, surface, cam_x, cam_y):
@@ -720,8 +783,22 @@ class SkeletonBoss:
             surface.blit(img, (draw_x, draw_y))
 
         # ── Foreground VFX (draw after sprite) ───────────────────────────
-        # Shadow step arrival flash
-        self._draw_shadow_arrive_flash(surface, cam_x, cam_y)
+        # Poise Shield Barrier Aura
+        if self.shield > 0 and not self.is_dead:
+            pulse = 0.75 + 0.25 * math.sin(self._time * 4)
+            sh_w = int(self.rect.width + 30 + 6 * pulse)
+            sh_h = int(self.rect.height + 24 + 6 * pulse)
+            sh_surf = pygame.Surface((sh_w, sh_h), pygame.SRCALPHA)
+            pygame.draw.ellipse(sh_surf, (80, 210, 255, int(40 * pulse)), (0, 0, sh_w, sh_h))
+            pygame.draw.ellipse(sh_surf, (255, 215, 80, int(120 * pulse)), (0, 0, sh_w, sh_h), 2)
+            surface.blit(sh_surf, (self.rect.centerx - cam_x - sh_w // 2, self.rect.centery - cam_y - sh_h // 2))
+
+        # Staggered stun stars over head
+        if self.state == "STAGGERED" and not self.is_dead:
+            stun_frame = self.stun_anim.get_current_frame()
+            if stun_frame:
+                sf_rect = stun_frame.get_rect(center=(self.rect.centerx - cam_x, self.rect.top - cam_y - 16))
+                surface.blit(stun_frame, sf_rect)
 
         # Slam impact crater flash (draw only while timer > 0)
         if self._slam_impact_timer > 0:

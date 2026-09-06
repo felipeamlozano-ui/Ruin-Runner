@@ -33,6 +33,10 @@ class Settings:
     
     # Gameplay & Character Selection
     CURRENT_CHARACTER: str = "shaia"  # "shaia", "lunaria", "ignis", "astra", "shinobi", "samurai", "fighter"
+    
+    # Developer / Debug Mode
+    DEV_MODE: bool = False   # True = ao iniciar novo jogo, pula direto para a sala do boss (configurável nos settings)
+    DEV_START_BOSS: bool = True  # Sincronizado com DEV_MODE para início direto no Boss
 
 # Global Settings Instance
 SETTINGS = Settings()

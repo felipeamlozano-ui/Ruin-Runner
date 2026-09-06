@@ -9,8 +9,8 @@ class SettingsMenuScene(Scene):
     def __init__(self, scene_manager, previous_scene):
         self.scene_manager = scene_manager
         self.previous_scene = previous_scene
-        self.font_title = pygame.font.Font(None, 40)
-        self.font_option = pygame.font.Font(None, 24)
+        self.font_title = pygame.font.Font(None, 34)
+        self.font_option = pygame.font.Font(None, 22)
         self.font_tip = pygame.font.Font(None, 18)
         
         self.selected_index = 0
@@ -28,7 +28,7 @@ class SettingsMenuScene(Scene):
         tq_text = SETTINGS.TEXTURE_QUALITY
         crt_text = "Ativado" if SETTINGS.SCANLINES_ENABLED else "Desativado (Nítido)"
         stretch_text = "Preencher (Sem Barras)" if SETTINGS.FULLSCREEN_STRETCH else "Proporção 4:3 (Barras)"
-
+        dev_text = "Ativado (Pular p/ Boss)" if SETTINGS.DEV_MODE else "Desativado (Fases Normais)"
         
         self.options = [
             ("Resolução", res_text, self.toggle_resolution),
@@ -40,6 +40,7 @@ class SettingsMenuScene(Scene):
             ("Vinheta Cinematográfica", vg_text, self.toggle_vignette),
             ("Qualidade Texturas", tq_text, self.toggle_texture_quality),
             ("Linhas CRT (Scanlines)", crt_text, self.toggle_scanlines),
+            ("Modo Dev", dev_text, self.toggle_dev_mode),
             ("Voltar", "", self.go_back)
         ]
 
@@ -93,6 +94,11 @@ class SettingsMenuScene(Scene):
         SETTINGS.SCANLINES_ENABLED = not SETTINGS.SCANLINES_ENABLED
         self._update_options_text()
 
+    def toggle_dev_mode(self, direction: int = 1):
+        SETTINGS.DEV_MODE = not SETTINGS.DEV_MODE
+        SETTINGS.DEV_START_BOSS = SETTINGS.DEV_MODE
+        self._update_options_text()
+
     def go_back(self, direction: int = 1):
         self.scene_manager.change_scene(self.previous_scene)
 
@@ -122,16 +128,16 @@ class SettingsMenuScene(Scene):
             surface.fill((15, 18, 28))
             
         cx = SETTINGS.GAME_WIDTH // 2
-        cy = 28
+        cy = 20
         
         # Title
-        title_surf = self.font_title.render("= CONFIGURAÇÕES GRÁFICAS =", True, (255, 215, 100))
+        title_surf = self.font_title.render("= CONFIGURAÇÕES =", True, (255, 215, 100))
         t_rect = title_surf.get_rect(center=(cx, cy))
         surface.blit(title_surf, t_rect)
         
         # Options List
-        start_y = cy + 32
-        spacing = 26
+        start_y = cy + 28
+        spacing = 25
         for i, (label, val, _) in enumerate(self.options):
             is_selected = (i == self.selected_index)
             color = (255, 235, 120) if is_selected else (210, 215, 225)

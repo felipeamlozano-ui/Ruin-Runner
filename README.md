@@ -16,7 +16,7 @@ Um jogo de ação e aventura em plataforma 2D de ritmo acelerado desenvolvido em
 | **Dash Esquiva** (12 SP) | `Q` | `RB` / `R1` |
 | **Tempestade de Lâminas AoE** (35 MP) | `E` | `LB` / `L1` |
 | **Ultimate Devastador** (100 MP) | `R` | `B` (Circle) |
-| **Bloqueio / Escudo** (8 SP/s) | `Shift` | `LT` / `L2` |
+| **Bloqueio / Escudo** (3 SP/s ou 3 MP/s) | `Shift` | `LT` / `L2` |
 | **Menu / Pausa** | `ESC` ou `P` | `Start` / `Options` |
 
 ---

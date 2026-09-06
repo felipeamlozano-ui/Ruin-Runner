@@ -19,7 +19,7 @@ class Animation:
             return
             
         self.timer += dt
-        if self.timer >= self.frame_duration:
+        while self.timer >= self.frame_duration:
             self.timer -= self.frame_duration
             self.current_frame += 1
             
@@ -29,6 +29,7 @@ class Animation:
                 else:
                     self.current_frame = len(self.frames) - 1
                     self.finished = True
+                    break
                     
     def reset(self):
         self.current_frame = 0
@@ -59,6 +60,9 @@ class AnimationManager:
         self.animations[state_name] = anim
         if not self.current_state:
             self.current_state = state_name
+
+    def has_animation(self, state_name: str) -> bool:
+        return state_name in self.animations
             
     def play(self, state_name: str, force_reset: bool = False):
         if self.current_state != state_name or force_reset:
