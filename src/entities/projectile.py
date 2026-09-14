@@ -393,6 +393,82 @@ class EnergyStreak(BaseParticle):
             pygame.draw.line(surface, clamp_color((*self.color[:3], alpha)), (dx, dy), (dx - nx * self.length, dy - ny * self.length), 1)
 
 
+class ImpactSparkStreak(BaseParticle):
+    """Faísca cinética direcional com rastro esticado e atenuação de velocidade."""
+    __slots__ = ("x", "y", "vx", "vy", "life", "max_life", "color", "core_color", "width", "drag")
+    def __init__(self, x: float, y: float, vx: float, vy: float, life: float, color: Tuple[int, ...], core_color: Tuple[int, ...] = (255, 255, 255), width: int = 2):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.life = self.max_life = life
+        self.color = color
+        self.core_color = core_color
+        self.width = width
+        self.drag = 0.90
+
+    def update(self, dt: float) -> bool:
+        factor = (self.drag ** (dt * 60))
+        self.vx *= factor
+        self.vy *= factor
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+        self.life -= dt
+        return self.life > 0
+
+    def draw(self, surface: pygame.Surface, cam_x: float, cam_y: float):
+        if self.life <= 0: return
+        t = max(0.0, min(1.0, self.life / self.max_life))
+        alpha = int(255 * (t ** 0.8))
+        if alpha <= 0: return
+        dx, dy = self.x - cam_x, self.y - cam_y
+        speed = math.hypot(self.vx, self.vy)
+        if speed > 15:
+            tail_len = min(15.0, max(3.0, speed * 0.04))
+            nx, ny = self.vx / speed, self.vy / speed
+            tx, ty = dx - nx * tail_len, dy - ny * tail_len
+            col = self.color if t < 0.65 else self.core_color
+            pygame.draw.line(surface, clamp_color((*col[:3], alpha)), (int(dx), int(dy)), (int(tx), int(ty)), self.width)
+        else:
+            pygame.draw.circle(surface, clamp_color((*self.color[:3], alpha)), (int(dx), int(dy)), max(1, self.width // 2))
+
+
+class ShockwaveRingParticle(BaseParticle):
+    """Anel de choque expansivo de alta definição com dissipação rápida e borda dupla."""
+    __slots__ = ("x", "y", "life", "max_life", "max_radius", "outer_color", "inner_color")
+    def __init__(self, x: float, y: float, max_radius: float = 32.0, life: float = 0.18, outer_color: Tuple[int, ...] = (255, 160, 40), inner_color: Tuple[int, ...] = (255, 255, 255)):
+        self.x = x
+        self.y = y
+        self.life = self.max_life = life
+        self.max_radius = max_radius
+        self.outer_color = outer_color
+        self.inner_color = inner_color
+
+    def update(self, dt: float) -> bool:
+        self.life -= dt
+        return self.life > 0
+
+    def draw(self, surface: pygame.Surface, cam_x: float, cam_y: float):
+        if self.life <= 0: return
+        t = max(0.0, min(1.0, 1.0 - (self.life / self.max_life)))
+        ease = ease_out_expo(t)
+        cur_r = int(self.max_radius * ease)
+        if cur_r < 2: return
+        
+        alpha = max(0, min(255, int(230 * (1.0 - ease))))
+        if alpha <= 0: return
+        
+        dx, dy = int(self.x - cam_x), int(self.y - cam_y)
+        ring_surf = pygame.Surface((cur_r * 2 + 8, cur_r * 2 + 8), pygame.SRCALPHA)
+        rc = cur_r + 4
+        
+        thickness = max(1, int(3 * (1.0 - ease)))
+        pygame.draw.circle(ring_surf, clamp_color((*self.outer_color[:3], alpha)), (rc, rc), cur_r, thickness)
+        pygame.draw.circle(ring_surf, clamp_color((*self.inner_color[:3], int(alpha * 0.9))), (rc, rc), cur_r, 1)
+        
+        surface.blit(ring_surf, (dx - rc, dy - rc), special_flags=pygame.BLEND_RGBA_ADD)
+
+
 # ========================================================================================
 # 6. DYNAMIC TRAJECTORY SYSTEM
 # ========================================================================================
@@ -421,7 +497,7 @@ class WaveTrajectory(Trajectory):
 
 
 # ========================================================================================
-# 7. LEGACY ANIMATION FALLBACKS (Explosões Hit State)
+# 7. LEGACY & PROCEDURAL HIT ANIMATIONS (Hit Starburst Factory)
 # ========================================================================================
 _FIREBALL_CACHES = {}
 _PURPLE_SPHERE_FLY_FRAMES = None
@@ -457,6 +533,74 @@ def get_shuriken_anims() -> Tuple[Animation, Animation]:
 def get_vacuum_slash_anims() -> Tuple[Animation, Animation]:
     surf = pygame.Surface((32, 32), pygame.SRCALPHA)
     return Animation([surf], 20, True), Animation([surf], 24, False)
+
+
+class HitAnimationFactory:
+    """
+    Carrega, escala e tintura os frames de vfx_hit (starburst pixel art)
+    com base na paleta elementar do projétil, mantendo cache otimizado.
+    """
+    _grayscale_cache: Optional[List[pygame.Surface]] = None
+    _anim_cache: Dict[Tuple[float, str, Tuple[int, ...]], Animation] = {}
+
+    @classmethod
+    def _load_grayscale_frames(cls) -> List[pygame.Surface]:
+        if cls._grayscale_cache is not None:
+            return cls._grayscale_cache
+            
+        vfx_path = os.path.join("assets", "sprites", "vfx", "vfx_hit")
+        frames: List[pygame.Surface] = []
+        if os.path.exists(vfx_path):
+            files = sorted([f for f in os.listdir(vfx_path) if f.endswith(".png") and f.startswith("vfx_hit")])
+            for f in files:
+                full_path = os.path.join(vfx_path, f)
+                try:
+                    surf = pygame.image.load(full_path).convert_alpha()
+                    gray = pygame.transform.grayscale(surf)
+                    frames.append(gray)
+                except Exception:
+                    pass
+                    
+        cls._grayscale_cache = frames
+        return frames
+
+    @classmethod
+    def get_hit_animation(cls, palette: HighDPIEnergyPalette, scale: float = 0.65, fps: int = 28) -> Animation:
+        cache_key = (round(scale, 2), palette.style, palette.inner_glow)
+        if cache_key in cls._anim_cache:
+            cached = cls._anim_cache[cache_key]
+            return Animation(cached.frames, fps=cached.fps, loop=False)
+
+        grays = cls._load_grayscale_frames()
+        if not grays:
+            # Fallback procedural seguro
+            surf = pygame.Surface((32, 32), pygame.SRCALPHA)
+            pygame.draw.circle(surf, palette.inner_glow, (16, 16), 14)
+            return Animation([surf], fps=24, loop=False)
+
+        tint_color = palette.inner_glow
+        if palette.style == "fire":
+            tint_color = (255, 140, 25)
+        elif palette.style == "void":
+            tint_color = palette.inner_glow
+
+        tinted_frames: List[pygame.Surface] = []
+        for g_surf in grays:
+            gw, gh = g_surf.get_size()
+            target_w = max(16, int(gw * scale))
+            target_h = max(16, int(gh * scale))
+            scaled_gray = pygame.transform.smoothscale(g_surf, (target_w, target_h))
+            
+            tint_surf = pygame.Surface((target_w, target_h), pygame.SRCALPHA)
+            tint_surf.fill((*tint_color[:3], 255))
+            
+            final_surf = scaled_gray.copy()
+            final_surf.blit(tint_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+            tinted_frames.append(final_surf)
+
+        anim = Animation(tinted_frames, fps=fps, loop=False)
+        cls._anim_cache[cache_key] = anim
+        return Animation(tinted_frames, fps=fps, loop=False)
 
 
 # ========================================================================================
@@ -516,8 +660,19 @@ class Projectile:
         else:
             self.trajectory = LinearTrajectory()
         
+        # Escala do impacto baseada no porte da magia
+        if self.projectile_type in ("arcane_sphere", "fire_sphere", "frost_orb", "boss_fireball"):
+            self.impact_scale = 0.85
+        elif self.projectile_type in ("arcane_bolt", "fire_spark", "frost_lance"):
+            self.impact_scale = 0.55
+        else:
+            self.impact_scale = 0.68
+            
+        self.impact_angle = 0.0
+
         self.anim_manager = AnimationManager()
-        fly_anim, hit_anim = get_fireball_anims("red" if not is_enemy else "blue")
+        fly_anim, _ = get_fireball_anims("red" if not is_enemy else "blue")
+        hit_anim = HitAnimationFactory.get_hit_animation(self.palette, scale=self.impact_scale, fps=28)
         self.anim_manager.add_animation("fly", fly_anim)
         self.anim_manager.add_animation("hit", hit_anim)
         self.has_hit = False
@@ -531,21 +686,100 @@ class Projectile:
             self.state = "hit"
             self.has_hit = True
             self.damage = 0
+            
+            # Registra o vetor de impacto antes de zerar velocidade para espalhamento direcional
+            vx, vy = self.velocity.x, self.velocity.y
+            if vx == 0 and vy == 0:
+                vx = 1.0 if self.facing_right else -1.0
+                vy = 0.0
+            self.impact_angle = math.atan2(vy, vx)
+            
             self.velocity.update(0, 0)
             self.anim_manager.play("hit", force_reset=True)
             self._trigger_shatter_vfx()
 
     def _trigger_shatter_vfx(self):
-        """Gera a explosão final baseada no elemento."""
-        for _ in range(15):
-            vx, vy = random.uniform(-300, 300), random.uniform(-300, 300)
-            if self.palette.style == "ice":
-                self.particles.append(IceShardParticle(self.rect.centerx, self.rect.centery, vx, vy, 0.4, self.palette.spark))
-            elif self.palette.style == "fire":
-                self.particles.append(EnergyStreak(self.rect.centerx, self.rect.centery, vx, vy, 0.3, self.palette.spark, 10))
-                self.particles.append(SmokeParticle(self.rect.centerx, self.rect.centery, vx*0.5, vy*0.5, 0.5, (50,50,50)))
+        """Gera o impacto visual dinâmico com anéis de choque, faíscas cinéticas e detritos elementares."""
+        cx, cy = self.rect.centerx, self.rect.centery
+        rebound_angle = self.impact_angle + math.pi
+        
+        # 1. Anel de Choque Expansivo Luminoso
+        shock_rad = 36.0 if self.impact_scale >= 0.8 else 28.0
+        self.particles.append(ShockwaveRingParticle(
+            cx, cy,
+            max_radius=shock_rad,
+            life=0.18,
+            outer_color=self.palette.outer_glow,
+            inner_color=self.palette.core
+        ))
+        
+        # 2. Faíscas Cinéticas de Alta Velocidade (Cone de ricochete + dispersão radial)
+        num_sparks = 14 if self.impact_scale >= 0.8 else 10
+        for _ in range(num_sparks):
+            if random.random() < 0.65:
+                ang = rebound_angle + random.uniform(-math.radians(65), math.radians(65))
             else:
-                self.particles.append(StardustParticle(self.rect.centerx, self.rect.centery, vx, vy, 0.5, self.palette.spark))
+                ang = random.uniform(0, math.tau)
+            
+            spd = random.uniform(180, 420)
+            svx = math.cos(ang) * spd
+            svy = math.sin(ang) * spd
+            life = random.uniform(0.18, 0.32)
+            self.particles.append(ImpactSparkStreak(
+                cx, cy, svx, svy, life,
+                color=self.palette.spark,
+                core_color=self.palette.core,
+                width=2
+            ))
+            
+        # 3. Detritos e Partículas Especializadas por Elemento
+        if self.palette.style == "fire":
+            # Brasas quentes e pequenas lufadas de fumaça
+            for _ in range(4):
+                fx = random.uniform(-100, 100)
+                fy = random.uniform(-120, 40)
+                self.particles.append(SmokeParticle(cx, cy, fx, fy, 0.45, (45, 45, 45)))
+            for _ in range(6):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(80, 200)
+                self.particles.append(EnergyStreak(cx, cy, math.cos(ang)*spd, math.sin(ang)*spd, 0.25, self.palette.spark, 8))
+        elif self.palette.style == "ice":
+            # Cristais de gelo angulares que caem com peso e giram
+            for _ in range(8):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(100, 320)
+                self.particles.append(IceShardParticle(cx, cy, math.cos(ang)*spd, math.sin(ang)*spd, 0.45, self.palette.spark))
+        elif self.palette.style == "ki":
+            # Anel secundário de pressão de Ki + faíscas douradas
+            self.particles.append(KiRingParticle(cx, cy, 0.35, self.palette.outer_glow))
+            for _ in range(6):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(140, 280)
+                self.particles.append(EnergyStreak(cx, cy, math.cos(ang)*spd, math.sin(ang)*spd, 0.28, self.palette.core, 12))
+        elif self.palette.style == "shadow":
+            # Névoa sombria se dissipando
+            for _ in range(5):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(40, 120)
+                self.particles.append(ShadowMistParticle(cx, cy, math.cos(ang)*spd, math.sin(ang)*spd, 0.5, self.palette.outer_glow))
+        elif self.palette.style == "wind":
+            # Lâminas de vento cortantes em arco
+            for _ in range(3):
+                ang = self.impact_angle + random.uniform(-0.8, 0.8)
+                spd = random.uniform(120, 240)
+                self.particles.append(WindCrescentParticle(cx, cy, math.cos(ang)*spd, math.sin(ang)*spd, 0.25, self.palette.inner_glow, ang))
+        elif self.palette.style == "void":
+            # Gotas densas de ácido ou sangue com gravidade
+            for _ in range(7):
+                ang = rebound_angle + random.uniform(-math.radians(70), math.radians(70))
+                spd = random.uniform(100, 260)
+                self.particles.append(BloodDripParticle(cx, cy, math.cos(ang)*spd, math.sin(ang)*spd, 0.5, self.palette.inner_glow))
+        else:
+            # Estilo water / arcane: Poeira estelar cintilante
+            for _ in range(8):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(80, 240)
+                self.particles.append(StardustParticle(cx, cy, math.cos(ang)*spd, math.sin(ang)*spd, 0.5, self.palette.spark))
 
     def update(self, dt: float, tiles: Optional[List[pygame.FRect]] = None, target: Optional[pygame.FRect] = None):
         if not self.active: return
@@ -555,7 +789,10 @@ class Projectile:
         self.particles = [p for p in self.particles if p.update(dt)]
         
         if self.state == "hit":
-            if len(self.particles) == 0: self.active = False
+            hit_anim = self.anim_manager.animations.get("hit")
+            anim_done = hit_anim.finished if hit_anim else True
+            if anim_done and len(self.particles) == 0:
+                self.active = False
             return
             
         self.trajectory.update(self.pos, self.velocity, dt, target)
@@ -631,14 +868,36 @@ class Projectile:
             surface.blit(self.orb_surf, (cx - self.radius, cy - self.radius))
 
         elif self.state == "hit":
-            # Impacto final apenas estilhaços e partículas
-            for p in self.particles: p.draw(surface, cam_x, cam_y)
+            # 1. Partículas (anel de choque, faíscas cinéticas e detritos elementares)
+            for p in self.particles:
+                p.draw(surface, cam_x, cam_y)
             
-            # Flash rápido na explosão
-            t = self.anim_manager.animations["hit"].current_frame / max(1, len(self.anim_manager.animations["hit"].frames))
-            alpha = max(0, min(255, int(255 * (1.0 - t))))
-            if alpha > 0:
-                pygame.draw.circle(surface, clamp_color((*self.palette.core[:3], alpha)), (cx, cy), int(self.radius * 2.5))
+            # 2. Hit Starburst animado (vfx_hit com blend aditivo)
+            hit_anim = self.anim_manager.animations.get("hit")
+            if hit_anim and not hit_anim.finished:
+                frame = hit_anim.get_current_frame()
+                if frame:
+                    fw, fh = frame.get_size()
+                    surface.blit(frame, (cx - fw // 2, cy - fh // 2), special_flags=pygame.BLEND_RGBA_ADD)
+            
+            # 3. Instant Hit Glint (Flash de impacto em cruz nos frames 0 a 2)
+            if hit_anim and hit_anim.current_frame < 3 and not hit_anim.finished:
+                glint_progress = hit_anim.current_frame / 3.0
+                glint_sz = int((14 + self.radius * 0.6) * (1.0 - glint_progress))
+                if glint_sz > 2:
+                    glint_surf = pygame.Surface((glint_sz * 2 + 6, glint_sz * 2 + 6), pygame.SRCALPHA)
+                    gc = glint_sz + 3
+                    glint_alpha = max(0, min(255, int(255 * (1.0 - glint_progress))))
+                    core_col = clamp_color((*self.palette.core[:3], glint_alpha))
+                    glow_col = clamp_color((*self.palette.inner_glow[:3], int(glint_alpha * 0.7)))
+                    
+                    pygame.draw.line(glint_surf, glow_col, (gc - glint_sz, gc), (gc + glint_sz, gc), 3)
+                    pygame.draw.line(glint_surf, glow_col, (gc, gc - glint_sz), (gc, gc + glint_sz), 3)
+                    pygame.draw.line(glint_surf, core_col, (gc - glint_sz, gc), (gc + glint_sz, gc), 1)
+                    pygame.draw.line(glint_surf, core_col, (gc, gc - glint_sz), (gc, gc + glint_sz), 1)
+                    pygame.draw.circle(glint_surf, core_col, (gc, gc), max(2, glint_sz // 3))
+                    
+                    surface.blit(glint_surf, (cx - gc, cy - gc), special_flags=pygame.BLEND_RGBA_ADD)
 
 
 # ========================================================================================
