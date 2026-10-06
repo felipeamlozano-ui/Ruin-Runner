@@ -4,7 +4,9 @@ import math
 import random
 from config.constants import GRAVITY, MAX_FALL_SPEED
 import engine.resource_manager as rm
-from engine.animation import AnimationManager, load_animation_folder
+from engine.animation import AnimationManager, load_animation_folder, load_spritesheet
+from engine.v3.ai.neural_ai import NeuralTacticalAI
+from entities.projectile import Projectile
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Particle helpers
@@ -40,6 +42,7 @@ class Enemy:
         self.pos = pygame.math.Vector2(x, y)
         self.velocity = pygame.math.Vector2(0, 0)
         self.rect = pygame.FRect(x, y, width, height)
+        self.ground_y = self.rect.bottom
         
         self.health = 3
         self.is_dead = False
@@ -53,6 +56,11 @@ class Enemy:
         self.burn_timer = 0.0
         self.burn_dps = 3.0
         self.burn_tick = 0.0
+        self.is_guarding = False
+        self.guard_timer = 0.0
+        self.is_dodging = False
+        self.dodge_timer = 0.0
+        self._guard_sparks: list[_Particle] = []
 
     def apply_burn(self, duration: float = 4.0, dps: float = 3.0):
         """Applies burning status effect from Ignis fire skills."""
@@ -74,9 +82,23 @@ class Enemy:
                 self.burn_tick = 0.0
                 self.take_damage(int(self.burn_dps))
 
-    def take_damage(self, amount: int):
+    def take_damage(self, amount: int, hit_direction: int = 0):
         if self.is_dead:
             return
+            
+        if self.is_dodging:
+            return # Dodged evasively!
+            
+        if self.is_guarding:
+            is_frontal = (hit_direction == 0) or (hit_direction > 0 and self.facing_right) or (hit_direction < 0 and not self.facing_right)
+            if is_frontal:
+                amount = max(1, int(amount * 0.25)) # Guard absorbs 75%
+                sx = self.rect.right if self.facing_right else self.rect.left
+                sy = self.rect.centery
+                for _ in range(6):
+                    self._guard_sparks.append(_Particle(sx, sy, random.uniform(-50, 50), random.uniform(-80, 10), 0.22, (255, 215, 80), radius=2.5, gravity=180))
+            else:
+                self.is_guarding = False # Flanked!
         
         self.health -= amount
         if self.health <= 0:
@@ -98,6 +120,16 @@ class Enemy:
             effective_dt = dt * self.slow_factor
         else:
             effective_dt = dt
+            
+        if self.dodge_timer > 0:
+            self.dodge_timer -= effective_dt
+            if self.dodge_timer <= 0:
+                self.is_dodging = False
+        if self.guard_timer > 0:
+            self.guard_timer -= effective_dt
+            if self.guard_timer <= 0:
+                self.is_guarding = False
+        self._guard_sparks = [p for p in self._guard_sparks if p.update(effective_dt)]
             
         # Apply Gravity
         self.velocity.y += GRAVITY * (self.slow_factor if self.slow_timer > 0 else 1.0)
@@ -135,23 +167,48 @@ class Enemy:
                 self.velocity.y = 0
                 break
 
+        if self.on_ground:
+            self.ground_y = self.rect.bottom
+        else:
+            floor_below = None
+            for tile in tiles:
+                if tile.left < self.rect.centerx < tile.right and tile.top >= self.rect.bottom - 4:
+                    if floor_below is None or tile.top < floor_below:
+                        floor_below = tile.top
+            if floor_below is not None:
+                self.ground_y = floor_below
+
     def update(self, dt: float, tiles: list[pygame.FRect], player):
         pass
+
+    def draw_contact_shadow(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2, width: int = None, height: int = None, alpha: int = 125):
+        """Renders grounded dual-layer contact drop shadow anchored to foot pivot."""
+        if self.is_dead:
+            return
+        ground_y = getattr(self, "ground_y", self.rect.bottom)
+        air_height = max(0, ground_y - self.rect.bottom)
+        scale = max(0.4, 1.0 - air_height / 250.0)
+        sw = int((width if width is not None else max(44, int(self.rect.width * 1.25))) * scale)
+        sh = int((height if height is not None else 12) * scale)
+        a = int(alpha * scale)
+        if sw > 2 and sh > 2 and a > 0:
+            shadow_surf = pygame.Surface((sw, sh), pygame.SRCALPHA)
+            # Outer soft falloff
+            pygame.draw.ellipse(shadow_surf, (0, 0, 0, a), (0, 0, sw, sh))
+            # Inner dark contact core
+            core_w, core_h = max(2, int(sw * 0.62)), max(2, int(sh * 0.62))
+            pygame.draw.ellipse(shadow_surf, (0, 0, 0, min(255, int(a * 1.35))), ((sw - core_w) // 2, (sh - core_h) // 2, core_w, core_h))
+            surface.blit(shadow_surf, (self.rect.centerx - camera_offset.x - sw // 2, ground_y - camera_offset.y - sh // 2 + 1))
 
     def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
         if self.is_dead and self.anim_manager.is_finished("dead"):
             return # Don't draw if fully dead (or could draw last frame)
 
+        # Draw soft contact drop shadow under feet (Grounded presence)
+        self.draw_contact_shadow(surface, camera_offset)
+
         img = self.anim_manager.get_current_frame()
         img_rect = img.get_rect()
-        
-        # Draw soft contact drop shadow under feet (Grounded presence)
-        if not self.is_dead:
-            shadow_w = int(self.rect.width * 1.1)
-            shadow_h = 10
-            shadow_surf = pygame.Surface((shadow_w, shadow_h), pygame.SRCALPHA)
-            pygame.draw.ellipse(shadow_surf, (0, 0, 0, 90), (0, 0, shadow_w, shadow_h))
-            surface.blit(shadow_surf, (self.rect.centerx - camera_offset.x - shadow_w // 2, self.rect.bottom - camera_offset.y - shadow_h // 2 + 2))
             
         draw_x = self.rect.centerx - camera_offset.x - img_rect.width / 2
         draw_y = self.rect.bottom - camera_offset.y - img_rect.height
@@ -166,54 +223,75 @@ class Enemy:
             surface.blit(tinted, (draw_x, draw_y))
         else:
             surface.blit(img, (draw_x, draw_y))
+            
+        # Draw Guard Shield if active
+        if self.is_guarding and not self.is_dead:
+            bx = (self.rect.right - camera_offset.x + 2) if self.facing_right else (self.rect.left - camera_offset.x - 12)
+            by = self.rect.centery - camera_offset.y - 20
+            bs = pygame.Surface((10, 42), pygame.SRCALPHA)
+            pygame.draw.rect(bs, (240, 230, 200, 220), (0, 0, 10, 42), border_radius=3)
+            pygame.draw.rect(bs, (255, 215, 80), (0, 0, 10, 42), 1, border_radius=3)
+            surface.blit(bs, (bx, by))
+            
+        for spk in self._guard_sparks:
+            spk.draw(surface, camera_offset.x, camera_offset.y)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-class Skeleton(Enemy):
+class SkeletonWarrior(Enemy):
+    """
+    Elite Skeleton Swordsman using newly implemented Craftpix sprite sheets.
+    Features 3-hit melee sword combos, charging run-attacks, and defensive shield guards.
+    Scaled to 1.33x (80px height) to match protagonist Ignis scale.
+    """
     def __init__(self, x: float, y: float):
-        super().__init__(x, y, 32, 70)
-        self.health = 160 # Reescalado para novo balanceamento tático (2x)
-        self.attack_damage = 22 # Espadada pesada telegrafada
-        self.touch_damage = 5 # Body collision
-        
-        scale = 0.65
-        base_path = os.path.join("assets", "sprites", "skeleton")
-        
-        self.anim_manager.add_animation("idle", load_animation_folder(base_path, "common_01_idle", 10, True, scale))
-        self.anim_manager.add_animation("walk", load_animation_folder(base_path, "common_11_walk", 9, True, scale))
-        self.anim_manager.add_animation("attack", load_animation_folder(base_path, "attack_01_sword", 9, False, scale))
-        self.anim_manager.add_animation("hurt", load_animation_folder(base_path, "damage_02_damage_body", 10, False, scale))
-        self.anim_manager.add_animation("dead", load_animation_folder(base_path, "damage_11_blow_landing", 10, False, scale))
-        
-        self.anim_manager.play("idle")
-        
-        # AI variables (Deliberate pacing)
-        self.state_timer = 0.0
-        self.patrol_dir = -1
+        super().__init__(x, y, 36, 80)
+        self.health = 160
+        self.attack_damage = 22
+        self.touch_damage = 5
         self.speed = 50.0
         self.chase_speed = 95.0
         self.vision_range = 380.0
         self.attack_range = 65.0
-
-        # ── VFX & Telegraphed Wind-up state ───────────────────────────────
+        
+        scale = 1.33
+        base_path = os.path.join("assets", "sprites", "enemies", "skeleton_warrior")
+        self.anim_manager.add_animation("idle", load_spritesheet(os.path.join(base_path, "Idle.png"), 128, 128, fps=8, loop=True, scale=scale))
+        self.anim_manager.add_animation("walk", load_spritesheet(os.path.join(base_path, "Walk.png"), 128, 128, fps=8, loop=True, scale=scale))
+        self.anim_manager.add_animation("run", load_spritesheet(os.path.join(base_path, "Run.png"), 128, 128, fps=10, loop=True, scale=scale))
+        self.anim_manager.add_animation("attack", load_spritesheet(os.path.join(base_path, "Attack_1.png"), 128, 128, fps=10, loop=False, scale=scale))
+        self.anim_manager.add_animation("attack2", load_spritesheet(os.path.join(base_path, "Attack_2.png"), 128, 128, fps=11, loop=False, scale=scale))
+        self.anim_manager.add_animation("attack3", load_spritesheet(os.path.join(base_path, "Attack_3.png"), 128, 128, fps=9, loop=False, scale=scale))
+        self.anim_manager.add_animation("run_attack", load_spritesheet(os.path.join(base_path, "Run+attack.png"), 128, 128, fps=11, loop=False, scale=scale))
+        self.anim_manager.add_animation("protect", load_spritesheet(os.path.join(base_path, "Protect.png"), 128, 128, fps=6, loop=True, scale=scale))
+        self.anim_manager.add_animation("hurt", load_spritesheet(os.path.join(base_path, "Hurt.png"), 128, 128, fps=10, loop=False, scale=scale))
+        self.anim_manager.add_animation("dead", load_spritesheet(os.path.join(base_path, "Dead.png"), 128, 128, fps=8, loop=False, scale=scale))
+        
+        self.anim_manager.play("idle")
+        
+        self.state_timer = 0.0
+        self.patrol_dir = -1
+        self.neural_ai = NeuralTacticalAI(entity_type="enemy", difficulty_scale=0.85)
+        self.neural_eval_timer = random.uniform(0.0, 0.25)
+        self.dodge_cooldown = 0.0
+        self.guard_cooldown = 0.0
+        self.combo_step = 1
+        
         self._time = 0.0
         self._slash_timer = 0.0
         self._slash_dir = 1
-        self._eye_glow_timer = 0.0
-        self._windup_timer = 0.0 # Telegraphed wind-up before swing hits
         self._particles: list[_Particle] = []
 
     def _spawn_slash_particles(self):
-        """Emit crimson sparks from the sword tip on attack."""
-        tip_x = self.rect.right + 15 if self.facing_right else self.rect.left - 15
+        tip_x = self.rect.right + 12 if self.facing_right else self.rect.left - 12
         tip_y = self.rect.centery - 5
-        for _ in range(8):
+        for _ in range(7):
             angle = random.uniform(-0.6, 0.6) + (0 if self.facing_right else math.pi)
-            speed = random.uniform(60, 140)
+            speed = random.uniform(60, 130)
             vx = math.cos(angle) * speed
-            vy = math.sin(angle) * speed - 30
-            color = random.choice([(255, 50, 20), (255, 130, 30), (255, 200, 60)])
-            self._particles.append(_Particle(tip_x, tip_y, vx, vy, random.uniform(0.18, 0.38), color, radius=random.uniform(1.5, 3.5), gravity=280))
+            vy = math.sin(angle) * speed - 25
+            color = random.choice([(255, 60, 30), (255, 140, 40), (255, 210, 80)])
+            self._particles.append(_Particle(tip_x, tip_y, vx, vy, random.uniform(0.18, 0.35), color, radius=random.uniform(1.5, 3.0), gravity=260))
 
     def change_state(self, new_state: str):
         super().change_state(new_state)
@@ -222,76 +300,115 @@ class Skeleton(Enemy):
         if self.state == "IDLE":
             self.velocity.x = 0
             self.anim_manager.play("idle")
-            self.state_timer = random.uniform(0.6, 2.0)
+            self.state_timer = random.uniform(0.6, 1.8)
         elif self.state == "PATROL":
             self.anim_manager.play("walk")
             self.state_timer = random.uniform(1.5, 3.0)
             self.patrol_dir = random.choice([-1, 1])
             self.facing_right = self.patrol_dir > 0
         elif self.state == "CHASE":
-            self.anim_manager.play("walk")
-        elif self.state == "ATTACK":
-            # Telegraphed windup: sword raised, glowing eye
-            self.velocity.x = (70.0 if self.facing_right else -70.0)
-            self.anim_manager.play("attack", force_reset=True)
-            self._eye_glow_timer = 0.45    # eye flash on windup
-            self._windup_timer = 0.45      # 0.45s telegraphed preparation window
-        elif self.state == "HURT":
+            self.anim_manager.play("run")
+        elif self.state == "PROTECT":
             self.velocity.x = 0
+            self.is_guarding = True
+            self.guard_timer = 0.65
+            self.guard_cooldown = 2.5
+            self.anim_manager.play("protect", force_reset=True)
+        elif self.state in ("ATTACK", "ATTACK2", "ATTACK3", "RUN_ATTACK"):
+            self.is_guarding = False
+            if self.state == "RUN_ATTACK":
+                self.velocity.x = 110.0 if self.facing_right else -110.0
+                self.anim_manager.play("run_attack", force_reset=True)
+            elif self.state == "ATTACK2":
+                self.velocity.x = 40.0 if self.facing_right else -40.0
+                self.anim_manager.play("attack2", force_reset=True)
+            elif self.state == "ATTACK3":
+                self.velocity.x = 60.0 if self.facing_right else -60.0
+                self.anim_manager.play("attack3", force_reset=True)
+            else:
+                self.velocity.x = 50.0 if self.facing_right else -50.0
+                self.anim_manager.play("attack", force_reset=True)
+        elif self.state == "HURT":
+            self.is_guarding = False
+            self.velocity.x = -40 if self.facing_right else 40
             self.anim_manager.play("hurt", force_reset=True)
         elif self.state == "DEAD":
+            self.is_guarding = False
             self.velocity.x = 0
             self.anim_manager.play("dead", force_reset=True)
 
     def get_attack_hitbox(self) -> pygame.FRect:
-        """Returns the hitbox for the attack if currently attacking, else None."""
-        if self.state != "ATTACK" or self._windup_timer > 0:
-            return None
-        
-        # Only deal damage in the middle of the attack animation
-        if self.anim_manager.animations["attack"].current_frame < 3:
+        if self.state not in ("ATTACK", "ATTACK2", "ATTACK3", "RUN_ATTACK"):
             return None
             
-        hitbox_width = 36
-        hitbox_height = 46
-        hitbox_y = self.rect.centery - hitbox_height / 2
+        cur_anim = self.anim_manager.animations.get(self.anim_manager.current_state)
+        if not cur_anim:
+            return None
+        cf = cur_anim.current_frame
+        
+        hit_w, hit_h = 56, 64
+        is_active = False
+        if self.state == "ATTACK" and 2 <= cf <= 3:
+            is_active = True
+        elif self.state == "ATTACK2" and 2 <= cf <= 4:
+            hit_w = 64
+            is_active = True
+        elif self.state == "ATTACK3" and 2 <= cf <= 3:
+            hit_w, hit_h = 70, 70
+            is_active = True
+        elif self.state == "RUN_ATTACK" and 3 <= cf <= 5:
+            hit_w = 64
+            is_active = True
+            
+        if not is_active:
+            return None
+            
+        hitbox_y = self.rect.centery - hit_h / 2
         if self.facing_right:
-            return pygame.FRect(self.rect.right, hitbox_y, hitbox_width, hitbox_height)
+            return pygame.FRect(self.rect.right, hitbox_y, hit_w, hit_h)
         else:
-            return pygame.FRect(self.rect.left - hitbox_width, hitbox_y, hitbox_width, hitbox_height)
+            return pygame.FRect(self.rect.left - hit_w, hitbox_y, hit_w, hit_h)
 
     def update(self, dt: float, tiles: list[pygame.FRect], player):
         self._time += dt
         self.update_burn(dt)
-        # Decay VFX and windup timers
-        if self._eye_glow_timer > 0:
-            self._eye_glow_timer -= dt
-        if self._windup_timer > 0:
-            self._windup_timer -= dt
+        if self.guard_cooldown > 0:
+            self.guard_cooldown -= dt
         if self._slash_timer > 0:
             self._slash_timer -= dt
 
         if not self.is_dead:
             self.state_timer -= dt
-            
-            # Distance to player
             dist_to_player = player.rect.centerx - self.rect.centerx
             abs_dist = abs(dist_to_player)
-            player_in_range = abs_dist < self.vision_range and abs(player.rect.centery - self.rect.centery) < 120
+            player_in_range = abs_dist < self.vision_range and abs(player.rect.centery - self.rect.centery) < 130
             
-            if self.state == "HURT":
+            if self.is_guarding:
+                self.guard_timer -= dt
+                if self.guard_timer <= 0:
+                    self.is_guarding = False
+                    self.change_state("IDLE")
+            elif self.state == "HURT":
                 if self.anim_manager.is_finished("hurt"):
                     self.change_state("IDLE")
-            elif self.state == "ATTACK":
-                self.velocity.x *= 0.9 # Smooth lunge deceleration
-                cur_frame = self.anim_manager.animations["attack"].current_frame
-                # Trigger slash arc + particles once at frame 2
-                if cur_frame == 2 and self._slash_timer <= 0:
-                    self._slash_timer = 0.18
-                    self._slash_dir = 1 if self.facing_right else -1
+            elif self.state in ("ATTACK", "ATTACK2", "ATTACK3", "RUN_ATTACK"):
+                self.velocity.x *= 0.88
+                cur_anim_name = self.anim_manager.current_state
+                cur_anim = self.anim_manager.animations.get(cur_anim_name)
+                if cur_anim and cur_anim.current_frame == 2 and self._slash_timer <= 0:
+                    self._slash_timer = 0.16
                     self._spawn_slash_particles()
-                if self.anim_manager.is_finished("attack"):
-                    self.change_state("IDLE")
+                if self.anim_manager.is_finished(cur_anim_name):
+                    # Possibility to chain attack
+                    if abs_dist <= self.attack_range and random.random() < 0.45:
+                        if cur_anim_name == "ATTACK":
+                            self.change_state("ATTACK2")
+                        elif cur_anim_name == "ATTACK2":
+                            self.change_state("ATTACK3")
+                        else:
+                            self.change_state("IDLE")
+                    else:
+                        self.change_state("IDLE")
             elif self.state == "IDLE":
                 if player_in_range and not player.invulnerable:
                     self.change_state("CHASE")
@@ -304,80 +421,40 @@ class Skeleton(Enemy):
                     self.change_state("IDLE")
                 else:
                     self.velocity.x = self.speed * self.patrol_dir
-                    
             elif self.state == "CHASE":
                 if not player_in_range or player.invulnerable:
                     self.change_state("IDLE")
-                elif abs_dist <= self.attack_range:
-                    self.facing_right = dist_to_player > 0
-                    self.change_state("ATTACK")
                 else:
                     self.facing_right = dist_to_player > 0
-                    self.velocity.x = self.chase_speed if self.facing_right else -self.chase_speed
-                    
+                    # Check defensive guard trigger against incoming player attacks
+                    if getattr(player, "is_attacking", False) and abs_dist < 85 and self.guard_cooldown <= 0 and random.random() < 0.35:
+                        self.change_state("PROTECT")
+                    elif abs_dist <= self.attack_range:
+                        self.change_state("ATTACK")
+                    elif 100 < abs_dist < 180 and random.random() < 0.18:
+                        self.change_state("RUN_ATTACK")
+                    else:
+                        self.velocity.x = self.chase_speed if self.facing_right else -self.chase_speed
 
         self._apply_physics(dt, tiles)
         anim_dt = dt * (self.slow_factor if self.slow_timer > 0 else 1.0)
         self.anim_manager.update(anim_dt)
-        # Update particles
         self._particles = [p for p in self._particles if p.update(dt)]
-
-    def _draw_eye_glow(self, surface, cx, cy, cam_x, cam_y):
-        """Draw red crimson eye glow flare during windup."""
-        t = min(1.0, max(0.0, self._eye_glow_timer / 0.45))
-        if t <= 0:
-            return
-        alpha = int(max(0, min(255, 220 * t)))
-        glow_r = int(max(1, 7 * t))
-        eye_offset_x = 5 if self.facing_right else -5
-        ex = int(cx + eye_offset_x - cam_x)
-        ey = int(cy - cam_y - 28)
-        if glow_r > 0 and alpha > 0:
-            gs = pygame.Surface((glow_r * 4, glow_r * 4), pygame.SRCALPHA)
-            pygame.draw.circle(gs, (255, 30, 30, alpha), (glow_r * 2, glow_r * 2), glow_r * 2)
-            surface.blit(gs, (ex - glow_r * 2, ey - glow_r * 2))
-
-    def _draw_slash_arc(self, surface, cx, cy, cam_x, cam_y):
-        """Draw a glowing crimson sword-slash arc."""
-        if self._slash_timer <= 0:
-            return
-        progress = min(1.0, max(0.0, self._slash_timer / 0.18))  # 0→1 fade in/out
-        alpha = max(0, min(255, int(200 * progress)))
-        arc_r = 26
-        start_angle = -math.pi * 0.5
-        span = math.pi * 1.0
-        if self._slash_dir < 0:
-            start_angle = -math.pi * 0.5
-            span = -math.pi * 1.0
-        # Draw multiple offset arcs for glow thickness
-        tip_x = (cx + arc_r * 0.7 * self._slash_dir) - cam_x
-        tip_y = cy - cam_y - 10
-        rect_size = arc_r * 2 + 10
-        arc_surf = pygame.Surface((rect_size + 10, rect_size + 10), pygame.SRCALPHA)
-        for glow_w, glow_col in [(7, (255, 80, 20, max(0, min(255, alpha // 3)))), (4, (255, 150, 50, max(0, min(255, alpha // 2)))), (2, (255, 240, 120, alpha))]:
-            pygame.draw.arc(arc_surf, glow_col,
-                            pygame.Rect(5, 5, rect_size, rect_size),
-                            start_angle, start_angle + span, glow_w)
-        surface.blit(arc_surf, (tip_x - rect_size // 2 - 5, tip_y - rect_size // 2 - 5))
 
     def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
         if self.is_dead and self.anim_manager.is_finished("dead"):
             return
 
+        self.draw_contact_shadow(surface, camera_offset, width=46, height=12)
+
         cam_x, cam_y = camera_offset.x, camera_offset.y
         img = self.anim_manager.get_current_frame()
-        img_rect = img.get_rect()
-        draw_x = self.rect.centerx - cam_x - img_rect.width / 2
-        draw_y = self.rect.bottom - cam_y - img_rect.height
-        cx, cy = self.rect.centerx, self.rect.centery
+        draw_x = self.rect.centerx - cam_x - 85
+        draw_y = self.rect.bottom - cam_y - 170
 
         if not self.facing_right:
             img = pygame.transform.flip(img, True, False)
 
-        # VFX: slash arc (draw behind sprite)
-        self._draw_slash_arc(surface, cx, cy, cam_x, cam_y)
-
-        # Draw sprite with tint
         if self.slow_timer > 0 and not self.is_dead:
             tinted = img.copy()
             tinted.fill((130, 205, 255), special_flags=pygame.BLEND_RGBA_MULT)
@@ -385,12 +462,398 @@ class Skeleton(Enemy):
         else:
             surface.blit(img, (draw_x, draw_y))
 
-        # VFX: eye glow on windup (over sprite)
-        self._draw_eye_glow(surface, cx, cy, cam_x, cam_y)
-
-        # Draw particles
         for p in self._particles:
             p.draw(surface, cam_x, cam_y)
+        for spk in self._guard_sparks:
+            spk.draw(surface, cam_x, cam_y)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+class SkeletonSpearman(Enemy):
+    """
+    Skeleton Spearman with exceptional forward melee reach (~140px).
+    Keeps players at bay with thrusting combos and braced spear stance.
+    Scaled to 1.33x (80px height) to match protagonist Ignis scale.
+    """
+    def __init__(self, x: float, y: float):
+        super().__init__(x, y, 36, 80)
+        self.health = 180
+        self.attack_damage = 25
+        self.touch_damage = 5
+        self.speed = 45.0
+        self.chase_speed = 85.0
+        self.vision_range = 400.0
+        self.attack_range = 135.0 # Extended spear reach
+        
+        scale = 1.33
+        base_path = os.path.join("assets", "sprites", "enemies", "skeleton_spearman")
+        self.anim_manager.add_animation("idle", load_spritesheet(os.path.join(base_path, "Idle.png"), 128, 128, fps=8, loop=True, scale=scale))
+        self.anim_manager.add_animation("walk", load_spritesheet(os.path.join(base_path, "Walk.png"), 128, 128, fps=8, loop=True, scale=scale))
+        self.anim_manager.add_animation("run", load_spritesheet(os.path.join(base_path, "Run.png"), 128, 128, fps=10, loop=True, scale=scale))
+        self.anim_manager.add_animation("attack", load_spritesheet(os.path.join(base_path, "Attack_1.png"), 128, 128, fps=8, loop=False, scale=scale))
+        self.anim_manager.add_animation("attack2", load_spritesheet(os.path.join(base_path, "Attack_2.png"), 128, 128, fps=9, loop=False, scale=scale))
+        self.anim_manager.add_animation("run_attack", load_spritesheet(os.path.join(base_path, "Run+attack.png"), 128, 128, fps=10, loop=False, scale=scale))
+        self.anim_manager.add_animation("protect", load_spritesheet(os.path.join(base_path, "Protect.png"), 128, 128, fps=6, loop=True, scale=scale))
+        self.anim_manager.add_animation("hurt", load_spritesheet(os.path.join(base_path, "Hurt.png"), 128, 128, fps=10, loop=False, scale=scale))
+        self.anim_manager.add_animation("dead", load_spritesheet(os.path.join(base_path, "Dead.png"), 128, 128, fps=8, loop=False, scale=scale))
+        
+        self.anim_manager.play("idle")
+        self.state_timer = 0.0
+        self.patrol_dir = -1
+        self.guard_cooldown = 0.0
+        self._thrust_sparks: list[_Particle] = []
+
+    def change_state(self, new_state: str):
+        super().change_state(new_state)
+        self.state_timer = 0.0
+        
+        if self.state == "IDLE":
+            self.velocity.x = 0
+            self.anim_manager.play("idle")
+            self.state_timer = random.uniform(0.8, 2.0)
+        elif self.state == "PATROL":
+            self.anim_manager.play("walk")
+            self.state_timer = random.uniform(1.8, 3.2)
+            self.patrol_dir = random.choice([-1, 1])
+            self.facing_right = self.patrol_dir > 0
+        elif self.state == "CHASE":
+            self.anim_manager.play("run")
+        elif self.state == "PROTECT":
+            self.velocity.x = 0
+            self.is_guarding = True
+            self.guard_timer = 0.70
+            self.guard_cooldown = 3.0
+            self.anim_manager.play("protect", force_reset=True)
+        elif self.state in ("ATTACK", "ATTACK2", "RUN_ATTACK"):
+            self.is_guarding = False
+            if self.state == "RUN_ATTACK":
+                self.velocity.x = 100.0 if self.facing_right else -100.0
+                self.anim_manager.play("run_attack", force_reset=True)
+            elif self.state == "ATTACK2":
+                self.velocity.x = 30.0 if self.facing_right else -30.0
+                self.anim_manager.play("attack2", force_reset=True)
+            else:
+                self.velocity.x = 40.0 if self.facing_right else -40.0
+                self.anim_manager.play("attack", force_reset=True)
+        elif self.state == "HURT":
+            self.is_guarding = False
+            self.velocity.x = -40 if self.facing_right else 40
+            self.anim_manager.play("hurt", force_reset=True)
+        elif self.state == "DEAD":
+            self.is_guarding = False
+            self.velocity.x = 0
+            self.anim_manager.play("dead", force_reset=True)
+
+    def get_attack_hitbox(self) -> pygame.FRect:
+        if self.state not in ("ATTACK", "ATTACK2", "RUN_ATTACK"):
+            return None
+        cur_anim = self.anim_manager.animations.get(self.anim_manager.current_state)
+        if not cur_anim:
+            return None
+        cf = cur_anim.current_frame
+        
+        hit_w, hit_h = 106, 46
+        is_active = False
+        if self.state == "ATTACK" and 1 <= cf <= 3:
+            hit_w = 112
+            is_active = True
+        elif self.state == "ATTACK2" and 1 <= cf <= 3:
+            hit_w, hit_h = 86, 64
+            is_active = True
+        elif self.state == "RUN_ATTACK" and 2 <= cf <= 4:
+            hit_w = 106
+            is_active = True
+            
+        if not is_active:
+            return None
+            
+        hitbox_y = self.rect.centery - hit_h / 2
+        if self.facing_right:
+            return pygame.FRect(self.rect.right, hitbox_y, hit_w, hit_h)
+        else:
+            return pygame.FRect(self.rect.left - hit_w, hitbox_y, hit_w, hit_h)
+
+    def update(self, dt: float, tiles: list[pygame.FRect], player):
+        self.update_burn(dt)
+        if self.guard_cooldown > 0:
+            self.guard_cooldown -= dt
+
+        if not self.is_dead:
+            self.state_timer -= dt
+            dist_to_player = player.rect.centerx - self.rect.centerx
+            abs_dist = abs(dist_to_player)
+            player_in_range = abs_dist < self.vision_range and abs(player.rect.centery - self.rect.centery) < 130
+            
+            if self.is_guarding:
+                self.guard_timer -= dt
+                if self.guard_timer <= 0:
+                    self.is_guarding = False
+                    self.change_state("IDLE")
+            elif self.state == "HURT":
+                if self.anim_manager.is_finished("hurt"):
+                    self.change_state("IDLE")
+            elif self.state in ("ATTACK", "ATTACK2", "RUN_ATTACK"):
+                self.velocity.x *= 0.86
+                cur_name = self.anim_manager.current_state
+                if self.anim_manager.is_finished(cur_name):
+                    if abs_dist <= self.attack_range and cur_name == "ATTACK" and random.random() < 0.4:
+                        self.change_state("ATTACK2")
+                    else:
+                        self.change_state("IDLE")
+            elif self.state == "IDLE":
+                if player_in_range and not player.invulnerable:
+                    self.change_state("CHASE")
+                elif self.state_timer <= 0:
+                    self.change_state("PATROL")
+            elif self.state == "PATROL":
+                if player_in_range and not player.invulnerable:
+                    self.change_state("CHASE")
+                elif self.state_timer <= 0:
+                    self.change_state("IDLE")
+                else:
+                    self.velocity.x = self.speed * self.patrol_dir
+            elif self.state == "CHASE":
+                if not player_in_range or player.invulnerable:
+                    self.change_state("IDLE")
+                else:
+                    self.facing_right = dist_to_player > 0
+                    if getattr(player, "is_attacking", False) and abs_dist < 110 and self.guard_cooldown <= 0 and random.random() < 0.35:
+                        self.change_state("PROTECT")
+                    elif abs_dist <= self.attack_range:
+                        self.change_state("ATTACK")
+                    elif 120 < abs_dist < 200 and random.random() < 0.2:
+                        self.change_state("RUN_ATTACK")
+                    else:
+                        self.velocity.x = self.chase_speed if self.facing_right else -self.chase_speed
+
+        self._apply_physics(dt, tiles)
+        anim_dt = dt * (self.slow_factor if self.slow_timer > 0 else 1.0)
+        self.anim_manager.update(anim_dt)
+        self._thrust_sparks = [p for p in self._thrust_sparks if p.update(dt)]
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if self.is_dead and self.anim_manager.is_finished("dead"):
+            return
+
+        self.draw_contact_shadow(surface, camera_offset, width=48, height=13)
+
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        img = self.anim_manager.get_current_frame()
+        draw_x = self.rect.centerx - cam_x - 85
+        draw_y = self.rect.bottom - cam_y - 170
+
+        if not self.facing_right:
+            img = pygame.transform.flip(img, True, False)
+
+        if self.slow_timer > 0 and not self.is_dead:
+            tinted = img.copy()
+            tinted.fill((130, 205, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            surface.blit(tinted, (draw_x, draw_y))
+        else:
+            surface.blit(img, (draw_x, draw_y))
+
+        for p in self._thrust_sparks:
+            p.draw(surface, cam_x, cam_y)
+        for spk in self._guard_sparks:
+            spk.draw(surface, cam_x, cam_y)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+class SkeletonArcher(Enemy):
+    """
+    Ranged Skeleton Archer. Fires bow arrows at long range, leaps backwards
+    with acrobatic evasion when players close in, and uses dagger defense.
+    Scaled to 1.33x (80px height) to match protagonist Ignis scale.
+    """
+    def __init__(self, x: float, y: float):
+        super().__init__(x, y, 34, 80)
+        self.health = 130
+        self.attack_damage = 18
+        self.touch_damage = 3
+        self.speed = 45.0
+        self.chase_speed = 70.0
+        self.vision_range = 480.0
+        self.attack_range = 420.0
+        
+        scale = 1.33
+        base_path = os.path.join("assets", "sprites", "enemies", "skeleton_archer")
+        self.anim_manager.add_animation("idle", load_spritesheet(os.path.join(base_path, "Idle.png"), 128, 128, fps=8, loop=True, scale=scale))
+        self.anim_manager.add_animation("walk", load_spritesheet(os.path.join(base_path, "Walk.png"), 128, 128, fps=8, loop=True, scale=scale))
+        self.anim_manager.add_animation("shot", load_spritesheet(os.path.join(base_path, "Shot_1.png"), 128, 128, fps=13, loop=False, scale=scale))
+        self.anim_manager.add_animation("shot_fast", load_spritesheet(os.path.join(base_path, "Shot_2.png"), 128, 128, fps=15, loop=False, scale=scale))
+        self.anim_manager.add_animation("evasion", load_spritesheet(os.path.join(base_path, "Evasion.png"), 128, 128, fps=12, loop=False, scale=scale))
+        self.anim_manager.add_animation("attack", load_spritesheet(os.path.join(base_path, "Attack_1.png"), 128, 128, fps=10, loop=False, scale=scale))
+        self.anim_manager.add_animation("hurt", load_spritesheet(os.path.join(base_path, "Hurt.png"), 128, 128, fps=10, loop=False, scale=scale))
+        self.anim_manager.add_animation("dead", load_spritesheet(os.path.join(base_path, "Dead.png"), 128, 128, fps=8, loop=False, scale=scale))
+        
+        self.anim_manager.play("idle")
+        self.state_timer = 0.0
+        self.patrol_dir = -1
+        self.evasion_cooldown = 0.0
+        self.shot_cooldown = 1.2
+        self.arrow_fired = False
+        self.projectiles: list[Projectile] = []
+
+    def change_state(self, new_state: str):
+        super().change_state(new_state)
+        self.state_timer = 0.0
+        
+        if self.state == "IDLE":
+            self.velocity.x = 0
+            self.anim_manager.play("idle")
+            self.state_timer = random.uniform(0.6, 1.6)
+        elif self.state == "PATROL":
+            self.anim_manager.play("walk")
+            self.state_timer = random.uniform(1.5, 3.0)
+            self.patrol_dir = random.choice([-1, 1])
+            self.facing_right = self.patrol_dir > 0
+        elif self.state == "CHASE":
+            self.anim_manager.play("walk")
+        elif self.state == "EVASION":
+            self.is_dodging = True
+            self.evasion_cooldown = 3.0
+            dodge_dir = -1 if self.facing_right else 1
+            self.velocity.x = dodge_dir * 240.0
+            self.velocity.y = -180.0
+            self.anim_manager.play("evasion", force_reset=True)
+        elif self.state == "SHOT":
+            self.velocity.x = 0
+            self.arrow_fired = False
+            self.anim_manager.play("shot", force_reset=True)
+        elif self.state == "SHOT_FAST":
+            self.velocity.x = 0
+            self.arrow_fired = False
+            self.anim_manager.play("shot_fast", force_reset=True)
+        elif self.state == "ATTACK":
+            self.velocity.x = 25 if self.facing_right else -25
+            self.anim_manager.play("attack", force_reset=True)
+        elif self.state == "HURT":
+            self.is_dodging = False
+            self.velocity.x = -35 if self.facing_right else 35
+            self.anim_manager.play("hurt", force_reset=True)
+        elif self.state == "DEAD":
+            self.is_dodging = False
+            self.velocity.x = 0
+            self.anim_manager.play("dead", force_reset=True)
+
+    def get_attack_hitbox(self) -> pygame.FRect:
+        if self.state != "ATTACK":
+            return None
+        cur_anim = self.anim_manager.animations.get("attack")
+        if cur_anim and 2 <= cur_anim.current_frame <= 3:
+            hit_w, hit_h = 48, 54
+            hitbox_y = self.rect.centery - hit_h / 2
+            if self.facing_right:
+                return pygame.FRect(self.rect.right, hitbox_y, hit_w, hit_h)
+            else:
+                return pygame.FRect(self.rect.left - hit_w, hitbox_y, hit_w, hit_h)
+        return None
+
+    def _fire_arrow(self):
+        arrow_x = self.rect.right + 14 if self.facing_right else self.rect.left - 14
+        arrow_y = self.rect.centery - 10
+        self.projectiles.append(Projectile(arrow_x, arrow_y, self.facing_right, is_enemy=True, projectile_type="arrow_fast", damage=18))
+
+    def update(self, dt: float, tiles: list[pygame.FRect], player):
+        self.update_burn(dt)
+        if self.evasion_cooldown > 0:
+            self.evasion_cooldown -= dt
+        if self.shot_cooldown > 0:
+            self.shot_cooldown -= dt
+
+        if not self.is_dead:
+            self.state_timer -= dt
+            dist_to_player = player.rect.centerx - self.rect.centerx
+            abs_dist = abs(dist_to_player)
+            player_in_range = abs_dist < self.vision_range and abs(player.rect.centery - self.rect.centery) < 140
+
+            if self.state == "EVASION":
+                if self.anim_manager.is_finished("evasion") or self.on_ground and self.anim_manager.animations["evasion"].current_frame >= 4:
+                    self.is_dodging = False
+                    self.facing_right = dist_to_player > 0
+                    self.change_state("SHOT_FAST")
+            elif self.state == "HURT":
+                if self.anim_manager.is_finished("hurt"):
+                    self.change_state("IDLE")
+            elif self.state in ("SHOT", "SHOT_FAST"):
+                cur_anim = self.anim_manager.animations.get(self.anim_manager.current_state)
+                target_frame = 9 if self.state == "SHOT" else 7
+                if cur_anim and cur_anim.current_frame >= target_frame and not self.arrow_fired:
+                    self.arrow_fired = True
+                    self._fire_arrow()
+                    self.shot_cooldown = 1.8
+                if self.anim_manager.is_finished(self.anim_manager.current_state):
+                    self.change_state("IDLE")
+            elif self.state == "ATTACK":
+                if self.anim_manager.is_finished("attack"):
+                    self.change_state("IDLE")
+            elif self.state == "IDLE":
+                if player_in_range and not player.invulnerable:
+                    if abs_dist < 85 and self.evasion_cooldown <= 0:
+                        self.facing_right = dist_to_player > 0
+                        self.change_state("EVASION")
+                    elif abs_dist <= self.attack_range and self.shot_cooldown <= 0:
+                        self.facing_right = dist_to_player > 0
+                        self.change_state("SHOT")
+                    else:
+                        self.change_state("CHASE")
+                elif self.state_timer <= 0:
+                    self.change_state("PATROL")
+            elif self.state == "PATROL":
+                if player_in_range and not player.invulnerable:
+                    self.change_state("CHASE")
+                elif self.state_timer <= 0:
+                    self.change_state("IDLE")
+                else:
+                    self.velocity.x = self.speed * self.patrol_dir
+            elif self.state == "CHASE":
+                self.facing_right = dist_to_player > 0
+                if abs_dist < 85 and self.evasion_cooldown <= 0:
+                    self.change_state("EVASION")
+                elif abs_dist < 50:
+                    self.change_state("ATTACK")
+                elif abs_dist <= self.attack_range and self.shot_cooldown <= 0:
+                    self.change_state("SHOT")
+                else:
+                    if abs_dist < 180:
+                        # Reposition away from player
+                        flee_dir = -1 if dist_to_player > 0 else 1
+                        self.velocity.x = self.speed * flee_dir
+                    else:
+                        chase_dir = 1 if dist_to_player > 0 else -1
+                        self.velocity.x = self.chase_speed * chase_dir
+
+        self._apply_physics(dt, tiles)
+        anim_dt = dt * (self.slow_factor if self.slow_timer > 0 else 1.0)
+        self.anim_manager.update(anim_dt)
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if self.is_dead and self.anim_manager.is_finished("dead"):
+            return
+
+        self.draw_contact_shadow(surface, camera_offset, width=44, height=12)
+
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        img = self.anim_manager.get_current_frame()
+        draw_x = self.rect.centerx - cam_x - 85
+        draw_y = self.rect.bottom - cam_y - 170
+
+        if not self.facing_right:
+            img = pygame.transform.flip(img, True, False)
+
+        if self.slow_timer > 0 and not self.is_dead:
+            tinted = img.copy()
+            tinted.fill((130, 205, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            surface.blit(tinted, (draw_x, draw_y))
+        else:
+            surface.blit(img, (draw_x, draw_y))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+class Skeleton(SkeletonWarrior):
+    """Backwards compatibility alias for SkeletonWarrior."""
+    pass
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -608,6 +1071,9 @@ class MageSkeleton(Skeleton):
         if self.is_dead and self.anim_manager.is_finished("dead"):
             return
 
+        # Mage floats, but its shadow stays anchored on the floor below
+        self.draw_contact_shadow(surface, camera_offset, width=42, height=12, alpha=110)
+
         cam_x, cam_y = camera_offset.x, camera_offset.y
         img = self.anim_manager.get_current_frame()
         img_rect = img.get_rect()
@@ -750,6 +1216,10 @@ class WildBoar(Enemy):
                     self.patrol_dir = 1 if dist_to_player > 0 else -1
                     self.facing_right = self.patrol_dir > 0
                     self.velocity.x = self.charge_speed * self.patrol_dir
+                    # Charging leap over player slashes / traps
+                    if self.on_ground and abs_dist < 140 and random.random() < 0.25:
+                        self.velocity.y = -290.0
+                        self.on_ground = False
                     
         self._apply_physics(dt, tiles)
         anim_dt = dt * (self.slow_factor if self.slow_timer > 0 else 1.0)

@@ -307,10 +307,157 @@ CHARACTER_REGISTRY: Dict[str, CharacterProfile] = {
             "k": SkillData("Onda de Ki", "[K]", "MP", 30, 750, "Dispara uma esfera compacta de energia espiritual pura.", "dwarf_magic_05.png", projectile_type="ki_blast"),
             "e": SkillData("Chute do Dragão", "[E]", "SP", 50, 960, "Chute aéreo giratório com onda de impacto sísmica.", "dwarf_support_08.png"),
             "shift": SkillData("Corpo de Ferro", "[Shift]", "SP/s", 3, 0, "Enrijece os músculos bloqueando dano frontal (3 SP/s).", "dwarf_defense_10.png"),
-            "r": SkillData("Fúria do Dragão (Ultimate)", "[R]", "MP", 70, 6900, "Libera todo o Ki espiritual em uma explosão devastadora (6.900 Dmg).", "demon_combat_12.png")
+            "r": SkillData("Fúria do Dragão (Ultimate)", "[R]", "MP", 50, 6900, "Libera todo o Ki espiritual em uma explosão devastadora (6.900 Dmg).", "demon_combat_12.png")
+        }
+    ),
+
+    # 8. KUNOICHI - Assassina das Sombras Carmesins (Substitui Aurelia)
+    "kunoichi": CharacterProfile(
+        id="kunoichi",
+        name="Ayame",
+        title="Kunoichi das Sombras Carmesins",
+        archetype="shinobi",
+        gender="female",
+        description="Mestrona assassina furtiva e acrobática. Desfere sequências letais com adagas duplas, fuma-shurikens de vácuo e ninjutsus de substituição.",
+        color_theme=(230, 90, 170),
+        hp_max=100,
+        mp_max=110,
+        sp_max=145,
+        mana_regen=2.5,
+        stamina_regen=25.0,
+        move_speed=162.0,
+        dash_speed=360.0,
+        jump_speed=-360.0,
+        passive_id="kunoichi_death_mark",
+        passive_name="Marca da Morte",
+        passive_desc="Golpes pelas costas ou em inimigos em recuperação de ataque causam +50% de dano e restauram estamina instantaneamente.",
+        stats={"hp": 3, "mp": 4, "sp": 5, "damage": 5, "speed": 5, "difficulty": 3},
+        sprite_type="craftpix",
+        base_folder=os.path.join("assets", "sprites", "characters", "kunoichi"),
+        frame_size=(128, 128),
+        sprite_scale=1.16,
+        ground_offset_y=4,
+        skills={
+            "j": SkillData("Corte de Adagas Carmesins", "[J]", "SP", 5, 64, "Sequência acrobática fluida de 3 cortes rápidos com adagas duplas aplicando sangramento.", "darkelf_combat_03.png"),
+            "k": SkillData("Shuriken Espiral de Vácuo", "[K]", "MP", 20, 600, "Lança fuma-shuriken gigante que permanece girando fixa no ar dilacerando inimigos.", "darkelf_magic_11.png", projectile_type="shadow_shuriken"),
+            "e": SkillData("Golpe das Sombras Gêmeas", "[E]", "SP", 30, 920, "Investe em alta velocidade enquanto dois clones de sombra atacam em corte cruzado 'X'.", "darkelf_support_03.png"),
+            "shift": SkillData("Kawarimi (Substituição)", "[Shift]", "SP", 12, 0, "Substitui o corpo por tronco de madeira com selo explosivo e ressurge nas costas do alvo.", "darkelf_defense_04.png"),
+            "r": SkillData("Dança Proibida da Lótus Sangrenta", "[R]", "MP", 95, 9100, "Tela monocromática com sequência de 7 talhos em alta velocidade em todos os inimigos.", "demon_combat_12.png")
+        }
+    ),
+
+    # 9. SAMURAI ARCHER - Mestre Arqueiro do Kyudo (Substitui Kaelen / Archer)
+    "samurai_archer": CharacterProfile(
+        id="samurai_archer",
+        name="Hanzo",
+        title="Mestre Arqueiro Samurai",
+        archetype="archer",
+        gender="male",
+        description="Guerreiro de elite das terras orientais. Dispara saraivadas de flechas de alta penetração com alcance supremo e invoca dragões espirituais do vento.",
+        color_theme=(120, 215, 100),
+        hp_max=105,
+        mp_max=95,
+        sp_max=140,
+        mana_regen=2.2,
+        stamina_regen=24.0,
+        move_speed=160.0,
+        dash_speed=360.0,
+        jump_speed=-355.0,
+        passive_id="archer_falcon_eye",
+        passive_name="Olho do Falcão",
+        passive_desc="Disparos a mais de 160px causam +45% de dano crítico e perfuram 100% da armadura do inimigo.",
+        stats={"hp": 3, "mp": 3, "sp": 5, "damage": 5, "speed": 5, "difficulty": 3},
+        sprite_type="craftpix",
+        base_folder=os.path.join("assets", "sprites", "characters", "samurai_archer"),
+        frame_size=(128, 128),
+        sprite_scale=1.06,
+        ground_offset_y=4,
+        skills={
+            "j": SkillData("Tiro Espiritual Kyudo", "[J]", "SP", 5, 65, "Flecha espiritual supersônica de alta velocidade com rastro de vento cortante.", "elf_combat_10.png", projectile_type="arrow_spirit"),
+            "k": SkillData("Disparo Triplo em Leque", "[K]", "MP", 28, 890, "Dispara simultaneamente 3 flechas em leque angular com dispersão para controle de hordas.", "demon_magic_01.png", projectile_type="arrow_scatter"),
+            "e": SkillData("Chuva de Flechas dos Espíritos", "[E]", "MP", 38, 1150, "Dispara flecha ao céu que cai como saraivada contínua de flechas fantasmas na área.", "darkelf_support_03.png"),
+            "shift": SkillData("Salto da Garça", "[Shift]", "SP", 15, 0, "Salto acrobático evasivo para trás liberando abrolhos de lentidão no solo.", "darkelf_defense_04.png"),
+            "r": SkillData("Despertar do Dragão dos Ventos", "[R]", "MP", 90, 8900, "Invoca dragões gêmeos de vento espiritual que serpenteiam horizontalmente varrendo a tela.", "demon_combat_12.png")
+        }
+    ),
+
+    # 10. WIZARD - Arquimago das Chamas Cósmicas (Substitui Zephyr)
+    "wizard": CharacterProfile(
+        id="wizard",
+        name="Ignatius",
+        title="Arquimago das Chamas Cósmicas",
+        archetype="mage",
+        gender="male",
+        description="Mestre da piromancia cósmica e feitiçaria solar. Destrói hordas à distância com supernovas concentradas e tempestades de plasma celestial.",
+        color_theme=(255, 110, 40),
+        hp_max=80,
+        mp_max=170,
+        sp_max=85,
+        mana_regen=4.5,
+        stamina_regen=18.0,
+        move_speed=145.0,
+        dash_speed=340.0,
+        jump_speed=-350.0,
+        passive_id="wizard_solar_fusion",
+        passive_name="Fusão Solar",
+        passive_desc="Ataques solares acumulam Superaquecimento; com 3 acúmulos o alvo entra em combustão causando explosão em área nos inimigos próximos.",
+        stats={"hp": 2, "mp": 5, "sp": 2, "damage": 5, "speed": 4, "difficulty": 3},
+        sprite_type="craftpix",
+        base_folder=os.path.join("assets", "sprites", "characters", "wizard"),
+        frame_size=(128, 128),
+        sprite_scale=1.14,
+        ground_offset_y=4,
+        skills={
+            "j": SkillData("Raio de Plasma Solar", "[J]", "MP", 3, 55, "Disparo rápido de plasma solar concentrado de alta temperatura e velocidade.", "demon_combat_12.png", projectile_type="solar_plasma"),
+            "k": SkillData("Esfera de Supernova", "[K]", "MP", 36, 1280, "Esfera cósmica lenta que atrai calor e explode violentamente ao contato.", "demon_magic_01.png", projectile_type="supernova_orb"),
+            "e": SkillData("Vórtice de Magma", "[E]", "MP", 42, 1350, "Ciclone giratório de fogo e cinzas que puxa inimigos com dano contínuo.", "demon_support_04.png"),
+            "shift": SkillData("Teleporte em Cinzas", "[Shift]", "MP", 15, 0, "Piscar rápido para frente deixando réplica de cinzas explosiva no local anterior.", "demon_defense_03.png"),
+            "r": SkillData("Cataclismo Cósmico Solar", "[R]", "MP", 160, 9900, "Eclipse total com chuva torrencial de meteoros incandescentes por toda a tela.", "demon_magic_01.png")
+        }
+    ),
+
+    # 11. KNIGHT - Paladino Imperial da Aliança (Substitui Boran)
+    "knight": CharacterProfile(
+        id="knight",
+        name="Galahad",
+        title="Paladino Imperial da Aliança",
+        archetype="guardian",
+        gender="male",
+        description="Guerreiro inabalável da Ordem da Aliança. Traja armadura sagrada completa, conjura lanças de luz radiante e consagra o solo punindo as trevas.",
+        color_theme=(240, 220, 110),
+        hp_max=170,        # Tanque pesado supremo
+        mp_max=65,
+        sp_max=145,
+        mana_regen=1.2,
+        stamina_regen=22.0,
+        move_speed=142.0,
+        dash_speed=325.0,
+        jump_speed=-345.0,
+        passive_id="knight_paladin_retribution",
+        passive_name="Julgamento do Paladino",
+        passive_desc="A cada 3 golpes ou bloqueios com escudo, emite uma explosão sagrada que atordoa e restaura +4% HP.",
+        stats={"hp": 5, "mp": 2, "sp": 5, "damage": 4, "speed": 3, "difficulty": 2},
+        sprite_type="craftpix",
+        base_folder=os.path.join("assets", "sprites", "characters", "knight"),
+        frame_size=(128, 128),
+        sprite_scale=1.16,
+        ground_offset_y=4,
+        skills={
+            "j": SkillData("Golpe do Voto Sagrado", "[J]", "SP", 7, 78, "Golpe vigoroso de lâmina pesada que projeta um arco luminoso divino no solo.", "human_combat_01.png"),
+            "k": SkillData("Lança de Luz Radiante", "[K]", "MP", 28, 880, "Arremessa lança fulgurante de energia divina que perfura múltiplos alvos em linha reta.", "human_magic_03.png", projectile_type="spear_light"),
+            "e": SkillData("Solo Consagrado", "[E]", "SP", 40, 950, "Bate o escudo gravando runa dourada que retalha e desacelera inimigos enquanto protege aliados.", "human_support_02.png"),
+            "shift": SkillData("Bastião Divino (Parry)", "[Shift]", "SP/s", 3, 0, "Guarda sagrada de broquel; se ativada no timing do ataque (0.15s), reflete e atordoa o atacante.", "human_defense_07.png"),
+            "r": SkillData("Ira dos Céus: Queda da Lâmina Divina", "[R]", "MP", 65, 8600, "Espada colossal divina cai dos céus, partindo o solo em ondas de choque douradas.", "demon_combat_12.png")
         }
     )
 }
+
+# Aliases for 100% backward compatibility with previous character IDs
+CHARACTER_REGISTRY["aurelia"] = CHARACTER_REGISTRY["kunoichi"]
+CHARACTER_REGISTRY["archer"] = CHARACTER_REGISTRY["samurai_archer"]
+CHARACTER_REGISTRY["kaelen"] = CHARACTER_REGISTRY["samurai_archer"]
+CHARACTER_REGISTRY["zephyr"] = CHARACTER_REGISTRY["wizard"]
+CHARACTER_REGISTRY["boran"] = CHARACTER_REGISTRY["knight"]
 
 CHARACTER_ORDER: List[str] = [
     "shaia",
@@ -319,9 +466,15 @@ CHARACTER_ORDER: List[str] = [
     "astra",
     "shinobi",
     "samurai",
-    "fighter"
+    "fighter",
+    "knight",
+    "wizard",
+    "samurai_archer",
+    "kunoichi"
 ]
 
 def get_character_profile(char_id: str) -> CharacterProfile:
     """Safely retrieves character profile or defaults to Shaia."""
     return CHARACTER_REGISTRY.get(char_id.lower(), CHARACTER_REGISTRY["shaia"])
+
+

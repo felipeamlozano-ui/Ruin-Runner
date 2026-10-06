@@ -1,0 +1,22 @@
+[package]
+name = "ruin_rust_core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ruin Runner Dev Team"]
+description = "Native Multi-Threaded Engine Core for Ruin Runner using PyO3 and Rayon"
+
+[lib]
+name = "ruin_rust_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.22", features = ["extension-module"] }
+rayon = "1.10"
+numpy = "0.22"
+ndarray = "0.15"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"

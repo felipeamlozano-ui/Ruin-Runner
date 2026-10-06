@@ -18,9 +18,11 @@ class SceneManager:
         self.current_scene: Optional[Scene] = None
         
     def change_scene(self, scene: Scene):
+        import gc
         from engine.input_manager import INPUT
         INPUT.clear()
         self.current_scene = scene
+        gc.collect()
         
     def handle_events(self, events: list[pygame.event.Event]):
         if self.current_scene:

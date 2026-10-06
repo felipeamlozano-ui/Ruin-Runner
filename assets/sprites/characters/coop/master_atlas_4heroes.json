@@ -1,0 +1,90 @@
+{
+  "version": "3.0.0",
+  "description": "Master Sprite Atlas for Ruin Runner with 20% expanded safe bounding boxes",
+  "characters": {
+    "zephyr": {
+      "title": "Mago (Zephyr)",
+      "frame_size": [
+        128,
+        128
+      ],
+      "pivot": [
+        64,
+        118
+      ],
+      "safe_margin_percentage": 20.0,
+      "animations": {
+        "idle": 4,
+        "walk": 6,
+        "jump": 4,
+        "attack": 5,
+        "guard": 4,
+        "hurt": 1,
+        "dead": 2
+      }
+    },
+    "aurelia": {
+      "title": "Clérigo (Aurelia)",
+      "frame_size": [
+        128,
+        128
+      ],
+      "pivot": [
+        64,
+        118
+      ],
+      "safe_margin_percentage": 20.0,
+      "animations": {
+        "idle": 4,
+        "walk": 8,
+        "jump": 4,
+        "attack": 6,
+        "guard": 4,
+        "hurt": 1,
+        "dead": 3
+      }
+    },
+    "boran": {
+      "title": "Anão (Boran)",
+      "frame_size": [
+        128,
+        128
+      ],
+      "pivot": [
+        64,
+        118
+      ],
+      "safe_margin_percentage": 20.0,
+      "animations": {
+        "idle": 6,
+        "walk": 8,
+        "jump": 5,
+        "attack": 6,
+        "guard": 4,
+        "hurt": 1,
+        "dead": 3
+      }
+    },
+    "archer": {
+      "title": "Elfo Verde (Archer)",
+      "frame_size": [
+        128,
+        128
+      ],
+      "pivot": [
+        64,
+        118
+      ],
+      "safe_margin_percentage": 20.0,
+      "animations": {
+        "idle": 4,
+        "walk": 7,
+        "jump": 5,
+        "attack": 6,
+        "guard": 4,
+        "hurt": 1,
+        "dead": 2
+      }
+    }
+  }
+}

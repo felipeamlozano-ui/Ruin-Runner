@@ -64,6 +64,25 @@ class ResourceManager:
         except (pygame.error, FileNotFoundError):
             print(f"Warning: Could not load music {full_path}.")
 
+    def get_scaled_image(self, name: str, size: tuple, folder: str = "sprites", alpha: bool = True, smooth: bool = True) -> pygame.Surface:
+        """Loads, scales once, and caches the scaled image in native format."""
+        cache_key = f"{folder}/{name}_{size[0]}x{size[1]}_{alpha}_{smooth}"
+        if cache_key not in self._images:
+            base_img = self.get_image(name, folder=folder, alpha=alpha)
+            if base_img.get_size() == size:
+                self._images[cache_key] = base_img
+            else:
+                try:
+                    if smooth and size[0] < base_img.get_width() and size[1] < base_img.get_height():
+                        scaled = pygame.transform.smoothscale(base_img, size)
+                    else:
+                        scaled = pygame.transform.scale(base_img, size)
+                except Exception:
+                    scaled = pygame.transform.scale(base_img, size)
+                self._images[cache_key] = scaled.convert_alpha() if alpha else scaled.convert()
+                
+        return self._images[cache_key]
+
     def clear_cache(self):
         """Clears memory for unused assets (can be called between levels)."""
         self._images.clear()

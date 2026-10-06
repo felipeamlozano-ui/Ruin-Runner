@@ -1,7 +1,7 @@
+import math
 import pygame
 from typing import List, Callable
-from config.colors import UI_TEXT, UI_HIGHLIGHT, BLACK
-from config.settings import SETTINGS
+from ui.hollow_ui import HollowFonts, HollowCrestRenderer
 
 class MenuOption:
     def __init__(self, text: str, on_select: Callable):
@@ -9,47 +9,74 @@ class MenuOption:
         self.on_select = on_select
 
 class Menu:
-    """Base class for navigable menus (Main Menu, Pause, Settings)."""
+    """Navigable menu component redesigned in the elegant Hollow Knight aesthetic."""
     
     def __init__(self, title: str, options: List[MenuOption]):
         self.title = title
         self.options = options
         self.selected_index = 0
-        self.font_title = pygame.font.Font(None, 48)
-        self.font_option = pygame.font.Font(None, 32)
+        self._time = 0.0
         
     def handle_input(self, input_manager) -> bool:
         """Returns True if the menu consumed the input."""
-        if input_manager.is_action_just_pressed("UP"):
+        self._time += 0.016
+        
+        # Navigation
+        if input_manager.is_action_just_pressed("UP") or (hasattr(input_manager, "is_key_just_pressed") and input_manager.is_key_just_pressed(pygame.K_w)):
             self.selected_index = (self.selected_index - 1) % len(self.options)
             return True
-        elif input_manager.is_action_just_pressed("DOWN"):
+        elif input_manager.is_action_just_pressed("DOWN") or (hasattr(input_manager, "is_key_just_pressed") and input_manager.is_key_just_pressed(pygame.K_s)):
             self.selected_index = (self.selected_index + 1) % len(self.options)
             return True
-        elif input_manager.is_action_just_pressed("JUMP") or input_manager.is_action_just_pressed("ACTION"):
-            self.options[self.selected_index].on_select()
-            return True
+        elif (input_manager.is_action_just_pressed("JUMP") 
+              or input_manager.is_action_just_pressed("ACTION")
+              or input_manager.is_action_just_pressed("ATTACK")):
+            if 0 <= self.selected_index < len(self.options):
+                self.options[self.selected_index].on_select()
+                return True
         return False
             
     def draw(self, surface: pygame.Surface, x: int, y: int):
-        # Draw Title
-        title_surf = self.font_title.render(self.title, True, UI_TEXT)
-        title_rect = title_surf.get_rect(center=(x, y))
+        self._time += 0.016
+        num_opts = len(self.options)
         
-        # Outline for PS1 retro text style
-        pygame.draw.rect(surface, BLACK, title_rect.inflate(4, 4))
-        surface.blit(title_surf, title_rect)
+        # Adaptive font sizing and vertical spacing
+        if num_opts > 7:
+            font = HollowFonts.get(13)
+            spacing = 22
+            start_y = y
+        else:
+            font = HollowFonts.get(15)
+            spacing = 28
+            start_y = y
+            
+        pulse = 0.85 + 0.15 * math.sin(self._time * 5.0)
+        marker_alpha = int(220 * pulse)
         
-        # Draw Options
-        start_y = y + 50
         for i, option in enumerate(self.options):
-            color = UI_HIGHLIGHT if i == self.selected_index else UI_TEXT
-            prefix = "> " if i == self.selected_index else "  "
-            opt_surf = self.font_option.render(f"{prefix}{option.text}", True, color)
-            opt_rect = opt_surf.get_rect(center=(x, start_y + (i * 30)))
+            is_sel = (i == self.selected_index)
+            cur_y = start_y + (i * spacing)
             
-            # Simple shadow/outline
-            shadow = self.font_option.render(f"{prefix}{option.text}", True, BLACK)
-            surface.blit(shadow, (opt_rect.x + 2, opt_rect.y + 2))
+            # Text rendering
+            col = (255, 255, 255) if is_sel else (145, 155, 175)
+            # Render subtle drop shadow
+            shadow_surf = font.render(option.text, True, (0, 0, 0))
+            opt_surf = font.render(option.text, True, col)
             
-            surface.blit(opt_surf, opt_rect)
+            opt_w = opt_surf.get_width()
+            opt_x = x - opt_w // 2
+            
+            surface.blit(shadow_surf, (opt_x + 1, cur_y + 1))
+            surface.blit(opt_surf, (opt_x, cur_y))
+            
+            # Hollow Knight selection marker wings flanking the active item
+            if is_sel:
+                marker_size = 5.5
+                HollowCrestRenderer.draw_selection_marker(
+                    surface, opt_x - 18, cur_y + opt_surf.get_height() // 2,
+                    size=marker_size, is_right=False, alpha=marker_alpha
+                )
+                HollowCrestRenderer.draw_selection_marker(
+                    surface, opt_x + opt_w + 18, cur_y + opt_surf.get_height() // 2,
+                    size=marker_size, is_right=True, alpha=marker_alpha
+                )

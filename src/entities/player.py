@@ -232,29 +232,53 @@ class UltimateShockwaveRing:
         surface.blit(ring_surf, (cx - rc, cy - rc), special_flags=pygame.BLEND_RGBA_ADD)
 
 class Player:
-    def __init__(self, x: float, y: float, character_id: str = None):
+    def __init__(self, x: float, y: float, character_id: str = None, player_index: int = 0, input_device = None):
         from entities.character_data import get_character_profile
         from config.settings import SETTINGS
         if character_id is None:
-            character_id = getattr(SETTINGS, "CURRENT_CHARACTER", "shaia")
+            character_id = getattr(SETTINGS, "CURRENT_CHARACTER", "shaia") if player_index == 0 else getattr(SETTINGS, "P2_CHARACTER", "lunaria")
             
+        if isinstance(input_device, str):
+            self.input = INPUT.get_player(player_index)
+            self.input.device = input_device
+        elif input_device is not None:
+            self.input = input_device
+        else:
+            self.input = INPUT.get_player(player_index)
         self.profile = get_character_profile(character_id)
-        self.character_id = self.profile.id
+        self.character_id = character_id.lower()
         self.archetype = self.profile.archetype
         
         # Position & Physics
         self.pos = pygame.math.Vector2(x, y)
         self.velocity = pygame.math.Vector2(0, 0)
         self.rect = pygame.FRect(x, y, self.profile.hitbox_size[0], self.profile.hitbox_size[1])
+        self.ground_y = self.rect.bottom
+        
+        # Co-op Partner reference & revive state
+        self.companion = None
+        self.is_downed = False
+        self.bleedout_timer = 30.0
+        self.revive_progress = 0.0
+        self.revive_duration = 2.5 # seconds
+        self.reviving_target = None
+        self.revive_channel = 0.0
+        self.shield_buff_timer = 0.0
         
         # State
         self.on_ground = False
         self.can_double_jump = False
         
-        # Stats
-        self.max_health = self.profile.hp_max
+        # Stats & Magic Book (Grimoire) Upgrades
+        from engine.save_manager import SAVE
+        hp_bonus = SAVE.get_skill_level("titan_heart") * 15
+        mp_bonus = SAVE.get_skill_level("cosmic_mana") * 15
+        blade_lv = SAVE.get_skill_level("blade_sharpness")
+        self.blade_damage_mult = 1.0 + (blade_lv * 0.12)
+        
+        self.max_health = self.profile.hp_max + hp_bonus
         self.health = self.max_health
-        self.max_mana = float(self.profile.mp_max)
+        self.max_mana = float(self.profile.mp_max) + mp_bonus
         self.mana = self.max_mana
         self.max_stamina = float(self.profile.sp_max)
         self.stamina = self.max_stamina
@@ -287,6 +311,11 @@ class Player:
         self.still_timer = 0.0
         self.celestial_barrier_active = (self.passive_id == "astra_celestial_barrier")
         self.celestial_barrier_cooldown = 0.0
+        # New character passives & mechanics state
+        self.parry_window_timer = 0.0
+        self.solar_fusion_stacks = 0
+        self.solar_fusion_timer = 0.0
+        self.death_mark_hits = {}
         
         # AoE Nova Skill
         self.is_casting_aoe = False
@@ -354,23 +383,20 @@ class Player:
                 walk_p = os.path.join(bf, "Walk.png")
                 atk_p = os.path.join(bf, "Attack.png")
                 prot_p = os.path.join(bf, "Protection.png")
-                dial_p = os.path.join(bf, "Dialogue.png")
-                book_p = os.path.join(bf, "Book.png")
+                jump_p = os.path.join(bf, "Jump.png")
+                dead_p = os.path.join(bf, "Dead.png")
+                hurt_p = os.path.join(bf, "Hurt.png")
                 
-                self.anim_manager.add_animation("idle", load_spritesheet(idle_p, fw, fh, 9, True, scale))
+                self.anim_manager.add_animation("idle", load_spritesheet(idle_p, fw, fh, 5, True, scale))
                 self.anim_manager.add_animation("walk", load_spritesheet(walk_p, fw, fh, 9, True, scale))
                 
                 # Dedicated Bespoke Jump & Fall for Mages:
-                # Uses dynamic levitation/hover frames from Attack sheet with magical ascent/descent
-                if self.profile.id == "lunaria":
-                    self.anim_manager.add_animation("jump", load_spritesheet(atk_p, fw, fh, 11, False, scale, start_frame=3, max_frames=2))
-                    self.anim_manager.add_animation("fall", load_spritesheet(atk_p, fw, fh, 9, True, scale, start_frame=4, max_frames=2))
-                elif self.profile.id == "ignis":
-                    self.anim_manager.add_animation("jump", load_spritesheet(atk_p, fw, fh, 11, False, scale, start_frame=3, max_frames=2))
-                    self.anim_manager.add_animation("fall", load_spritesheet(atk_p, fw, fh, 9, True, scale, start_frame=4, max_frames=2))
-                else: # astra
-                    self.anim_manager.add_animation("jump", load_spritesheet(atk_p, fw, fh, 11, False, scale, start_frame=2, max_frames=2))
-                    self.anim_manager.add_animation("fall", load_spritesheet(atk_p, fw, fh, 9, True, scale, start_frame=3, max_frames=2))
+                if os.path.exists(jump_p):
+                    self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 10, False, scale, start_frame=0, max_frames=3))
+                    self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 8, True, scale, start_frame=2, max_frames=2))
+                else:
+                    self.anim_manager.add_animation("jump", load_spritesheet(atk_p, fw, fh, 11, False, scale, start_frame=0, max_frames=2))
+                    self.anim_manager.add_animation("fall", load_spritesheet(atk_p, fw, fh, 9, True, scale, start_frame=1, max_frames=2))
                     
                 self.anim_manager.add_animation("attack", load_spritesheet(atk_p, fw, fh, 14, False, scale))
                 self.anim_manager.add_animation("cast_magic", load_spritesheet(atk_p, fw, fh, 14, False, scale, start_frame=1, max_frames=4))
@@ -379,52 +405,201 @@ class Player:
                 self.anim_manager.add_animation("jump_attack", load_spritesheet(atk_p, fw, fh, 14, True, scale))
                 self.anim_manager.add_animation("landing", load_spritesheet(idle_p, fw, fh, 12, False, scale, start_frame=0, max_frames=2))
                 self.anim_manager.add_animation("guard", load_spritesheet(prot_p, fw, fh, 9, True, scale))
-                self.anim_manager.add_animation("dead", load_spritesheet(atk_p, fw, fh, 8, False, scale, start_frame=2, max_frames=4))
+                if os.path.exists(dead_p):
+                    self.anim_manager.add_animation("dead", load_spritesheet(dead_p, fw, fh, 8, False, scale))
+                else:
+                    self.anim_manager.add_animation("dead", load_spritesheet(atk_p, fw, fh, 8, False, scale, start_frame=2, max_frames=4))
+                if os.path.exists(hurt_p):
+                    self.anim_manager.add_animation("hurt", load_spritesheet(hurt_p, fw, fh, 10, False, scale))
                 self.anim_manager.add_animation("dash", load_spritesheet(walk_p, fw, fh, 16, False, scale))
             else:
-                idle_p = os.path.join(bf, "Idle.png")
-                walk_p = os.path.join(bf, "Walk.png")
-                run_p = os.path.join(bf, "Run.png")
-                jump_p = os.path.join(bf, "Jump.png")
-                atk1_p = os.path.join(bf, "Attack_1.png")
-                atk2_p = os.path.join(bf, "Attack_2.png")
-                atk3_p = os.path.join(bf, "Attack_3.png")
-                shield_p = os.path.join(bf, "Shield.png")
-                dead_p = os.path.join(bf, "Dead.png")
-                hurt_p = os.path.join(bf, "Hurt.png")
+                def _find_sheet(folder, *candidates):
+                    for c in candidates:
+                        cp = os.path.join(folder, c)
+                        if os.path.exists(cp):
+                            return cp
+                    return os.path.join(folder, candidates[0])
+
+                idle_p = _find_sheet(bf, "Idle.png")
+                walk_p = _find_sheet(bf, "Walk.png")
+                run_p = _find_sheet(bf, "Run.png", "Walk.png")
+                jump_p = _find_sheet(bf, "Jump.png")
+                atk1_p = _find_sheet(bf, "Attack_1.png", "Attack 1.png", "Attack.png")
+                atk2_p = _find_sheet(bf, "Attack_2.png", "Attack 2.png", "Flame_jet.png", "Shot.png", "Attack.png")
+                atk3_p = _find_sheet(bf, "Attack_3.png", "Attack 3.png", "Flame_jet.png", "Shot.png", "Cast.png", "Attack_2.png", "Attack 2.png")
+                shield_p = _find_sheet(bf, "Shield.png", "Defend.png", "Protect.png", "Protection.png", "Idle.png")
+                dead_p = _find_sheet(bf, "Dead.png", "Hurt.png")
+                hurt_p = _find_sheet(bf, "Hurt.png")
                 
-                self.anim_manager.add_animation("idle", load_spritesheet(idle_p, fw, fh, 9, True, scale))
+                self.anim_manager.add_animation("idle", load_spritesheet(idle_p, fw, fh, 6, True, scale))
                 self.anim_manager.add_animation("walk", load_spritesheet(walk_p, fw, fh, 9, True, scale))
                 
-                # Dedicated Bespoke Jump & Fall for Martial Artists:
-                # Shinobi & Samurai have 12 frames: 0..2 takeoff/crouch, 3..5 ascent leap, 6..8 mid-air glide, 9..11 ground landing
-                # Fighter has 10 frames: 0..2 takeoff/crouch, 3..5 ascent leap, 6..7 mid-air glide, 8..9 ground landing
-                if self.profile.id == "fighter":
+                # Dedicated Bespoke Jump & Fall for characters:
+                if self.profile.id in ("fighter",):
                     self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=3, max_frames=3))
                     self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 9, True, scale, start_frame=6, max_frames=2))
                     self.anim_manager.add_animation("landing", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=8, max_frames=2))
-                elif self.profile.id == "samurai":
+                elif self.profile.id in ("samurai",):
                     self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=5, max_frames=3))
                     self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 9, True, scale, start_frame=7, max_frames=2))
                     self.anim_manager.add_animation("landing", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=9, max_frames=3))
-                else: # shinobi
+                elif self.profile.id in ("shinobi",):
                     self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=4, max_frames=3))
                     self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 9, True, scale, start_frame=6, max_frames=3))
                     self.anim_manager.add_animation("landing", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=9, max_frames=3))
+                elif self.profile.id in ("samurai_archer", "archer", "kaelen"):
+                    self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=0, max_frames=3))
+                    self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 9, True, scale, start_frame=3, max_frames=3))
+                    self.anim_manager.add_animation("landing", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=6, max_frames=2))
+                elif self.profile.id in ("kunoichi", "ninja", "aurelia"):
+                    self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=0, max_frames=3))
+                    self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 9, True, scale, start_frame=4, max_frames=3))
+                    self.anim_manager.add_animation("landing", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=7, max_frames=2))
+                elif self.profile.id in ("wizard", "zephyr"):
+                    self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=0, max_frames=3))
+                    self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 9, True, scale, start_frame=3, max_frames=3))
+                    self.anim_manager.add_animation("landing", load_spritesheet(idle_p, fw, fh, 12, False, scale, start_frame=0, max_frames=2))
+                elif self.profile.id in ("knight", "boran"):
+                    self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=0, max_frames=3))
+                    self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 9, True, scale, start_frame=3, max_frames=2))
+                    self.anim_manager.add_animation("landing", load_spritesheet(jump_p, fw, fh, 12, False, scale, start_frame=4, max_frames=2))
+                else: # Generic fallback
+                    self.anim_manager.add_animation("jump", load_spritesheet(jump_p, fw, fh, 12, False, scale))
+                    self.anim_manager.add_animation("fall", load_spritesheet(jump_p, fw, fh, 9, True, scale))
+                    self.anim_manager.add_animation("landing", load_spritesheet(idle_p, fw, fh, 12, False, scale, start_frame=0, max_frames=2))
                     
                 self.anim_manager.add_animation("attack", load_spritesheet(atk1_p, fw, fh, 14, False, scale))
                 self.anim_manager.add_animation("cast_magic", load_spritesheet(atk2_p, fw, fh, 14, False, scale))
-                self.anim_manager.add_animation("whirlwind", load_spritesheet(atk3_p, fw, fh, 16, False, scale))
+                self.anim_manager.add_animation("whirlwind", load_spritesheet(atk3_p, fw, fh, 14, False, scale))
                 self.anim_manager.add_animation("heavy_slash", load_spritesheet(atk3_p, fw, fh, 14, False, scale))
                 self.anim_manager.add_animation("jump_attack", load_spritesheet(atk1_p, fw, fh, 14, True, scale))
-                self.anim_manager.add_animation("guard", load_spritesheet(shield_p, fw, fh, 9, True, scale))
+                self.anim_manager.add_animation("guard", load_spritesheet(shield_p, fw, fh, 6, True, scale))
                 self.anim_manager.add_animation("dead", load_spritesheet(dead_p, fw, fh, 9, False, scale))
                 self.anim_manager.add_animation("dash", load_spritesheet(run_p, fw, fh, 16, False, scale))
                 if os.path.exists(hurt_p):
                     self.anim_manager.add_animation("hurt", load_spritesheet(hurt_p, fw, fh, 12, False, scale))
+        self.hurt_timer = 0.0
+        self.combo_index = 0
+        self.combo_timer = 0.0
+        self.attack_anim_name = "attack"
+        self._pending_shots = []
+        self._anchor_cache = {}
+        if self.profile.id in self.NEW_HERO_IDS:
+            self._load_new_hero_animations()
         self.anim_manager.play("idle")
         self.is_attacking = False
         self.is_dead = False
+
+    NEW_HERO_IDS = ("knight", "wizard", "samurai_archer", "kunoichi")
+    # Seconds after the attack/cast animation starts when the projectile is actually released
+    NEW_HERO_RELEASE_DELAY = {"knight": 0.12, "wizard": 0.16, "samurai_archer": 0.10, "kunoichi": 0.09}
+
+    def _load_new_hero_animations(self):
+        """Bespoke, correctly-sliced animation sets for Galahad, Ignatius, Hanzo and Ayame."""
+        bf = self.profile.base_folder
+        fw, fh = self.profile.frame_size
+        sc = self.profile.sprite_scale
+
+        def L(name, fps, loop=True, start=0, count=0):
+            return load_spritesheet(os.path.join(bf, name), fw, fh, fps, loop, sc, start_frame=start, max_frames=count)
+
+        pid = self.profile.id
+        if pid == "knight":
+            spec = {
+                "idle": L("Idle.png", 6), "walk": L("Walk.png", 10), "run": L("Run.png", 14),
+                "attack": L("Attack 1.png", 20, False), "attack2": L("Attack 2.png", 18, False),
+                "attack3": L("Attack 3.png", 18, False),
+                "cast_magic": L("Run+Attack.png", 20, False),
+                "whirlwind": L("Attack 2.png", 12, False), "heavy_slash": L("Attack 3.png", 12, False),
+                "jump_attack": L("Attack 1.png", 14, True),
+                "guard": L("Defend.png", 16, False),
+                "jump": L("Jump.png", 12, False, 0, 3), "fall": L("Jump.png", 9, True, 3, 2),
+                "landing": L("Jump.png", 14, False, 4, 2),
+                "dash": L("Run.png", 22, True),
+                "dead": L("Dead.png", 9, False), "hurt": L("Hurt.png", 10, False),
+            }
+        elif pid == "wizard":
+            spec = {
+                "idle": L("Idle.png", 7), "walk": L("Walk.png", 9), "run": L("Run.png", 12),
+                "attack": L("Attack_1.png", 16, False), "attack2": L("Attack_2.png", 16, False),
+                "cast_magic": L("Fireball.png", 22, False, 1, 7),
+                "whirlwind": L("Flame_jet.png", 22, False), "heavy_slash": L("Attack_2.png", 12, False),
+                "jump_attack": L("Attack_2.png", 14, True),
+                "guard": L("Idle.png", 6),
+                "jump": L("Jump.png", 12, False, 0, 3), "fall": L("Jump.png", 9, True, 3, 3),
+                "landing": L("Jump.png", 16, False, 6, 3),
+                "dash": L("Run.png", 20, True),
+                "dead": L("Dead.png", 8, False), "hurt": L("Hurt.png", 12, False),
+            }
+        elif pid == "samurai_archer":
+            spec = {
+                "idle": L("Idle.png", 8), "walk": L("Walk.png", 10), "run": L("Run.png", 14),
+                "attack": L("Shot.png", 36, False, 4, 10), "cast_magic": L("Shot.png", 36, False, 4, 10),
+                "whirlwind": L("Shot.png", 22, False), "heavy_slash": L("Attack_3.png", 14, False),
+                "jump_attack": L("Attack_1.png", 14, True),
+                "guard": L("Idle.png", 6),
+                "jump": L("Jump.png", 12, False, 0, 3), "fall": L("Jump.png", 9, True, 3, 3),
+                "landing": L("Jump.png", 16, False, 6, 3),
+                "dash": L("Run.png", 22, True),
+                "dead": L("Dead.png", 8, False), "hurt": L("Hurt.png", 12, False),
+            }
+        else:  # kunoichi
+            spec = {
+                "idle": L("Idle.png", 9), "walk": L("Walk.png", 10), "run": L("Run.png", 14),
+                "attack": L("Attack_1.png", 18, False), "attack2": L("Attack_2.png", 20, False),
+                "cast_magic": L("Cast.png", 20, False),
+                "whirlwind": L("Attack_2.png", 22, False), "heavy_slash": L("Attack_2.png", 14, False),
+                "jump_attack": L("Attack_1.png", 14, True),
+                "guard": L("Idle.png", 6),
+                "jump": L("Jump.png", 12, False, 0, 4), "fall": L("Jump.png", 9, True, 4, 3),
+                "landing": L("Jump.png", 16, False, 7, 3),
+                "dash": L("Run.png", 24, True),
+                "dead": L("Dead.png", 8, False), "hurt": L("Hurt.png", 10, False),
+            }
+        for name, anim in spec.items():
+            if anim.frames:
+                self.anim_manager.add_animation(name, anim)
+
+    def _anchor_x(self, state: str, img_w: int) -> float:
+        """Horizontal body anchor inside the frame. New hero sheets are not centered in their 128px
+        frames, so the body (not the frame) must be aligned with the hitbox."""
+        if self.profile.id not in self.NEW_HERO_IDS:
+            return img_w / 2
+        key = state if state in ("walk", "run", "dash") else "idle"
+        cached = self._anchor_cache.get(key)
+        if cached is not None:
+            return cached
+        anim = self.anim_manager.animations.get(key)
+        centers = []
+        if anim:
+            for f in anim.frames:
+                r = f.get_bounding_rect()
+                if r.w:
+                    centers.append(r.centerx)
+        val = sum(centers) / len(centers) if centers else img_w / 2
+        self._anchor_cache[key] = val
+        return val
+
+    def _begin_attack_anim(self):
+        """Starts the [J] animation, chaining combo variants when the hero has them."""
+        names = ["attack"] + [n for n in ("attack2", "attack3") if self.anim_manager.has_animation(n)]
+        if self.combo_timer > 0 and len(names) > 1:
+            self.combo_index = (self.combo_index + 1) % len(names)
+        else:
+            self.combo_index = 0
+        self.combo_timer = 0.9
+        self.attack_anim_name = names[self.combo_index]
+        self.anim_manager.play(self.attack_anim_name, force_reset=True)
+
+    def _defer_new_projectiles(self, n_before: int):
+        """Delays projectiles spawned this frame until the release frame of the animation."""
+        if (self.profile.id in self.NEW_HERO_IDS and len(self.projectiles) > n_before
+                and (self.is_attacking or self.is_casting_magic)):
+            delay = self.NEW_HERO_RELEASE_DELAY.get(self.profile.id, 0.1)
+            new = self.projectiles[n_before:]
+            del self.projectiles[n_before:]
+            for p in new:
+                self._pending_shots.append([delay, p])
 
     @property
     def ultimate_hit_done(self) -> bool:
@@ -436,7 +611,8 @@ class Player:
 
     @property
     def can_dash(self) -> bool:
-        dash_cost = 15 if self.passive_id == "shinobi_shadow_step" else 25
+        dash_cost = 12 if self.passive_id in ("shinobi_shadow_step", "kunoichi_silent_strike") else 25
+        return (not self.is_dashing and not self.is_drinking_potion and self.dash_cooldown <= 0 and self.stamina >= dash_cost)
         return (not self.is_dashing and not self.is_drinking_potion and self.dash_cooldown <= 0 and self.stamina >= dash_cost)
 
     @property
@@ -472,6 +648,58 @@ class Player:
         self.potion_heal_amount = heal_amount
 
     def update(self, dt: float, tiles: list[pygame.FRect], enemies=None, camera=None):
+        # Co-op Downed State Check
+        if self.is_downed:
+            self.bleedout_timer -= dt
+            self.velocity.x *= FRICTION
+            if self.bleedout_timer <= 0:
+                self.health = 0
+                self.is_dead = True
+                self.is_downed = False
+                self.anim_manager.play("dead", force_reset=True)
+            self._apply_physics(dt, tiles)
+            return
+
+        # Co-op Proximity Passive Synergies
+        if self.companion and not getattr(self.companion, "is_dead", False) and not getattr(self.companion, "is_downed", False):
+            c_dist = math.hypot(self.companion.rect.centerx - self.rect.centerx, self.companion.rect.centery - self.rect.centery)
+            if c_dist <= 240.0:
+                # Aurelia: Graça da Alvorada (+2 HP/s)
+                if self.passive_id == "aurelia_dawn_grace":
+                    self.companion.health = min(self.companion.max_health, self.companion.health + 2.0 * dt)
+                # Zephyr: Fluxo de Éter (+2.5 MP/s)
+                if self.passive_id == "zephyr_ether_stream":
+                    self.companion.mana = min(self.companion.max_mana, self.companion.mana + 2.5 * dt)
+
+        # ── Co-op Revive Channeling (Single authoritative system) ──────────────
+        # Reviver stands within 75px and holds [F/INTERACT] or [DEFEND] for 2.5s.
+        # Only runs when THIS player is alive and companion is downed.
+        if self.companion and getattr(self.companion, "is_downed", False) and not self.is_dead:
+            c_dist = math.hypot(self.companion.rect.centerx - self.rect.centerx,
+                                self.companion.rect.centery - self.rect.centery)
+            in_range = c_dist <= 75.0
+            holding_revive = (self.input.is_action_pressed("INTERACT") or
+                              self.input.is_action_pressed("DEFEND") or
+                              (getattr(self, "reviving_target", None) == self.companion))
+            if (in_range and holding_revive) or (getattr(self, "reviving_target", None) == self.companion):
+                # Aurelia revives 2x faster (passive)
+                revive_speed = 2.0 if self.passive_id == "aurelia_dawn_grace" else 1.0
+                self.revive_channel += dt * revive_speed
+                if self.revive_channel >= 2.5:
+                    # REVIVE SUCCESS
+                    self.companion.is_downed = False
+                    self.companion.is_dead = False
+                    self.companion.bleedout_timer = 30.0  # Reset bleedout timer
+                    self.companion.health = max(1, int(self.companion.max_health * 0.45))
+                    self.companion.invulnerable = True
+                    self.companion.invulnerability_timer = 2.0
+                    self.companion.revive_channel = 0.0
+                    self.companion.anim_manager.play("idle", force_reset=True)
+                    self.revive_channel = 0.0
+            else:
+                # Slowly decay revive progress when not channeling
+                self.revive_channel = max(0.0, self.revive_channel - dt * 0.5)
+
         if self.invulnerable:
             self.invulnerability_timer -= dt
             if self.invulnerability_timer <= 0:
@@ -481,6 +709,16 @@ class Player:
             self.dash_cooldown = max(0.0, self.dash_cooldown - dt)
         if self.attack_cooldown > 0:
             self.attack_cooldown = max(0.0, self.attack_cooldown - dt)
+        if self.hurt_timer > 0:
+            self.hurt_timer = max(0.0, self.hurt_timer - dt)
+        if self.combo_timer > 0:
+            self.combo_timer = max(0.0, self.combo_timer - dt)
+        if self._pending_shots:
+            for item in self._pending_shots[:]:
+                item[0] -= dt
+                if item[0] <= 0:
+                    self.projectiles.append(item[1])
+                    self._pending_shots.remove(item)
         if self.stamina_regen_delay > 0:
             self.stamina_regen_delay = max(0.0, self.stamina_regen_delay - dt)
             
@@ -503,6 +741,20 @@ class Player:
                 self.still_timer += dt
             else:
                 self.still_timer = 0.0
+
+        # Knight Parry Window decay
+        if self.parry_window_timer > 0:
+            self.parry_window_timer = max(0.0, self.parry_window_timer - dt)
+
+        # Wizard Solar Fusion passive: stacks decay after 4s without casting, grants mana regen
+        if self.passive_id == "wizard_solar_fusion":
+            if self.solar_fusion_stacks > 0:
+                self.solar_fusion_timer -= dt
+                if self.solar_fusion_timer <= 0:
+                    self.solar_fusion_stacks = max(0, self.solar_fusion_stacks - 1)
+                    self.solar_fusion_timer = 1.0 if self.solar_fusion_stacks > 0 else 0.0
+                # Stacks restore mana: 2.0 MP/s per stack!
+                self.mana = min(self.max_mana, self.mana + (self.solar_fusion_stacks * 2.0) * dt)
             
         # Update After-Images (Ghost trail)
         self.after_images = [img for img in self.after_images if img.update(dt)]
@@ -517,7 +769,8 @@ class Player:
                 self.dash_ghost_timer = 0.0
                 curr_img = self.anim_manager.get_current_frame()
                 img_rect = curr_img.get_rect()
-                draw_x = self.rect.centerx - img_rect.width / 2
+                _ax = self._anchor_x(self.anim_manager.current_state, img_rect.width)
+                draw_x = self.rect.centerx - (_ax if self.facing_right else img_rect.width - _ax)
                 draw_y = self.rect.bottom - img_rect.height
                 if not self.facing_right:
                     curr_img = pygame.transform.flip(curr_img, True, False)
@@ -536,7 +789,7 @@ class Player:
                 self.is_casting_aoe = False
                 
         # Check if attack animation finished
-        if self.is_attacking and self.anim_manager.is_finished("attack"):
+        if self.is_attacking and self.anim_manager.is_finished(self.attack_anim_name):
             self.is_attacking = False
             
         # Update Impact Smokes (Plunge VFX)
@@ -569,13 +822,15 @@ class Player:
                 self.invulnerability_timer = 0.5
                 self.anim_manager.play("idle")
 
+        _n_proj = len(self.projectiles)
         self._handle_input(dt)
+        self._defer_new_projectiles(_n_proj)
         self._apply_physics(dt, tiles)
         self._update_animation(dt)
         self.anim_manager.update(dt)
         
         # Check if attack animation finished immediately
-        if self.is_attacking and self.anim_manager.is_finished("attack"):
+        if self.is_attacking and self.anim_manager.is_finished(self.attack_anim_name):
             self.is_attacking = False
         
     def get_attack_hitbox(self) -> pygame.FRect:
@@ -668,19 +923,24 @@ class Player:
             if self.shield_anim:
                 self.shield_anim.update(dt)
         elif self.is_attacking:
-            self.anim_manager.play("attack")
+            self.anim_manager.play(self.attack_anim_name)
+        elif self.hurt_timer > 0 and self.anim_manager.has_animation("hurt"):
+            self.anim_manager.play("hurt")
         elif not self.on_ground:
             if self.velocity.y < 0:
                 self.anim_manager.play("jump")
             else:
                 self.anim_manager.play("fall")
         elif abs(self.velocity.x) > 10:
-            self.anim_manager.play("walk")
+            if self.anim_manager.has_animation("run") and abs(self.velocity.x) > self.speed * 0.6:
+                self.anim_manager.play("run")
+            else:
+                self.anim_manager.play("walk")
         else:
             self.anim_manager.play("idle")
             
     def _handle_input(self, dt: float):
-        if self.is_dead:
+        if self.is_dead or self.is_downed:
             self.velocity.x *= FRICTION
             return
             
@@ -688,9 +948,18 @@ class Player:
             self.velocity.x = 0
             return
             
+        # Co-op Downed Partner: Lock movement to revive area, show progress
+        if self.companion and getattr(self.companion, "is_downed", False) and not self.is_dead:
+            c_dist = math.hypot(self.companion.rect.centerx - self.rect.centerx,
+                                self.companion.rect.centery - self.rect.centery)
+            if c_dist <= 75.0 and (self.input.is_action_pressed("INTERACT") or self.input.is_action_pressed("DEFEND")):
+                # Freeze in place while channeling revive
+                self.velocity.x = 0
+                return
+            
         # Potion drinking locks out attack, skills, and jumping
         if self.is_drinking_potion:
-            axis = INPUT.get_axis()
+            axis = self.input.get_axis()
             if axis.x != 0:
                 self.velocity.x += axis.x * ACCELERATION * dt
                 self.velocity.x = clamp(self.velocity.x, -self.speed * 0.30, self.speed * 0.30)
@@ -706,9 +975,9 @@ class Player:
             return
             
         # Down-Attack (Dive / Plunge Attack with Sword) - Mid-air [S] + [J]
-        if not self.on_ground and INPUT.is_action_just_pressed("ATTACK") and not self.is_dashing and not self.is_down_attacking and not self.is_blocking:
-            axis = INPUT.get_axis()
-            if axis.y > 0 or INPUT.is_action_pressed("DOWN"):
+        if not self.on_ground and self.input.is_action_just_pressed("ATTACK") and not self.is_dashing and not self.is_down_attacking and not self.is_blocking:
+            axis = self.input.get_axis()
+            if axis.y > 0 or self.input.is_action_pressed("DOWN"):
                 self.is_down_attacking = True
                 self.velocity.y = 520
                 self.velocity.x = 0
@@ -716,7 +985,7 @@ class Player:
                 return
                 
         # Skill [R] - Ultimate Skill (Costs 100% of maximum Mana)
-        if INPUT.is_action_just_pressed("ULTIMATE") and not self.is_attacking and not self.is_blocking and not self.is_dashing and not self.is_casting_magic and not self.is_casting_ultimate:
+        if self.input.is_action_just_pressed("ULTIMATE") and not self.is_attacking and not self.is_blocking and not self.is_dashing and not self.is_casting_magic and not self.is_casting_ultimate:
             r_skill = self.profile.skills.get("r", None)
             if r_skill:
                 ult_cost = r_skill.cost_value
@@ -729,7 +998,7 @@ class Player:
                     return
                 
         # Dash [Q]
-        if INPUT.is_action_just_pressed("DASH"):
+        if self.input.is_action_just_pressed("DASH"):
             if self.dash():
                 return
             
@@ -737,7 +1006,7 @@ class Player:
             return
             
         # Skill [E] - AoE Nova / Whirlwind
-        if INPUT.is_action_just_pressed("SKILL_AOE") and not self.is_casting_aoe and not self.is_attacking and not self.is_blocking and not self.is_drinking_potion:
+        if self.input.is_action_just_pressed("SKILL_AOE") and not self.is_casting_aoe and not self.is_attacking and not self.is_blocking and not self.is_drinking_potion:
             e_skill = self.profile.skills.get("e", None)
             if e_skill:
                 can_cast = (self.mana >= e_skill.cost_value) if e_skill.cost_type == "MP" else (self.stamina >= e_skill.cost_value)
@@ -754,13 +1023,51 @@ class Player:
                     from entities.ultimate_aoe_vfx import UltimateAoE_VFX
                     self.aoe_vfx = UltimateAoE_VFX(self.rect.centerx, self.rect.bottom, self.aoe_radius, self.profile.id)
                     
-        # Blocking / Guard [Shift] (Drains 3 SP/s or 3 MP/s)
+        # Blocking / Guard / Special Mobility [Shift]
         shift_skill = self.profile.skills.get("shift", None)
         shift_cost = shift_skill.cost_value if shift_skill else 3
-        is_mage = (self.archetype == "mage")
+        is_mage = (self.archetype in ("mage", "healer", "support"))
         can_block = (self.mana > 0) if is_mage else (self.stamina > 0)
+
+        # Bespoke [Shift] triggers on initial press for mobile archetypes:
+        if self.input.is_action_just_pressed("DEFEND") and not self.is_drinking_potion:
+            # Wizard: Passo de Cinzas (Blink de Brasas)
+            if self.character_id == "wizard" and self.mana >= 12:
+                self.mana -= 12
+                dir_mult = 1.0 if self.facing_right else -1.0
+                self.pos.x += dir_mult * 70.0
+                self.rect.x = self.pos.x
+                self.invulnerable = True
+                self.invulnerability_timer = 0.28
+                self.anim_manager.play("dash", force_reset=True)
+                return
+            # Samurai Archer: Salto Tático com Abrolhos
+            elif self.character_id == "samurai_archer" and self.stamina >= 10:
+                self.stamina -= 10
+                self.stamina_regen_delay = 0.5
+                dir_mult = -1.0 if self.facing_right else 1.0
+                self.velocity.x = dir_mult * 260.0
+                self.velocity.y = -220.0
+                self.on_ground = False
+                self.invulnerable = True
+                self.invulnerability_timer = 0.30
+                self.anim_manager.play("jump", force_reset=True)
+                return
+            # Kunoichi: Kawarimi no Jutsu (Substituição)
+            elif self.character_id == "kunoichi" and self.stamina >= 15:
+                self.stamina -= 15
+                self.stamina_regen_delay = 0.5
+                dir_mult = 1.0 if self.facing_right else -1.0
+                self.pos.x += dir_mult * 75.0
+                self.rect.x = self.pos.x
+                self.invulnerable = True
+                self.invulnerability_timer = 0.45
+                self.anim_manager.play("dash", force_reset=True)
+                return
         
-        if INPUT.is_action_pressed("DEFEND") and can_block and not self.is_drinking_potion:
+        if self.input.is_action_pressed("DEFEND") and can_block and not self.is_drinking_potion:
+            if not self.is_blocking:
+                self.parry_window_timer = 0.20
             self.is_blocking = True
             if is_mage:
                 self.mana = max(0.0, self.mana - shift_cost * dt)
@@ -783,7 +1090,7 @@ class Player:
             return
             
         # Horizontal Movement (slowed to 30% while drinking potion)
-        axis = INPUT.get_axis()
+        axis = self.input.get_axis()
         speed_mult = 0.30 if self.is_drinking_potion else 1.0
         
         if axis.x != 0:
@@ -797,17 +1104,17 @@ class Player:
                 self.velocity.x = 0
                 
         # Jumping (Fluid response to dodge attacks with double-jump)
-        if INPUT.is_action_just_pressed("JUMP") and not self.is_blocking and not self.is_drinking_potion:
+        if self.input.is_action_just_pressed("JUMP") and not self.is_blocking and not self.is_drinking_potion:
             if self.on_ground:
                 self.velocity.y = self.jump_speed
                 self.on_ground = False
                 self.can_double_jump = True
             elif self.can_double_jump:
-                self.velocity.y = self.jump_speed * 0.88
+                self.velocity.y = self.jump_speed * 0.70
                 self.can_double_jump = False
                 
         # Ground Attack [J] - 0.25s snappy attack cooldown via delta time
-        if INPUT.is_action_just_pressed("ATTACK") and not self.is_attacking and not self.is_blocking and not self.is_drinking_potion and self.attack_cooldown <= 0:
+        if self.input.is_action_just_pressed("ATTACK") and not self.is_attacking and not self.is_blocking and not self.is_drinking_potion and self.attack_cooldown <= 0:
             j_skill = self.profile.skills.get("j", None)
             if j_skill:
                 is_mp = (j_skill.cost_type == "MP")
@@ -820,39 +1127,199 @@ class Player:
                         self.stamina_regen_delay = 0.5
                     self.is_attacking = True
                     self.attack_hit_enemies.clear()
-                    self.attack_cooldown = 0.25 # Snappy 0.25s Cooldown!
-                    self.anim_manager.play("attack", force_reset=True)
+                    self.attack_cooldown = 0.25
+                    self._begin_attack_anim()
                     
-                    # Mages shoot basic projectile on [J] (real damage from skill data)
-                    if self.archetype == "mage":
+                    # Ranged archetypes shoot basic projectile on [J]
+                    if self.archetype in ("mage", "healer", "archer", "support", "ninja"):
                         from entities.projectile import Projectile
                         proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
                         proj_y = self.rect.centery - 8
-                        ptype = j_skill.projectile_type or "arcane_bolt"
+                        ptype = j_skill.projectile_type or ("arrow_fast" if self.archetype == "archer" else "arcane_bolt")
                         self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type=ptype, damage=j_skill.damage))
             
         # Skill [K] - Ranged Projectile / Technique
-        if INPUT.is_action_just_pressed("MAGIC") and not self.is_attacking and not self.is_blocking and not self.is_casting_magic and not self.is_casting_ultimate and not self.is_drinking_potion:
-            k_skill = self.profile.skills.get("k", None)
-            if k_skill and self.mana >= k_skill.cost_value:
-                self.mana -= k_skill.cost_value
-                self.is_casting_magic = True
-                self.magic_cast_timer = 0.32
-                self.magic_sigil_timer = 0.38
-                self.anim_manager.play("cast_magic", force_reset=True)
-                
-                from entities.projectile import Projectile
-                proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
-                proj_y = self.rect.centery - 8
-                ptype = k_skill.projectile_type or "fireball"
-                is_burn = (self.passive_id == "ignis_smoldering_ashes")
-                # Pass real skill damage so it's not overridden by the fallback DAMAGE_MAP
-                self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type=ptype, is_burn=is_burn, damage=k_skill.damage))
+        if self.input.is_action_just_pressed("SKILL") or self.input.is_action_just_pressed("MAGIC"):
+            if not self.is_attacking and not self.is_blocking and not self.is_casting_magic and not self.is_casting_ultimate and not self.is_drinking_potion:
+                k_skill = self.profile.skills.get("k", None)
+                if k_skill and self.mana >= k_skill.cost_value:
+                    self.mana -= k_skill.cost_value
+                    self.is_casting_magic = True
+                    self.magic_cast_timer = 0.32
+                    self.magic_sigil_timer = 0.38
+                    self.anim_manager.play("cast_magic" if self.anim_manager.has_animation("cast_magic") else "attack", force_reset=True)
+                    
+                    # Wizard Solar Fusion stack increment on spell cast
+                    if self.passive_id == "wizard_solar_fusion":
+                        self.solar_fusion_stacks = min(5, self.solar_fusion_stacks + 1)
+                        self.solar_fusion_timer = 4.0
+
+                    # Healer [K] Bênção Restauradora: heals self and companion!
+                    if self.passive_id == "aurelia_dawn_grace" or self.archetype == "healer":
+                        self.health = min(self.max_health, self.health + 45)
+                        if self.companion and not getattr(self.companion, "is_dead", False):
+                            self.companion.health = min(self.companion.max_health, self.companion.health + 45)
+
+                    # Mana Support [K] Transferência Etérea: grants mana to companion!
+                    if self.passive_id == "zephyr_ether_stream" or self.archetype == "support":
+                        if self.companion and not getattr(self.companion, "is_dead", False):
+                            self.companion.mana = min(self.companion.max_mana, self.companion.mana + 35.0)
+
+                    from entities.projectile import Projectile
+                    proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
+                    proj_y = self.rect.centery - 8
+                    ptype = k_skill.projectile_type or "fireball"
+                    is_burn = (self.passive_id == "ignis_smoldering_ashes")
+                    damage = k_skill.damage
+                    if self.passive_id == "wizard_solar_fusion":
+                        damage = int(damage * (1.0 + self.solar_fusion_stacks * 0.06))
+                    if ptype == "arrow_scatter":
+                        for angle_offset in (-18, 0, 18):
+                            p = Projectile(proj_x, proj_y + angle_offset * 0.4, self.facing_right, is_enemy=False, projectile_type="arrow_scatter", damage=damage)
+                            p.velocity.y = angle_offset * 5.0
+                            self.projectiles.append(p)
+                    else:
+                        self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type=ptype, is_burn=is_burn, damage=damage))
+
+    def dash(self) -> bool:
+        """Executes a high-speed directional dash with invulnerability frames and ghost clones."""
+        if self.is_dashing or self.dash_cooldown > 0 or self.is_dead or self.is_downed or self.is_drinking_potion:
+            return False
+        
+        stamina_cost = 15.0
+        if self.stamina < stamina_cost:
+            return False
+            
+        self.stamina -= stamina_cost
+        self.stamina_regen_delay = 0.5
+        self.is_dashing = True
+        self.dash_timer = self.dash_duration
+        self.dash_cooldown = 0.35
+        self.invulnerable = True
+        self.invulnerability_timer = self.dash_duration + 0.06
+        
+        if getattr(self, "character_id", "") == "samurai" or getattr(self, "passive_id", "") == "samurai_perfect_focus":
+            self.attack_cooldown = 0.0
+            
+        dir_mult = 1.0 if self.facing_right else -1.0
+        self.velocity.x = self.dash_speed * dir_mult
+        self.velocity.y = 0.0
+        self.anim_manager.play("dash", force_reset=True)
+        return True
+
+    def attack(self) -> bool:
+        """Triggers basic ground/ranged attack [J]."""
+        if self.is_attacking or self.is_blocking or self.is_drinking_potion or self.attack_cooldown > 0:
+            return False
+        j_skill = self.profile.skills.get("j", None)
+        if not j_skill:
+            return False
+        is_mp = (j_skill.cost_type == "MP")
+        can_cast = (self.mana >= j_skill.cost_value) if is_mp else (self.stamina >= j_skill.cost_value)
+        if not can_cast:
+            return False
+        if is_mp:
+            self.mana -= j_skill.cost_value
+        else:
+            self.stamina -= j_skill.cost_value
+            self.stamina_regen_delay = 0.5
+        self.is_attacking = True
+        self.attack_hit_enemies.clear()
+        self.attack_cooldown = 0.25
+        self._begin_attack_anim()
+        if self.archetype in ("mage", "healer", "archer", "support", "ninja"):
+            from entities.projectile import Projectile
+            proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
+            proj_y = self.rect.centery - 8
+            ptype = j_skill.projectile_type or ("arrow_fast" if self.archetype == "archer" else "arcane_bolt")
+            self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type=ptype, damage=j_skill.damage))
+        return True
+
+    def cast_skill(self) -> bool:
+        """Triggers primary technique / spell [K]."""
+        if self.is_attacking or self.is_blocking or self.is_casting_magic or self.is_casting_ultimate or self.is_drinking_potion:
+            return False
+        k_skill = self.profile.skills.get("k", None)
+        if not k_skill or self.mana < k_skill.cost_value:
+            return False
+        self.mana -= k_skill.cost_value
+        self.is_casting_magic = True
+        self.magic_cast_timer = 0.32
+        self.magic_sigil_timer = 0.38
+        self.anim_manager.play("cast_magic" if self.anim_manager.has_animation("cast_magic") else "attack", force_reset=True)
+        if self.passive_id == "wizard_solar_fusion":
+            self.solar_fusion_stacks = min(5, self.solar_fusion_stacks + 1)
+            self.solar_fusion_timer = 4.0
+        if self.passive_id == "aurelia_dawn_grace" or self.archetype == "healer":
+            self.health = min(self.max_health, self.health + 45)
+            if self.companion and not getattr(self.companion, "is_dead", False):
+                self.companion.health = min(self.companion.max_health, self.companion.health + 45)
+        if self.passive_id == "zephyr_ether_stream" or self.archetype == "support":
+            if self.companion and not getattr(self.companion, "is_dead", False):
+                self.companion.mana = min(self.companion.max_mana, self.companion.mana + 35.0)
+        from entities.projectile import Projectile
+        proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
+        proj_y = self.rect.centery - 8
+        ptype = k_skill.projectile_type or "fireball"
+        is_burn = (self.passive_id == "ignis_smoldering_ashes")
+        damage = k_skill.damage
+        if self.passive_id == "wizard_solar_fusion":
+            damage = int(damage * (1.0 + self.solar_fusion_stacks * 0.06))
+        if ptype == "arrow_scatter":
+            for angle_offset in (-18, 0, 18):
+                p = Projectile(proj_x, proj_y + angle_offset * 0.4, self.facing_right, is_enemy=False, projectile_type="arrow_scatter", damage=damage)
+                p.velocity.y = angle_offset * 5.0
+                self.projectiles.append(p)
+        else:
+            self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type=ptype, is_burn=is_burn, damage=damage))
+        return True
+
+    def cast_special(self) -> bool:
+        return self.cast_skill()
+
+    def cast_aoe(self) -> bool:
+        """Triggers radial AoE skill [E]."""
+        if self.is_casting_aoe or self.is_attacking or self.is_blocking or self.is_drinking_potion:
+            return False
+        e_skill = self.profile.skills.get("e", None)
+        if not e_skill:
+            return False
+        can_cast = (self.mana >= e_skill.cost_value) if e_skill.cost_type == "MP" else (self.stamina >= e_skill.cost_value)
+        if not can_cast:
+            return False
+        if e_skill.cost_type == "MP":
+            self.mana -= e_skill.cost_value
+        else:
+            self.stamina -= e_skill.cost_value
+            self.stamina_regen_delay = 0.5
+        self.is_casting_aoe = True
+        self.aoe_timer = 0.85
+        self.aoe_hit_done = False
+        self.anim_manager.play("whirlwind", force_reset=True)
+        from entities.ultimate_aoe_vfx import UltimateAoE_VFX
+        self.aoe_vfx = UltimateAoE_VFX(self.rect.centerx, self.rect.bottom, self.aoe_radius, self.profile.id)
+        return True
+
+    def cast_ultimate(self) -> bool:
+        """Triggers Triple-AAA Ultimate skill [R / I]."""
+        if self.is_attacking or self.is_blocking or self.is_dashing or self.is_casting_magic or self.is_casting_ultimate:
+            return False
+        r_skill = self.profile.skills.get("r", None)
+        if not r_skill or self.mana < r_skill.cost_value:
+            return False
+        self.mana = 0.0
+        self.is_casting_ultimate = True
+        self.ultimate_controller.trigger(self.rect.centerx, self.rect.bottom, self.facing_right)
+        self.velocity.x = 0
+        self.velocity.y = 0
+        return True
                 
     def _apply_physics(self, dt: float, tiles: list[pygame.FRect]):
         if not self.is_dashing:
-            # Apply Gravity
-            self.velocity.y += GRAVITY
+            # Apply Gravity — MUST be dt-scaled for frame-rate independence
+            # Without * dt, gravity accumulates per-frame: at 9 FPS the player
+            # barely decelerates and flies across the entire map.
+            self.velocity.y += GRAVITY * dt
             self.velocity.y = min(self.velocity.y, MAX_FALL_SPEED)
             
         # Move X
@@ -915,6 +1382,18 @@ class Player:
                     self.pos.y = self.rect.y
                 self.velocity.y = 0
                 break
+
+        # Track true ground footprint for grounded contact shadow and Y-sort
+        if self.on_ground:
+            self.ground_y = self.rect.bottom
+        else:
+            floor_below = None
+            for tile in tiles:
+                if tile.left < self.rect.centerx < tile.right and tile.top >= self.rect.bottom - 4:
+                    if floor_below is None or tile.top < floor_below:
+                        floor_below = tile.top
+            if floor_below is not None:
+                self.ground_y = floor_below
                 
     def take_damage(self, amount: int):
         if self.is_dashing or self.is_casting_ultimate:
@@ -922,6 +1401,17 @@ class Player:
             
         # 1. Blocking: absorbs 100% damage while holding Shift
         if self.is_blocking:
+            # Galahad (Knight) Passive: Paladin Retribution
+            if self.passive_id == "knight_paladin_retribution" and self.parry_window_timer > 0:
+                self.stamina = min(self.max_stamina, self.stamina + 15.0)
+                self.invulnerable = True
+                self.invulnerability_timer = 0.45
+                from entities.projectile import Projectile
+                p_left = Projectile(self.rect.centerx, self.rect.centery, False, is_enemy=False, projectile_type="spear_light", damage=max(25, int(amount * 0.6)))
+                p_right = Projectile(self.rect.centerx, self.rect.centery, True, is_enemy=False, projectile_type="spear_light", damage=max(25, int(amount * 0.6)))
+                self.projectiles.extend([p_left, p_right])
+                return
+
             self.stamina_regen_delay = 0.5
             return # Block absorbs all damage without taking health or chunking extra resource!
             
@@ -939,12 +1429,20 @@ class Player:
                 amount = max(1, int(amount * 0.85))
                 
             self.health -= amount
+            self.hurt_timer = 0.30
             self.invulnerable = True
             self.invulnerability_timer = 0.8
             if self.health <= 0:
-                self.health = 0
-                self.is_dead = True
-                self.anim_manager.play("dead", force_reset=True)
+                if self.companion and not getattr(self.companion, "is_dead", False) and not getattr(self.companion, "is_downed", False):
+                    self.health = 1
+                    self.is_downed = True
+                    self.bleedout_timer = 25.0
+                    self.revive_progress = 0.0
+                    self.anim_manager.play("dead", force_reset=True)
+                else:
+                    self.health = 0
+                    self.is_dead = True
+                    self.anim_manager.play("dead", force_reset=True)
                 
     def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
         # 1. Draw Impact Smokes (Plunge VFX)
@@ -955,30 +1453,55 @@ class Player:
         for ghost in self.after_images:
             ghost.draw(surface, camera_offset)
             
+        # Co-op Downed Indicator & Revive Progress Gauge
+        if self.is_downed:
+            dx = self.rect.centerx - camera_offset.x
+            dy = self.rect.top - camera_offset.y - 14
+            # Bleedout warning ring
+            b_alpha = int(140 + 90 * math.sin(pygame.time.get_ticks() * 0.01))
+            pygame.draw.circle(surface, (255, 60, 60, b_alpha), (int(dx), int(dy)), 14, 2)
+            # Revive progress arc / circle
+            if self.revive_progress > 0:
+                prog = min(1.0, self.revive_progress / self.revive_duration)
+                pygame.draw.circle(surface, (0, 255, 180), (int(dx), int(dy)), 10)
+                pygame.draw.circle(surface, (255, 255, 255), (int(dx), int(dy)), 10, width=2)
+            # Fallen sprite
+            img = self.anim_manager.get_current_frame()
+            r = img.get_rect(center=(int(self.rect.centerx - camera_offset.x), int(self.rect.bottom - camera_offset.y - 10)))
+            surface.blit(img, r)
+            return
+
         # 3. Draw Subtle Celestial Ring when 100 MP (Ultimate Ready) - Perimeter ring only, no filled center
         if self.mana >= 100 and not self.is_dead and not self.is_casting_ultimate:
-            pulse_rad = int(32 + 3 * math.sin(pygame.time.get_ticks() * 0.006))
+            pulse_rad = int(30 + 2 * math.sin(pygame.time.get_ticks() * 0.005))
             aura_surf = pygame.Surface((pulse_rad * 2 + 4, pulse_rad * 2 + 4), pygame.SRCALPHA)
             col = getattr(self.profile, "color_theme", (255, 220, 90))
-            pygame.draw.circle(aura_surf, (*col, 50), (pulse_rad + 2, pulse_rad + 2), pulse_rad, width=1)
-            surface.blit(aura_surf, (self.rect.centerx - camera_offset.x - pulse_rad - 2, self.rect.centery - camera_offset.y - pulse_rad - 2), special_flags=pygame.BLEND_RGBA_ADD)
+            pygame.draw.circle(aura_surf, (*col, 45), (pulse_rad + 2, pulse_rad + 2), pulse_rad, width=1)
+            surface.blit(aura_surf, (self.rect.centerx - camera_offset.x - pulse_rad - 2, self.rect.centery - camera_offset.y - pulse_rad - 2))
 
-        # 0. Contact Drop Shadow under feet (Grounded presence)
-        shadow_w = 34
-        shadow_h = 10
-        shadow_surf = pygame.Surface((shadow_w, shadow_h), pygame.SRCALPHA)
-        pygame.draw.ellipse(shadow_surf, (0, 0, 0, 95), (0, 0, shadow_w, shadow_h))
-        surface.blit(shadow_surf, (self.rect.centerx - camera_offset.x - shadow_w // 2, self.rect.bottom - camera_offset.y - shadow_h // 2 + 3))
+        # 0. Contact Drop Shadow under feet (Grounded presence anchored to floor)
+        shadow_ground_y = getattr(self, "ground_y", self.rect.bottom)
+        air_height = max(0, shadow_ground_y - self.rect.bottom)
+        scale = max(0.4, 1.0 - air_height / 250.0)
+        shadow_w = int(46 * scale)
+        shadow_h = int(12 * scale)
+        alpha = int(120 * scale)
+        if shadow_w > 2 and shadow_h > 2 and alpha > 0:
+            shadow_surf = pygame.Surface((shadow_w, shadow_h), pygame.SRCALPHA)
+            pygame.draw.ellipse(shadow_surf, (0, 0, 0, alpha), (0, 0, shadow_w, shadow_h))
+            core_w, core_h = max(2, int(shadow_w * 0.62)), max(2, int(shadow_h * 0.62))
+            pygame.draw.ellipse(shadow_surf, (0, 0, 0, min(255, int(alpha * 1.35))), ((shadow_w - core_w) // 2, (shadow_h - core_h) // 2, core_w, core_h))
+            surface.blit(shadow_surf, (self.rect.centerx - camera_offset.x - shadow_w // 2, shadow_ground_y - camera_offset.y - shadow_h // 2 + 1))
 
         # 0.1 Astra Celestial Barrier (Soft ambient back-glow drawn BEHIND the character model)
         if self.celestial_barrier_active and not self.is_dead:
             bx = self.rect.centerx - camera_offset.x
             by = self.rect.centery - camera_offset.y
-            bg_orb_r = 36
+            bg_orb_r = 34
             bg_surf = pygame.Surface((bg_orb_r * 2 + 8, bg_orb_r * 2 + 8), pygame.SRCALPHA)
             # Very subtle soft cosmic backdrop that stays behind her sprite
-            pygame.draw.circle(bg_surf, (120, 215, 255, 22), (bg_orb_r + 4, bg_orb_r + 4), bg_orb_r)
-            surface.blit(bg_surf, (bx - bg_orb_r - 4, by - bg_orb_r - 4), special_flags=pygame.BLEND_RGBA_ADD)
+            pygame.draw.circle(bg_surf, (120, 215, 255, 18), (bg_orb_r + 4, bg_orb_r + 4), bg_orb_r)
+            surface.blit(bg_surf, (bx - bg_orb_r - 4, by - bg_orb_r - 4))
 
         # 4. Triple-AAA Character Ultimate Visual Sequence
         if self.is_casting_ultimate:
@@ -988,7 +1511,8 @@ class Player:
         
         # Calculate rendering position
         img_rect = img.get_rect()
-        draw_x = self.rect.centerx - camera_offset.x - img_rect.width / 2
+        _ax = self._anchor_x(self.anim_manager.current_state, img_rect.width)
+        draw_x = self.rect.centerx - camera_offset.x - (_ax if self.facing_right else img_rect.width - _ax)
         ground_off = getattr(self.profile, "ground_offset_y", 7)
         draw_y = self.rect.bottom - camera_offset.y - img_rect.height + ground_off
         
@@ -1005,48 +1529,47 @@ class Player:
                 by = self.rect.centery - camera_offset.y
                 col = self.profile.color_theme
                 
-                if self.archetype == "mage":
-                    rad = 44
+                if self.archetype in ("mage", "healer", "support"):
+                    rad = 38
                     bar_surf = pygame.Surface((rad * 2 + 10, rad * 2 + 10), pygame.SRCALPHA)
                     bc = rad + 5
-                    pygame.draw.circle(bar_surf, (*col, 110), (bc, bc), rad)
-                    pygame.draw.circle(bar_surf, (255, 255, 255, 240), (bc, bc), rad, 3)
-                    pygame.draw.circle(bar_surf, (*col, 220), (bc, bc), max(1, rad - 4), 2)
+                    pygame.draw.circle(bar_surf, (*col, 50), (bc, bc), rad)
+                    pygame.draw.circle(bar_surf, (*col, 160), (bc, bc), rad, 2)
+                    pygame.draw.circle(bar_surf, (255, 255, 255, 90), (bc, bc), max(1, rad - 3), 1)
                     t_rot = pygame.time.get_ticks() * 0.005
                     for i in range(6):
                         ang = t_rot + i * (math.pi / 3)
-                        px = bc + int(math.cos(ang) * (rad - 5))
-                        py = bc + int(math.sin(ang) * (rad - 5))
-                        pygame.draw.circle(bar_surf, (255, 255, 255, 255), (px, py), 3)
-                    surface.blit(bar_surf, (bx - bc, by - bc), special_flags=pygame.BLEND_RGBA_ADD)
+                        px = bc + int(math.cos(ang) * (rad - 4))
+                        py = bc + int(math.sin(ang) * (rad - 4))
+                        pygame.draw.circle(bar_surf, (255, 255, 255, 160), (px, py), 2)
+                    surface.blit(bar_surf, (bx - bc, by - bc))
                 elif self.archetype == "shinobi":
                     # Shadow Veil / Replacement technique smoke mist
-                    rad = 32
-                    v_surf = pygame.Surface((rad * 2, rad * 2), pygame.SRCALPHA)
-                    pygame.draw.circle(v_surf, (80, 20, 120, 75), (rad, rad), rad)
-                    pygame.draw.circle(v_surf, (190, 80, 255, 170), (rad, rad), rad - 2, 2)
-                    surface.blit(v_surf, (bx - rad, by - rad), special_flags=pygame.BLEND_RGBA_ADD)
-                elif self.archetype == "samurai":
-                    # Katana parry stance with metallic deflection glints
                     rad = 30
+                    v_surf = pygame.Surface((rad * 2, rad * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(v_surf, (80, 20, 120, 50), (rad, rad), rad)
+                    pygame.draw.circle(v_surf, (190, 80, 255, 140), (rad, rad), rad - 2, 2)
+                    surface.blit(v_surf, (bx - rad, by - rad))
+                elif self.archetype in ("samurai", "archer"):
+                    # Parry stance / evasive stance with clean blade glint
+                    rad = 28
                     p_surf = pygame.Surface((rad * 2, rad * 2), pygame.SRCALPHA)
-                    pygame.draw.circle(p_surf, (255, 255, 255, 60), (rad, rad), rad)
-                    pygame.draw.circle(p_surf, (255, 80, 80, 180), (rad, rad), rad, 2)
+                    pygame.draw.circle(p_surf, (255, 255, 255, 40), (rad, rad), rad)
+                    pygame.draw.circle(p_surf, (*col, 150), (rad, rad), rad, 2)
                     # Deflection blade glint
-                    ox = 18 if self.facing_right else -18
-                    pygame.draw.line(p_surf, (255, 255, 255, 230), (rad + ox - 4, rad - 14), (rad + ox + 4, rad + 14), 2)
-                    surface.blit(p_surf, (bx - rad, by - rad), special_flags=pygame.BLEND_RGBA_ADD)
-                elif self.archetype == "fighter":
+                    ox = 16 if self.facing_right else -16
+                    pygame.draw.line(p_surf, (255, 255, 255, 180), (rad + ox - 4, rad - 12), (rad + ox + 4, rad + 12), 2)
+                    surface.blit(p_surf, (bx - rad, by - rad))
+                elif self.archetype in ("fighter", "guardian"):
                     # Iron Body Ki barrier aura
-                    rad = 42
+                    rad = 38
                     k_surf = pygame.Surface((rad * 2 + 10, rad * 2 + 10), pygame.SRCALPHA)
                     kc = rad + 5
-                    pulse = int(3 * math.sin(pygame.time.get_ticks() * 0.008))
+                    pulse = int(2 * math.sin(pygame.time.get_ticks() * 0.008))
                     cur_r = rad + pulse
-                    pygame.draw.circle(k_surf, (255, 170, 40, 130), (kc, kc), cur_r)
-                    pygame.draw.circle(k_surf, (255, 235, 90, 240), (kc, kc), cur_r, 4)
-                    pygame.draw.circle(k_surf, (255, 255, 255, 220), (kc, kc), max(2, cur_r - 4), 2)
-                    surface.blit(k_surf, (bx - kc, by - kc), special_flags=pygame.BLEND_RGBA_ADD)
+                    pygame.draw.circle(k_surf, (*col, 55), (kc, kc), cur_r)
+                    pygame.draw.circle(k_surf, (255, 215, 80, 150), (kc, kc), cur_r, 2)
+                    surface.blit(k_surf, (bx - kc, by - kc))
                 elif self.shield_anim:
                     shield_frame = self.shield_anim.get_current_frame()
                     if shield_frame:

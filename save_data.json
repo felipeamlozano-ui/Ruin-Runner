@@ -1,0 +1,34 @@
+{
+  "orbs": 16,
+  "tutorial_completed": true,
+  "skills": {
+    "blade_sharpness": 2,
+    "combo_finisher": 0,
+    "arcane_mastery": 4,
+    "aoe_resonance": 3,
+    "shadow_step": 3,
+    "ultimate_wrath": 0,
+    "alchemist_elixir": 0,
+    "titan_heart": 0,
+    "cosmic_mana": 0
+  },
+  "story_mode": {
+    "unlocked_worlds": [
+      "terrae"
+    ],
+    "current_world": "terrae",
+    "world_stars": {
+      "terrae": 0,
+      "sanguis": 0,
+      "glacies": 0,
+      "aetheria": 0
+    }
+  },
+  "high_scores": {
+    "test_stage": 10275,
+    "terrae_1": 9370,
+    "sanguis_1": 9417,
+    "glacies_1": 8995
+  },
+  "selected_character": "knight"
+}

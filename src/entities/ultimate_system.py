@@ -3,6 +3,11 @@ import math
 import random
 import os
 
+def ease_out_back(t: float, s: float = 1.70158) -> float:
+    t -= 1.0
+    return t * t * ((s + 1.0) * t + s) + 1.0
+
+
 class _VFXParticle:
     __slots__ = ("x", "y", "vx", "vy", "life", "max_life", "color", "size", "gravity", "shape")
     def __init__(self, x, y, vx, vy, life, color, size=3.0, gravity=0.0, shape="circle"):
@@ -61,8 +66,7 @@ class BaseUltimate:
             self.damage_applied = True
             if camera:
                 camera.shake(14.0, 0.6)
-            if enemies:
-                self._deal_damage(enemies, player)
+            self._deal_damage(enemies or [], player)
                 
         if self.timer >= self.duration:
             self.active = False
@@ -663,13 +667,7 @@ class ShadowStormUltimate(BaseUltimate):
         px = int(self.cx - camera_offset.x)
         py = int(self.cy - camera_offset.y)
         
-        # 1. Midnight Vignette
-        if self.timer < 1.3:
-            vig_alpha = int(140 * math.sin(min(1.0, self.timer / 0.6) * math.pi))
-            if vig_alpha > 0:
-                vs = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-                vs.fill((15, 5, 25, vig_alpha))
-                surface.blit(vs, (0, 0))
+        # 1. Screen-wide darkening removed to keep stage and action clearly visible
                 
         # 2. Shadow Phantom Clones
         for c in self.clones:
@@ -753,12 +751,7 @@ class CherryBlossomUltimate(BaseUltimate):
         px = int(self.cx - camera_offset.x)
         py = int(self.cy - camera_offset.y)
         
-        # 1. Sumi-e Monochrome Screen Tint
-        if 0.1 <= self.timer < 0.75:
-            ink_alpha = int(120 * min(1.0, (self.timer - 0.1) / 0.2))
-            ink_surf = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-            ink_surf.fill((20, 20, 25, ink_alpha))
-            surface.blit(ink_surf, (0, 0))
+        # 1. Sumi-e Screen Tint removed to keep stage and action clearly visible
             
         # 2. Dimensional Slashes (Judgement Cut)
         for sl in self.slashes:
@@ -896,6 +889,837 @@ class DragonFuryUltimate(BaseUltimate):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 8. AURELIA: MILAGRE DA ALVORADA (HEALER / SUPORTE CELESTIAL)
+# ─────────────────────────────────────────────────────────────────────────────
+class AureliaDawnMiracleUltimate(BaseUltimate):
+    """Divine dawn miracle: glowing angel wings, 5 celestial sun pillars, 100% full team heal and holy damage."""
+    def __init__(self):
+        super().__init__()
+        self.duration = 1.7
+        self.pillars: list[dict] = []
+        self.shockwaves: list[dict] = []
+        
+    def trigger(self, cx: float, cy: float, facing_right: bool):
+        super().trigger(cx, cy, facing_right)
+        self.pillars = []
+        self.shockwaves = []
+        for _ in range(40):
+            self.particles.append(_VFXParticle(
+                cx + random.uniform(-180, 180), cy - random.uniform(10, 160),
+                random.uniform(-40, 40), random.uniform(-140, -40),
+                random.uniform(0.6, 1.2), (255, 235, 120),
+                size=random.uniform(3, 7), gravity=-15, shape="cross"
+            ))
+
+    def update(self, dt: float, player, enemies=None, camera=None):
+        super().update(dt, player, enemies, camera)
+        if not self.active:
+            return
+            
+        if 0.50 <= self.timer <= 0.75 and not self.pillars:
+            offsets = [-320, -160, 0, 160, 320]
+            for ox in offsets:
+                self.pillars.append({
+                    "ox": ox,
+                    "w": 65 if ox == 0 else 40,
+                    "color": (255, 240, 150) if ox == 0 else (255, 210, 80)
+                })
+            self.shockwaves.append({"r": 10.0, "max_r": 360.0, "speed": 600.0, "color": (255, 245, 140)})
+            self.shockwaves.append({"r": 5.0, "max_r": 280.0, "speed": 450.0, "color": (255, 255, 255)})
+            
+        for sh in self.shockwaves:
+            sh["r"] += sh["speed"] * dt
+            
+    def _deal_damage(self, enemies, player):
+        super()._deal_damage(enemies, player)
+        # Restore 100% HP to player and co-op companion!
+        player.health = player.max_health
+        if hasattr(player, "companion") and player.companion and not getattr(player.companion, "is_dead", False):
+            player.companion.health = player.companion.max_health
+
+    def draw_world(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active:
+            return
+        px = int(self.cx - camera_offset.x)
+        py = int(self.cy - camera_offset.y)
+        prog = self.timer / self.duration
+        
+        # 1. Angelic Wings of Light
+        wing_prog = min(1.0, self.timer / 0.5) if self.timer < 1.1 else max(0.0, 1.0 - (self.timer - 1.1) / 0.6)
+        if wing_prog > 0:
+            w_span = int(120 * wing_prog)
+            wing_surf = pygame.Surface((w_span * 2 + 40, 180), pygame.SRCALPHA)
+            wc_x = w_span + 20
+            wc_y = 120
+            w_alpha = int(220 * wing_prog)
+            
+            for sign in (-1, 1):
+                pts = [
+                    (wc_x, wc_y),
+                    (wc_x + sign * int(w_span * 0.4), wc_y - 60),
+                    (wc_x + sign * w_span, wc_y - 100),
+                    (wc_x + sign * int(w_span * 0.85), wc_y - 40),
+                    (wc_x + sign * int(w_span * 0.7), wc_y - 10),
+                    (wc_x + sign * int(w_span * 0.4), wc_y + 10),
+                ]
+                pygame.draw.polygon(wing_surf, (255, 230, 80, w_alpha), pts)
+                pygame.draw.polygon(wing_surf, (255, 255, 255, w_alpha), pts, 2)
+            surface.blit(wing_surf, (px - wc_x, py - 130), special_flags=pygame.BLEND_RGBA_ADD)
+            
+        # 2. Sacred Ground Mandala
+        if self.timer < 1.5:
+            m_alpha = int(240 * math.sin(prog * math.pi))
+            if m_alpha > 0:
+                mr = int(220 * min(1.0, self.timer / 0.4))
+                flat_h = int(mr * 0.38)
+                ms = pygame.Surface((mr * 2 + 20, flat_h + 20), pygame.SRCALPHA)
+                mc = mr + 10
+                pygame.draw.ellipse(ms, (255, 220, 60, int(m_alpha * 0.4)), (10, 10, mr * 2, flat_h))
+                pygame.draw.ellipse(ms, (255, 240, 140, m_alpha), (10, 10, mr * 2, flat_h), 3)
+                pygame.draw.ellipse(ms, (255, 255, 255, m_alpha), (mc - mr // 2, 10 + flat_h // 4, mr, flat_h // 2), 2)
+                surface.blit(ms, (px - mc, py - flat_h // 2 - 10), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 3. Five Divine Sun Pillars
+        sky_y = py - 600
+        for p in self.pillars:
+            lx = px + p["ox"]
+            p_prog = min(1.0, max(0.0, (self.timer - 0.50) / 0.8))
+            p_alpha = int(240 * math.sin(p_prog * math.pi))
+            if p_alpha > 0:
+                w = p["w"]
+                pygame.draw.line(surface, (*p["color"], int(p_alpha * 0.7)), (lx, sky_y), (lx, py), w + 10)
+                pygame.draw.line(surface, (255, 255, 255, p_alpha), (lx, sky_y), (lx, py), max(2, w // 2))
+
+        # 4. Expanding Shockwaves
+        for sh in self.shockwaves:
+            if sh["r"] < sh["max_r"]:
+                r = int(sh["r"])
+                sh_prog = r / sh["max_r"]
+                alpha = int(240 * (1.0 - sh_prog))
+                flat_h = max(4, int(r * 0.38))
+                ss = pygame.Surface((r * 2 + 10, flat_h + 10), pygame.SRCALPHA)
+                pygame.draw.ellipse(ss, (*sh["color"], alpha), (5, 5, r * 2, flat_h), max(2, int(6 * (1.0 - sh_prog))))
+                surface.blit(ss, (px - r - 5, py - flat_h // 2 - 5), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 5. Particles
+        for pt in self.particles:
+            alpha = int(255 * (pt.life / pt.max_life))
+            dx, dy = int(pt.x - camera_offset.x), int(pt.y - camera_offset.y)
+            sz = int(pt.size)
+            pygame.draw.line(surface, (255, 230, 90, alpha), (dx - sz, dy), (dx + sz, dy), 2)
+            pygame.draw.line(surface, (255, 230, 90, alpha), (dx, dy - sz), (dx, dy + sz), 2)
+            pygame.draw.circle(surface, (255, 255, 255, alpha), (dx, dy), 1)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9. KAELEN: SARAIVADA CELESTIAL (RANGER / ARQUEIRO DO VENTO)
+# ─────────────────────────────────────────────────────────────────────────────
+class KaelenCelestialVolleyUltimate(BaseUltimate):
+    """Ancestral spirit bow unleashing a screen-wide storm of hundreds of cascading spectral arrows."""
+    def __init__(self):
+        super().__init__()
+        self.duration = 1.65
+        self.arrows: list[dict] = []
+        self.shockwaves: list[dict] = []
+        
+    def trigger(self, cx: float, cy: float, facing_right: bool):
+        super().trigger(cx, cy, facing_right)
+        self.arrows = []
+        self.shockwaves = []
+        for _ in range(90):
+            self.arrows.append({
+                "target_x": cx + random.uniform(-600, 600),
+                "delay": random.uniform(0.60, 1.25),
+                "speed": random.uniform(900, 1400),
+                "length": random.uniform(28, 42),
+                "has_hit": False
+            })
+
+    def update(self, dt: float, player, enemies=None, camera=None):
+        super().update(dt, player, enemies, camera)
+        if not self.active:
+            return
+            
+        if 0.65 <= self.timer <= 0.70 and not self.shockwaves:
+            self.shockwaves.append({"r": 10.0, "max_r": 400.0, "speed": 700.0, "color": (120, 255, 140)})
+            self.shockwaves.append({"r": 5.0, "max_r": 300.0, "speed": 550.0, "color": (255, 255, 255)})
+            
+        for sh in self.shockwaves:
+            sh["r"] += sh["speed"] * dt
+
+    def draw_world(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active:
+            return
+        px = int(self.cx - camera_offset.x)
+        py = int(self.cy - camera_offset.y)
+        
+        # 1. Giant Emerald Ancestral Spirit Bow
+        if self.timer < 0.75:
+            bow_prog = min(1.0, self.timer / 0.3) if self.timer < 0.55 else max(0.0, 1.0 - (self.timer - 0.55) / 0.2)
+            if bow_prog > 0:
+                bow_h = int(180 * bow_prog)
+                b_surf = pygame.Surface((120, bow_h + 20), pygame.SRCALPHA)
+                b_alpha = int(240 * bow_prog)
+                arc_r = pygame.Rect(10, 10, 80, bow_h)
+                pygame.draw.arc(b_surf, (80, 240, 120, b_alpha), arc_r, -math.pi/2, math.pi/2, 6)
+                pygame.draw.arc(b_surf, (255, 255, 255, b_alpha), arc_r, -math.pi/2 + 0.2, math.pi/2 - 0.2, 2)
+                string_pull = int(35 * min(1.0, self.timer / 0.5))
+                pygame.draw.line(b_surf, (200, 255, 220, b_alpha), (50, 10), (50 - string_pull, 10 + bow_h // 2), 2)
+                pygame.draw.line(b_surf, (200, 255, 220, b_alpha), (50, 10 + bow_h), (50 - string_pull, 10 + bow_h // 2), 2)
+                pygame.draw.line(b_surf, (255, 255, 255, b_alpha), (50 - string_pull, 10 + bow_h // 2), (95, 10 + bow_h // 2), 4)
+                surface.blit(b_surf, (px - 60, py - bow_h // 2 - 40), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 2. Cascading Rain of 90 Spectral Arrows
+        sky_y = py - 650
+        for arr in self.arrows:
+            if arr["delay"] <= self.timer <= arr["delay"] + 0.35:
+                t_arr = (self.timer - arr["delay"]) / 0.35
+                cur_x = int(arr["target_x"] - camera_offset.x)
+                head_y = sky_y + int(t_arr * 650)
+                tail_y = head_y - int(arr["length"])
+                tail_x = cur_x - 12
+                pygame.draw.line(surface, (100, 255, 140, 220), (tail_x, tail_y), (cur_x, head_y), 3)
+                pygame.draw.line(surface, (255, 255, 255, 255), (tail_x, tail_y), (cur_x, head_y), 1)
+                if t_arr >= 0.95 and not arr["has_hit"]:
+                    arr["has_hit"] = True
+                    pygame.draw.circle(surface, (180, 255, 200), (cur_x, py), 6)
+
+        # 3. Expanding Shockwaves
+        for sh in self.shockwaves:
+            if sh["r"] < sh["max_r"]:
+                r = int(sh["r"])
+                sh_prog = r / sh["max_r"]
+                alpha = int(240 * (1.0 - sh_prog))
+                flat_h = max(4, int(r * 0.36))
+                ss = pygame.Surface((r * 2 + 10, flat_h + 10), pygame.SRCALPHA)
+                pygame.draw.ellipse(ss, (*sh["color"], alpha), (5, 5, r * 2, flat_h), max(2, int(6 * (1.0 - sh_prog))))
+                surface.blit(ss, (px - r - 5, py - flat_h // 2 - 5), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10. ZEPHYR: CONVERGÊNCIA DE ÉTER (SUPPORT / ARTÍFICE DO ÉTER)
+# ─────────────────────────────────────────────────────────────────────────────
+class ZephyrEtherConvergenceUltimate(BaseUltimate):
+    """Dimensional ether rift that restores 100% MP and SP to the entire team and detonates a cosmic vacuum supernova."""
+    def __init__(self):
+        super().__init__()
+        self.duration = 1.75
+        self.conduits: list[dict] = []
+        self.shockwaves: list[dict] = []
+        
+    def trigger(self, cx: float, cy: float, facing_right: bool):
+        super().trigger(cx, cy, facing_right)
+        self.conduits = []
+        self.shockwaves = []
+        for _ in range(50):
+            self.particles.append(_VFXParticle(
+                cx + random.uniform(-140, 140), cy - random.uniform(40, 240),
+                random.uniform(-80, 80), random.uniform(-80, 80),
+                random.uniform(0.6, 1.2), (100, 230, 255),
+                size=random.uniform(3, 7), gravity=0, shape="diamond"
+            ))
+
+    def update(self, dt: float, player, enemies=None, camera=None):
+        super().update(dt, player, enemies, camera)
+        if not self.active:
+            return
+            
+        if 0.70 <= self.timer <= 0.75 and not self.shockwaves:
+            self.shockwaves.append({"r": 10.0, "max_r": 440.0, "speed": 750.0, "color": (80, 220, 255)})
+            self.shockwaves.append({"r": 5.0, "max_r": 320.0, "speed": 550.0, "color": (255, 255, 255)})
+            
+        for sh in self.shockwaves:
+            sh["r"] += sh["speed"] * dt
+
+    def _deal_damage(self, enemies, player):
+        super()._deal_damage(enemies, player)
+        # 100% MP and SP recovery to player and co-op partner!
+        player.mana = player.max_mana
+        player.stamina = player.max_stamina
+        if hasattr(player, "companion") and player.companion and not getattr(player.companion, "is_dead", False):
+            player.companion.mana = player.companion.max_mana
+            player.companion.stamina = player.companion.max_stamina
+
+    def draw_world(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active:
+            return
+        px = int(self.cx - camera_offset.x)
+        py = int(self.cy - camera_offset.y)
+        prog = self.timer / self.duration
+        
+        # 1. Dimensional Ether Rift
+        rift_y = py - 120
+        if self.timer < 1.4:
+            r_scale = min(1.0, self.timer / 0.4) if self.timer < 0.85 else max(0.0, 1.0 - (self.timer - 0.85) / 0.55)
+            rw = int(90 * r_scale)
+            rh = int(160 * r_scale)
+            if rw > 2 and rh > 2:
+                r_surf = pygame.Surface((rw * 2 + 20, rh * 2 + 20), pygame.SRCALPHA)
+                rc = rw + 10
+                pygame.draw.ellipse(r_surf, (60, 140, 255, 140), (10, 10, rw * 2, rh * 2))
+                pygame.draw.ellipse(r_surf, (120, 240, 255, 220), (10 + rw // 4, 10 + rh // 4, rw * 1.5, rh * 1.5), 3)
+                pygame.draw.ellipse(r_surf, (10, 15, 35, 255), (rc - rw // 3, rc - rh // 3, rw * 2 // 3, rh * 2 // 3))
+                surface.blit(r_surf, (px - rc, rift_y - rc), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 2. Spiraling Ether Inflow
+        if self.timer < 0.75:
+            rot = self.timer * 14.0
+            for arm in range(6):
+                base_ang = rot + arm * (math.pi / 3.0)
+                pts = []
+                for s in range(12):
+                    ts = s / 11.0
+                    cur_d = 160 * (1.0 - ts)
+                    ang = base_ang + ts * 2.2
+                    pts.append((px + int(math.cos(ang) * cur_d), rift_y + int(math.sin(ang) * cur_d * 0.6)))
+                if len(pts) > 1:
+                    pygame.draw.lines(surface, (100, 220, 255, 180), False, pts, 3)
+
+        # 3. Expanding Shockwaves
+        for sh in self.shockwaves:
+            if sh["r"] < sh["max_r"]:
+                r = int(sh["r"])
+                sh_prog = r / sh["max_r"]
+                alpha = int(240 * (1.0 - sh_prog))
+                flat_h = max(4, int(r * 0.42))
+                ss = pygame.Surface((r * 2 + 10, flat_h + 10), pygame.SRCALPHA)
+                pygame.draw.ellipse(ss, (*sh["color"], alpha), (5, 5, r * 2, flat_h), max(2, int(6 * (1.0 - sh_prog))))
+                surface.blit(ss, (px - r - 5, rift_y - flat_h // 2 - 5), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 4. Particles
+        for pt in self.particles:
+            alpha = int(255 * (pt.life / pt.max_life))
+            dx, dy = int(pt.x - camera_offset.x), int(pt.y - camera_offset.y)
+            sz = int(pt.size)
+            pygame.draw.polygon(surface, (120, 240, 255, alpha), [(dx, dy - sz), (dx + sz, dy), (dx, dy + sz), (dx - sz, dy)])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 11. BORAN: CATACLISMO TELÚRICO (GUARDIAN / GUARDIÃO DE BASALTO)
+# ─────────────────────────────────────────────────────────────────────────────
+class BoranTelluricCataclysmUltimate(BaseUltimate):
+    """Earth-shattering seismic cataclysm erupting giant basalt monoliths and lava geysers, petrifying all enemies."""
+    def __init__(self):
+        super().__init__()
+        self.duration = 1.8
+        self.monoliths: list[dict] = []
+        self.shockwaves: list[dict] = []
+        
+    def trigger(self, cx: float, cy: float, facing_right: bool):
+        super().trigger(cx, cy, facing_right)
+        self.monoliths = []
+        self.shockwaves = []
+        for _ in range(14):
+            ox = random.uniform(-450, 450)
+            self.monoliths.append({
+                "ox": ox,
+                "h": random.uniform(60, 140),
+                "w": random.uniform(28, 48),
+                "delay": random.uniform(0.65, 0.85),
+                "tilt": random.uniform(-15, 15)
+            })
+        for _ in range(45):
+            ang = random.uniform(0, math.pi * 2)
+            spd = random.uniform(140, 360)
+            self.particles.append(_VFXParticle(
+                cx, cy,
+                math.cos(ang) * spd, math.sin(ang) * spd - 120,
+                random.uniform(0.6, 1.2), (255, 160, 40),
+                size=random.uniform(4, 9), gravity=380, shape="circle"
+            ))
+
+    def update(self, dt: float, player, enemies=None, camera=None):
+        super().update(dt, player, enemies, camera)
+        if not self.active:
+            return
+            
+        if 0.70 <= self.timer <= 0.75 and not self.shockwaves:
+            if camera:
+                camera.shake(20.0, 0.8)
+            self.shockwaves.append({"r": 10.0, "max_r": 480.0, "speed": 650.0, "color": (255, 160, 40)})
+            self.shockwaves.append({"r": 5.0, "max_r": 360.0, "speed": 500.0, "color": (255, 230, 120)})
+            
+        for sh in self.shockwaves:
+            sh["r"] += sh["speed"] * dt
+
+    def _deal_damage(self, enemies, player):
+        super()._deal_damage(enemies, player)
+        # Petrify/freeze all enemies for 4.0s!
+        for e in enemies:
+            if not getattr(e, "is_dead", False) and hasattr(e, "apply_slow"):
+                e.apply_slow(4.0, 0.0)
+
+    def draw_world(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active:
+            return
+        px = int(self.cx - camera_offset.x)
+        py = int(self.cy - camera_offset.y)
+        prog = self.timer / self.duration
+        
+        # 1. Tectonic Fractures Glowing on Ground
+        if self.timer >= 0.4:
+            f_alpha = int(255 * math.sin(min(1.0, (self.timer - 0.4) / 1.0) * math.pi))
+            if f_alpha > 0:
+                for sign in (-1, 1):
+                    pts = [(px, py)]
+                    for step in range(1, 8):
+                        sx = px + sign * step * 60 + random.randint(-10, 10)
+                        sy = py + random.randint(-8, 8)
+                        pts.append((sx, sy))
+                    pygame.draw.lines(surface, (255, 140, 30, f_alpha), False, pts, 4)
+                    pygame.draw.lines(surface, (255, 240, 150, f_alpha), False, pts, 1)
+
+        # 2. Giant Erupting Basalt Monoliths
+        for m in self.monoliths:
+            if self.timer >= m["delay"]:
+                m_prog = min(1.0, (self.timer - m["delay"]) / 0.22)
+                cur_h = int(m["h"] * ease_out_back(m_prog))
+                mx = px + int(m["ox"])
+                alpha = int(255 * (1.0 - max(0.0, (self.timer - 1.2) / 0.6))) if self.timer > 1.2 else 255
+                pts = [
+                    (mx, py - cur_h),
+                    (mx + int(m["w"] * 0.5), py),
+                    (mx - int(m["w"] * 0.5), py)
+                ]
+                pygame.draw.polygon(surface, (60, 40, 25, alpha), pts)
+                pygame.draw.polygon(surface, (110, 75, 40, alpha), [(mx, py - cur_h), (mx, py), (mx + int(m["w"] * 0.5), py)])
+                pygame.draw.polygon(surface, (255, 140, 30, alpha), pts, 2)
+
+        # 3. Expanding Shockwaves
+        for sh in self.shockwaves:
+            if sh["r"] < sh["max_r"]:
+                r = int(sh["r"])
+                sh_prog = r / sh["max_r"]
+                alpha = int(240 * (1.0 - sh_prog))
+                flat_h = max(4, int(r * 0.38))
+                ss = pygame.Surface((r * 2 + 10, flat_h + 10), pygame.SRCALPHA)
+                pygame.draw.ellipse(ss, (*sh["color"], alpha), (5, 5, r * 2, flat_h), max(2, int(8 * (1.0 - sh_prog))))
+                surface.blit(ss, (px - r - 5, py - flat_h // 2 - 5), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 4. Particles
+        for pt in self.particles:
+            alpha = int(255 * (pt.life / pt.max_life))
+            dx, dy = int(pt.x - camera_offset.x), int(pt.y - camera_offset.y)
+            sz = int(pt.size)
+            pygame.draw.circle(surface, (*pt.color, alpha), (dx, dy), sz)
+            pygame.draw.circle(surface, (255, 255, 200, alpha), (dx, dy), max(1, sz // 2))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# 12. KNIGHT: IRA SAGRADA / JULGAMENTO DOS CÉUS (GALAHAD)
+# ─────────────────────────────────────────────────────────────────────────────
+class KnightHolyWrathUltimate(BaseUltimate):
+    """Galahad invoca a Ira Sagrada: espadas celestes cravam no solo e um pilar de luz solar detona."""
+    def __init__(self):
+        super().__init__()
+        self.swords: list[dict] = []
+        self.shockwaves: list[dict] = []
+        self.light_beams: list[dict] = []
+
+    def trigger(self, cx: float, cy: float, facing_right: bool):
+        super().trigger(cx, cy, facing_right)
+        self.swords = []
+        self.shockwaves = []
+        self.light_beams = []
+        # Prepara 5 espadas sagradas caindo em leque
+        for i, ox in enumerate([-160, -80, 0, 80, 160]):
+            self.swords.append({
+                "x": cx + ox,
+                "y": cy - 420,
+                "target_y": cy - 10,
+                "delay": 0.15 + i * 0.08,
+                "speed": 980.0,
+                "landed": False,
+                "angle": math.radians(ox * 0.08)
+            })
+
+    def update(self, dt: float, player, enemies=None, camera=None):
+        super().update(dt, player, enemies, camera)
+        if not self.active:
+            return
+
+        # Queda das espadas
+        for sw in self.swords:
+            if self.timer >= sw["delay"] and not sw["landed"]:
+                sw["y"] += sw["speed"] * dt
+                if sw["y"] >= sw["target_y"]:
+                    sw["y"] = sw["target_y"]
+                    sw["landed"] = True
+                    self.shockwaves.append({"x": sw["x"], "y": sw["target_y"], "r": 5.0, "max_r": 120.0, "speed": 480.0, "color": (255, 230, 120)})
+                    for _ in range(12):
+                        ang = random.uniform(-math.pi, 0)
+                        spd = random.uniform(80, 240)
+                        self.particles.append(_VFXParticle(sw["x"], sw["y"], math.cos(ang)*spd, math.sin(ang)*spd - 40, random.uniform(0.4, 0.8), (255, 240, 140), random.uniform(2, 4), gravity=160))
+
+        # Clímax solar aos 0.75s
+        if self.timer >= 0.75 and not self.light_beams:
+            self.shockwaves.append({"x": self.cx, "y": self.cy, "r": 10.0, "max_r": 360.0, "speed": 620.0, "color": (255, 255, 200)})
+            self.shockwaves.append({"x": self.cx, "y": self.cy, "r": 5.0, "max_r": 260.0, "speed": 450.0, "color": (255, 200, 50)})
+            for _ in range(45):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(100, 380)
+                self.particles.append(_VFXParticle(self.cx, self.cy, math.cos(ang)*spd, math.sin(ang)*spd - 60, random.uniform(0.6, 1.2), (255, 220, 80), random.uniform(3, 6), gravity=180))
+            self.light_beams.append({"active": True})
+
+        for sh in self.shockwaves:
+            sh["r"] += sh["speed"] * dt
+
+    def draw_world(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        px = int(self.cx - camera_offset.x)
+        py = int(self.cy - camera_offset.y)
+
+        # 1. Círculo Rúnico Dourado no Solo
+        c_alpha = int(240 * math.sin(min(1.0, self.timer / 1.4) * math.pi))
+        if c_alpha > 0:
+            c_surf = pygame.Surface((340, 90), pygame.SRCALPHA)
+            pygame.draw.ellipse(c_surf, (255, 215, 60, c_alpha), (10, 10, 320, 70), 3)
+            pygame.draw.ellipse(c_surf, (255, 255, 220, c_alpha), (35, 20, 270, 50), 1)
+            for i in range(12):
+                ang = math.radians(i * 30 + self.timer * 40.0)
+                rx = int(170 + 135 * math.cos(ang))
+                ry = int(45 + 26 * math.sin(ang))
+                pygame.draw.circle(c_surf, (255, 255, 180, c_alpha), (rx, ry), 3)
+            surface.blit(c_surf, (px - 170, py - 45), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 2. Espadas Sagradas de Luz
+        for sw in self.swords:
+            if self.timer >= sw["delay"]:
+                sx = int(sw["x"] - camera_offset.x)
+                sy = int(sw["y"] - camera_offset.y)
+                blade_surf = pygame.Surface((36, 110), pygame.SRCALPHA)
+                pygame.draw.polygon(blade_surf, (255, 255, 255, 255), [(18, 105), (10, 30), (26, 30)])
+                pygame.draw.polygon(blade_surf, (255, 220, 80, 200), [(18, 108), (6, 30), (30, 30)], 2)
+                pygame.draw.line(blade_surf, (255, 240, 140, 255), (4, 30), (32, 30), 4)
+                pygame.draw.line(blade_surf, (180, 130, 20, 255), (18, 30), (18, 8), 3)
+                surface.blit(blade_surf, (sx - 18, sy - 100), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 3. Grande Coluna de Julgamento Solar (Clímax)
+        if 0.72 <= self.timer <= 1.4:
+            beam_prog = (self.timer - 0.72) / 0.68
+            b_alpha = int(255 * math.sin(beam_prog * math.pi))
+            b_w = max(10, int(160 * (1.0 - beam_prog * 0.4)))
+            beam_s = pygame.Surface((b_w, 480), pygame.SRCALPHA)
+            pygame.draw.rect(beam_s, (255, 245, 180, b_alpha), (0, 0, b_w, 480))
+            pygame.draw.rect(beam_s, (255, 255, 255, min(255, int(b_alpha * 1.2))), (b_w // 4, 0, b_w // 2, 480))
+            surface.blit(beam_s, (px - b_w // 2, py - 460), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 4. Ondas de Choque
+        for sh in self.shockwaves:
+            if sh["r"] < sh["max_r"]:
+                r = int(sh["r"])
+                prog = r / sh["max_r"]
+                alpha = int(230 * (1.0 - prog))
+                sx = int(sh["x"] - camera_offset.x)
+                sy = int(sh["y"] - camera_offset.y)
+                fh = max(4, int(r * 0.35))
+                ss = pygame.Surface((r * 2 + 8, fh + 8), pygame.SRCALPHA)
+                pygame.draw.ellipse(ss, (*sh["color"], alpha), (4, 4, r * 2, fh), max(2, int(6 * (1.0 - prog))))
+                surface.blit(ss, (sx - r - 4, sy - fh // 2 - 4), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 5. Partículas
+        for pt in self.particles:
+            alpha = int(255 * (pt.life / pt.max_life))
+            dx, dy = int(pt.x - camera_offset.x), int(pt.y - camera_offset.y)
+            pygame.draw.circle(surface, (*pt.color, alpha), (dx, dy), int(pt.size))
+
+    def draw_screen(self, surface: pygame.Surface):
+        if not self.active: return
+        w, h = surface.get_size()
+        if 0.75 <= self.timer <= 0.95:
+            flash_p = (self.timer - 0.75) / 0.20
+            f_alpha = int(30 * (1.0 - flash_p))
+            f_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            f_surf.fill((255, 240, 180, f_alpha))
+            surface.blit(f_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 13. WIZARD: CATACLISMO SOLAR / SUPERNOVA (IGNATIUS)
+# ─────────────────────────────────────────────────────────────────────────────
+class WizardSolarCataclysmUltimate(BaseUltimate):
+    """Ignatius invoca o Cataclismo Solar: uma supernova concentrada que detona com calor extremo."""
+    def __init__(self):
+        super().__init__()
+        self.shockwaves: list[dict] = []
+        self.solar_core_rad = 0.0
+
+    def trigger(self, cx: float, cy: float, facing_right: bool):
+        super().trigger(cx, cy, facing_right)
+        self.shockwaves = []
+        self.solar_core_rad = 8.0
+
+    def update(self, dt: float, player, enemies=None, camera=None):
+        super().update(dt, player, enemies, camera)
+        if not self.active: return
+
+        # Vórtice de calor puxando brasas em espiral até 0.75s
+        if self.timer < 0.75:
+            self.solar_core_rad = min(48.0, 8.0 + (self.timer / 0.75) * 40.0)
+            if random.random() < 0.65:
+                ang = random.uniform(0, math.tau)
+                dist = random.uniform(70, 180)
+                ox = self.cx + math.cos(ang) * dist
+                oy = (self.cy - 75) + math.sin(ang) * dist
+                vx = (self.cx - ox) * 2.5
+                vy = ((self.cy - 75) - oy) * 2.5
+                self.particles.append(_VFXParticle(ox, oy, vx, vy, 0.4, (255, random.randint(120, 220), 30), random.uniform(2, 5)))
+        elif not self.shockwaves and self.timer >= 0.75:
+            self.shockwaves.append({"r": 15.0, "max_r": 420.0, "speed": 750.0, "color": (255, 255, 255)})
+            self.shockwaves.append({"r": 10.0, "max_r": 340.0, "speed": 580.0, "color": (255, 170, 40)})
+            self.shockwaves.append({"r": 5.0, "max_r": 250.0, "speed": 440.0, "color": (255, 70, 10)})
+            for _ in range(60):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(150, 460)
+                col = random.choice([(255, 255, 220), (255, 180, 40), (255, 80, 20)])
+                self.particles.append(_VFXParticle(self.cx, self.cy - 75, math.cos(ang)*spd, math.sin(ang)*spd, random.uniform(0.5, 1.2), col, random.uniform(3, 7), gravity=90))
+
+        for sh in self.shockwaves:
+            sh["r"] += sh["speed"] * dt
+
+    def draw_world(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        px = int(self.cx - camera_offset.x)
+        py = int(self.cy - 75 - camera_offset.y)
+
+        # 1. Núcleo Solar Concentrado
+        if self.timer < 1.1:
+            core_r = int(self.solar_core_rad)
+            if self.timer >= 0.75:
+                core_r = int(self.solar_core_rad * (1.0 + (self.timer - 0.75) * 3.5))
+            c_surf = pygame.Surface((core_r * 2 + 16, core_r * 2 + 16), pygame.SRCALPHA)
+            cc = core_r + 8
+            rot = self.timer * 6.0
+            for i in range(8):
+                ang = rot + i * (math.pi / 4.0)
+                fx = cc + int(math.cos(ang) * (core_r * 0.9))
+                fy = cc + int(math.sin(ang) * (core_r * 0.9))
+                pygame.draw.circle(c_surf, (255, 120, 20, 160), (fx, fy), max(3, core_r // 3))
+            pygame.draw.circle(c_surf, (255, 180, 40, 220), (cc, cc), core_r)
+            pygame.draw.circle(c_surf, (255, 255, 240, 255), (cc, cc), max(2, int(core_r * 0.6)))
+            surface.blit(c_surf, (px - cc, py - cc), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 2. Ondas de Choque Solares Circulares
+        for sh in self.shockwaves:
+            if sh["r"] < sh["max_r"]:
+                r = int(sh["r"])
+                prog = r / sh["max_r"]
+                alpha = int(240 * (1.0 - prog))
+                ss = pygame.Surface((r * 2 + 8, r * 2 + 8), pygame.SRCALPHA)
+                sc = r + 4
+                pygame.draw.circle(ss, (*sh["color"], alpha), (sc, sc), r, max(2, int(8 * (1.0 - prog))))
+                surface.blit(ss, (px - sc, py - sc), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 3. Partículas
+        for pt in self.particles:
+            alpha = int(255 * (pt.life / pt.max_life))
+            dx, dy = int(pt.x - camera_offset.x), int(pt.y - camera_offset.y)
+            pygame.draw.circle(surface, (*pt.color, alpha), (dx, dy), int(pt.size))
+
+    def draw_screen(self, surface: pygame.Surface):
+        if not self.active: return
+        w, h = surface.get_size()
+        if 0.75 <= self.timer <= 0.98:
+            flash_p = (self.timer - 0.75) / 0.23
+            f_alpha = int(30 * (1.0 - flash_p))
+            f_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            f_surf.fill((255, 200, 120, f_alpha))
+            surface.blit(f_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 14. SAMURAI ARCHER: FLECHA DOS DRAGÕES GÊMEOS (HANZO)
+# ─────────────────────────────────────────────────────────────────────────────
+class SamuraiArcherTwinDragonsUltimate(BaseUltimate):
+    """Hanzo dispara a Flecha dos Dragões Gêmeos (Ryuu no Ibuki): serpentes de jade e ouro cruzam a tela."""
+    def __init__(self):
+        super().__init__()
+        self.dragons_spawned = False
+        self.dragon_dist = 0.0
+
+    def trigger(self, cx: float, cy: float, facing_right: bool):
+        super().trigger(cx, cy, facing_right)
+        self.dragons_spawned = False
+        self.dragon_dist = 0.0
+
+    def update(self, dt: float, player, enemies=None, camera=None):
+        super().update(dt, player, enemies, camera)
+        if not self.active: return
+
+        if self.timer >= 0.40:
+            self.dragons_spawned = True
+            self.dragon_dist += 950.0 * dt
+            dir_mult = 1.0 if self.facing_right else -1.0
+            head_x = self.cx + dir_mult * self.dragon_dist
+            head_y = self.cy - 30
+            for _ in range(4):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(40, 160)
+                col = (20, 240, 140) if random.random() < 0.6 else (255, 215, 60)
+                self.particles.append(_VFXParticle(head_x, head_y, math.cos(ang)*spd, math.sin(ang)*spd, 0.4, col, random.uniform(2, 5)))
+
+    def draw_world(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        px = int(self.cx - camera_offset.x)
+        py = int(self.cy - 30 - camera_offset.y)
+        dir_mult = 1.0 if self.facing_right else -1.0
+
+        # Arco de Invocação de Jade no chão
+        if self.timer < 0.60:
+            a_alpha = int(220 * math.sin(min(1.0, self.timer / 0.6) * math.pi))
+            if a_alpha > 0:
+                bow_surf = pygame.Surface((120, 120), pygame.SRCALPHA)
+                pygame.draw.circle(bow_surf, (30, 220, 130, a_alpha), (60, 60), 45, 3)
+                pygame.draw.circle(bow_surf, (255, 230, 80, a_alpha), (60, 60), 30, 2)
+                surface.blit(bow_surf, (px - 60, py - 30), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # Dragões Gêmeos em Hélice Dupla
+        if self.dragons_spawned and self.dragon_dist > 0:
+            steps = 28
+            tail_len = min(420.0, self.dragon_dist)
+            dx_step = tail_len / steps
+            for i in range(steps):
+                t_ratio = i / steps
+                ox = dir_mult * (self.dragon_dist - (steps - 1 - i) * dx_step)
+                wave_phase = (self.timer * 12.0) - (i * 0.4)
+                oy1 = math.sin(wave_phase) * 28.0
+                oy2 = -math.sin(wave_phase) * 28.0
+                alpha = int(245 * t_ratio)
+                sz = max(2, int(10 * t_ratio))
+                d1_x = int(px + ox)
+                d1_y = int(py + oy1)
+                d2_x = int(px + ox)
+                d2_y = int(py + oy2)
+                pygame.draw.circle(surface, (20, 240, 140, alpha), (d1_x, d1_y), sz)
+                pygame.draw.circle(surface, (220, 255, 230, alpha), (d1_x, d1_y), max(1, sz // 2))
+                pygame.draw.circle(surface, (255, 210, 50, alpha), (d2_x, d2_y), sz)
+                pygame.draw.circle(surface, (255, 255, 220, alpha), (d2_x, d2_y), max(1, sz // 2))
+
+        # Partículas
+        for pt in self.particles:
+            alpha = int(255 * (pt.life / pt.max_life))
+            dx, dy = int(pt.x - camera_offset.x), int(pt.y - camera_offset.y)
+            pygame.draw.circle(surface, (*pt.color, alpha), (dx, dy), int(pt.size))
+
+    def draw_screen(self, surface: pygame.Surface):
+        if not self.active: return
+        w, h = surface.get_size()
+        if 0.72 <= self.timer <= 0.92:
+            flash_p = (self.timer - 0.72) / 0.20
+            f_alpha = int(30 * (1.0 - flash_p))
+            f_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            f_surf.fill((60, 255, 180, f_alpha))
+            surface.blit(f_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 15. KUNOICHI: DANÇA DO LÓTUS CARMESIM (AYAME)
+# ─────────────────────────────────────────────────────────────────────────────
+class KunoichiCrimsonLotusDanceUltimate(BaseUltimate):
+    """Ayame executa a Dança do Lótus Carmesim: tempestade ninja de cortes dimensionais com pétalas de sangue."""
+    def __init__(self):
+        super().__init__()
+        self.slashes: list[dict] = []
+        self.petals: list[dict] = []
+
+    def trigger(self, cx: float, cy: float, facing_right: bool):
+        super().trigger(cx, cy, facing_right)
+        self.slashes = []
+        for i in range(6):
+            ang = math.radians(i * 60 + 15)
+            length = 260.0
+            p1 = (cx - math.cos(ang) * length, cy - 30 - math.sin(ang) * length)
+            p2 = (cx + math.cos(ang) * length, cy - 30 + math.sin(ang) * length)
+            self.slashes.append({
+                "p1": p1, "p2": p2, "delay": 0.10 + i * 0.08, "drawn": False
+            })
+        self.petals = [
+            {
+                "x": cx + random.uniform(-180, 180),
+                "y": cy - 30 + random.uniform(-140, 140),
+                "vx": random.uniform(-60, 60),
+                "vy": random.uniform(-40, 80),
+                "size": random.uniform(3, 7),
+                "rot": random.uniform(0, 360),
+                "rot_spd": random.uniform(-120, 120)
+            } for _ in range(40)
+        ]
+
+    def update(self, dt: float, player, enemies=None, camera=None):
+        super().update(dt, player, enemies, camera)
+        if not self.active: return
+
+        for pet in self.petals:
+            pet["x"] += pet["vx"] * dt
+            pet["y"] += pet["vy"] * dt
+            pet["rot"] += pet["rot_spd"] * dt
+
+        if self.timer >= 0.75 and len(self.particles) == 0:
+            for _ in range(50):
+                ang = random.uniform(0, math.tau)
+                spd = random.uniform(120, 380)
+                col = random.choice([(230, 20, 80), (255, 80, 140), (40, 0, 20)])
+                self.particles.append(_VFXParticle(self.cx, self.cy - 30, math.cos(ang)*spd, math.sin(ang)*spd, random.uniform(0.5, 1.1), col, random.uniform(3, 6)))
+
+    def draw_world(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        px = int(self.cx - camera_offset.x)
+        py = int(self.cy - 30 - camera_offset.y)
+
+        # 1. Mandala Central de Lótus Geométrico Carmesim
+        if self.timer < 1.3:
+            l_alpha = int(240 * math.sin(min(1.0, self.timer / 1.3) * math.pi))
+            if l_alpha > 0:
+                l_surf = pygame.Surface((220, 220), pygame.SRCALPHA)
+                lc = 110
+                for i in range(8):
+                    ang = math.radians(i * 45 + self.timer * 60.0)
+                    fx = lc + int(math.cos(ang) * 45)
+                    fy = lc + int(math.sin(ang) * 45)
+                    pygame.draw.circle(l_surf, (220, 30, 80, l_alpha), (fx, fy), 24, 2)
+                pygame.draw.circle(l_surf, (255, 120, 160, l_alpha), (lc, lc), 16)
+                pygame.draw.circle(l_surf, (255, 255, 255, l_alpha), (lc, lc), 6)
+                surface.blit(l_surf, (px - lc, py - lc), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 2. Cortes Dimensionais Afiados
+        for sl in self.slashes:
+            if self.timer >= sl["delay"]:
+                fade = max(0.0, 1.0 - (self.timer - sl["delay"]) / 0.55)
+                s_alpha = int(255 * fade)
+                if s_alpha > 0:
+                    p1 = (int(sl["p1"][0] - camera_offset.x), int(sl["p1"][1] - camera_offset.y))
+                    p2 = (int(sl["p2"][0] - camera_offset.x), int(sl["p2"][1] - camera_offset.y))
+                    pygame.draw.line(surface, (230, 30, 90, s_alpha), p1, p2, 5)
+                    pygame.draw.line(surface, (255, 220, 240, s_alpha), p1, p2, 2)
+
+        # 3. Pétalas de Sangue/Lótus
+        for pet in self.petals:
+            p_prog = min(1.0, self.timer / self.duration)
+            alpha = int(230 * (1.0 - p_prog))
+            if alpha > 0:
+                dx = int(pet["x"] - camera_offset.x)
+                dy = int(pet["y"] - camera_offset.y)
+                pygame.draw.circle(surface, (220, 40, 90, alpha), (dx, dy), int(pet["size"]))
+
+        # 4. Partículas
+        for pt in self.particles:
+            alpha = int(255 * (pt.life / pt.max_life))
+            dx, dy = int(pt.x - camera_offset.x), int(pt.y - camera_offset.y)
+            pygame.draw.circle(surface, (*pt.color, alpha), (dx, dy), int(pt.size))
+
+    def draw_screen(self, surface: pygame.Surface):
+        if not self.active: return
+        w, h = surface.get_size()
+        if 0.75 <= self.timer <= 0.95:
+            flash_p = (self.timer - 0.75) / 0.20
+            f_alpha = int(35 * (1.0 - flash_p))
+            f_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+            f_surf.fill((255, 40, 100, f_alpha))
+            surface.blit(f_surf, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Factory Function
 # ─────────────────────────────────────────────────────────────────────────────
 def create_ultimate(character_id: str) -> BaseUltimate:
@@ -915,4 +1739,21 @@ def create_ultimate(character_id: str) -> BaseUltimate:
         return CherryBlossomUltimate()
     elif cid == "fighter":
         return DragonFuryUltimate()
+    elif cid == "aurelia":
+        return AureliaDawnMiracleUltimate()
+    elif cid in ("archer", "kaelen"):
+        return KaelenCelestialVolleyUltimate()
+    elif cid == "zephyr":
+        return ZephyrEtherConvergenceUltimate()
+    elif cid == "boran":
+        return BoranTelluricCataclysmUltimate()
+    # New heroes - Dedicated bespoke Triple-AAA Ultimates!
+    elif cid == "knight":
+        return KnightHolyWrathUltimate()
+    elif cid == "wizard":
+        return WizardSolarCataclysmUltimate()
+    elif cid == "samurai_archer":
+        return SamuraiArcherTwinDragonsUltimate()
+    elif cid == "kunoichi":
+        return KunoichiCrimsonLotusDanceUltimate()
     return ValkyrieUltimate()

@@ -22,16 +22,26 @@ class Collectible:
             self.anim_manager.add_animation("spin", load_animation_folder(os.path.join("assets", "sprites", "item", "item_orb"), "item_orb_cure", 15, True, 1.0))
             self.anim_manager.play("spin")
             img_width, img_height = self.anim_manager.get_current_frame().get_size()
-        elif self.item_type == "chicken":
-            original_img = pygame.image.load(os.path.join("assets", "sprites", "item", "item_food", "item_chicken.png")).convert_alpha()
-            # Hitbox do frango igual a da poção, conforme pedido!
-            potion_img = pygame.image.load(os.path.join("assets", "sprites", "item", "item_food", "item_potion_red.png"))
-            img_width, img_height = potion_img.get_size()
-            
-            # Diminui visualmente o tamanho da imagem também para caber no novo padrão
-            self.image = pygame.transform.scale(original_img, (img_width, img_height))
-        elif self.item_type == "potion":
-            self.image = pygame.image.load(os.path.join("assets", "sprites", "item", "item_food", "item_potion_red.png")).convert_alpha()
+        elif self.item_type == "golden_potion":
+            potion_path = os.path.join("assets", "sprites", "item", "item_food", "item_potion_red.png")
+            if os.path.exists(potion_path):
+                raw = pygame.image.load(potion_path).convert_alpha()
+                # Tint golden for rejuvenation potion
+                tinted = raw.copy()
+                tinted.fill((255, 215, 60, 160), special_flags=pygame.BLEND_RGBA_MULT)
+                self.image = tinted
+            else:
+                self.image = pygame.Surface((16, 16))
+                self.image.fill((255, 215, 0))
+            img_width, img_height = self.image.get_size()
+        elif self.item_type in ("potion", "chicken"):
+            self.item_type = "potion" # Universal potion standardization
+            potion_path = os.path.join("assets", "sprites", "item", "item_food", "item_potion_red.png")
+            if os.path.exists(potion_path):
+                self.image = pygame.image.load(potion_path).convert_alpha()
+            else:
+                self.image = pygame.Surface((16, 16))
+                self.image.fill((220, 40, 40))
             img_width, img_height = self.image.get_size()
         else:
             self.image = pygame.Surface((16, 16))
@@ -85,19 +95,26 @@ class Collectible:
         if not self.active: return
         
         if self.item_type == "orb":
-            player.inventory['crystals'] += self.value
-            print(f"Got Orb! Total: {player.inventory['crystals']}")
+            player.inventory['crystals'] = player.inventory.get('crystals', 0) + self.value
+            from engine.save_manager import SAVE
+            SAVE.add_orbs(self.value)
         elif self.item_type == "potion":
+            from engine.save_manager import SAVE
+            alchemy_bonus = SAVE.get_skill_level("alchemist_elixir") * 20
+            heal_amount = 40 + alchemy_bonus
             if hasattr(player, "start_drinking_potion"):
-                player.start_drinking_potion(heal_amount=40)
+                player.start_drinking_potion(heal_amount=heal_amount)
             else:
-                player.health = min(player.max_health, player.health + 40)
-        elif self.item_type == "chicken":
+                player.health = min(player.max_health, player.health + heal_amount)
+        elif self.item_type == "golden_potion":
+            from engine.save_manager import SAVE
+            alchemy_bonus = SAVE.get_skill_level("alchemist_elixir") * 20
+            heal_amount = 75 + alchemy_bonus
             if hasattr(player, "start_drinking_potion"):
-                player.start_drinking_potion(heal_amount=40)
+                player.start_drinking_potion(heal_amount=heal_amount)
             else:
-                player.health = min(player.max_health, player.health + 40)
-            player.stamina = min(getattr(player, "max_stamina", 120.0), player.stamina + 35.0)
+                player.health = min(player.max_health, player.health + heal_amount)
+            player.stamina = min(getattr(player, "max_stamina", 120.0), player.stamina + 50.0)
             
         self.active = False
         
@@ -110,8 +127,16 @@ class Collectible:
                 img = self.image
                 
             if img:
-                # Centraliza a imagem desenhada com a hitbox para evitar desalinhamento visual
                 draw_x = self.rect.centerx - camera_offset.x
                 draw_y = self.rect.bottom - camera_offset.y
+                
+                # Ground contact shadow beneath floating collectible
+                shadow_w = 16
+                shadow_h = 5
+                shadow_surf = pygame.Surface((shadow_w, shadow_h), pygame.SRCALPHA)
+                pygame.draw.ellipse(shadow_surf, (0, 0, 0, 80), (0, 0, shadow_w, shadow_h))
+                ground_y = (self.start_y + self.rect.height + 2) if hasattr(self, "start_y") else self.rect.bottom
+                surface.blit(shadow_surf, (draw_x - shadow_w // 2, ground_y - camera_offset.y - shadow_h // 2))
+                
                 img_rect = img.get_rect(midbottom=(draw_x, draw_y))
                 surface.blit(img, img_rect)

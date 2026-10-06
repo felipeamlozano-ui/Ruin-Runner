@@ -1,27 +1,73 @@
-import pygame
+"""
+Ruin Engine — Hollow Knight Aesthetic Main Menu Scene.
+Atmospheric void mist, procedural crests, classic serif typography, and elegant selection markers.
+"""
+
+import math
 import sys
+import pygame
 from engine.scene_manager import Scene
 from ui.menu import Menu, MenuOption
 from engine.input_manager import INPUT
+from engine.save_manager import SAVE
 from config.settings import SETTINGS
-from config.colors import UI_BACKGROUND
-import engine.resource_manager as rm
+from ui.hollow_ui import AtmosphereFX, HollowCrestRenderer, HollowText, HollowFonts
 
 class MainMenuScene(Scene):
+    """Grand Gothic Main Menu inspired by Hollow Knight."""
+    
+    internal_size = (640, 360)
+    
     def __init__(self, scene_manager):
         self.scene_manager = scene_manager
         
+        self.width = 640
+        self.height = 360
+        
+        # Atmospheric Void Mist & Particles
+        self.atmosphere = AtmosphereFX(self.width, self.height, theme="void", particle_count=48)
+        
         self.menu = Menu("RUIN RUNNER", [
-            MenuOption("Novo Jogo", self.start_game),
-            MenuOption("Selecionar Personagem", self.open_character_select),
-            MenuOption("Configurações", self.open_settings),
-            MenuOption("Sair", self.quit_game)
+            MenuOption("INICIAR CAMPANHA", self.open_story_mode),
+            MenuOption("MODO COOPERATIVO", self.open_coop_mode),
+            MenuOption("CONFRONTO DE CHEFES", self.open_boss_battle),
+            MenuOption("MODO ARCADE", self.start_game),
+            MenuOption("SANTUÁRIO DO TUTORIAL", self.open_tutorial),
+            MenuOption("GRIMOIRE DE HABILIDADES", self.open_magic_book),
+            MenuOption("SELEÇÃO DE HERÓIS", self.open_character_select),
+            MenuOption("CONFIGURAÇÕES", self.open_settings),
+            MenuOption("SAIR DO JOGO", self.quit_game)
         ])
         
-        # Retro animated background setup (placeholder logic)
-        self.bg_timer = 0.0
-        
+        self.time_sec = 0.0
+
+    def open_story_mode(self):
+        SETTINGS.COOP_ENABLED = False
+        from scenes.story_select_scene import StorySelectScene
+        self.scene_manager.change_scene(StorySelectScene(self.scene_manager))
+
+    def open_coop_mode(self):
+        SETTINGS.COOP_ENABLED = True
+        from scenes.character_select_scene import CharacterSelectScene
+        self.scene_manager.change_scene(CharacterSelectScene(self.scene_manager, self))
+
+    def open_boss_battle(self):
+        SETTINGS.COOP_ENABLED = False
+        from scenes.boss_select_scene import BossSelectScene
+        self.scene_manager.change_scene(BossSelectScene(self.scene_manager, return_scene=self))
+
+    def open_tutorial(self):
+        SETTINGS.COOP_ENABLED = False
+        from scenes.tutorial_scene import TutorialScene
+        char = getattr(SETTINGS, "CURRENT_CHARACTER", "knight")
+        self.scene_manager.change_scene(TutorialScene(self.scene_manager, character=char))
+
+    def open_magic_book(self):
+        from scenes.magic_book_scene import MagicBookScene
+        self.scene_manager.change_scene(MagicBookScene(self.scene_manager, return_scene=self))
+
     def start_game(self):
+        SETTINGS.COOP_ENABLED = False
         from scenes.loading_scene import LoadingScene
         if SETTINGS.DEV_MODE and SETTINGS.DEV_START_BOSS:
             from scenes.boss_scene import BossScene
@@ -40,11 +86,12 @@ class MainMenuScene(Scene):
                 self.scene_manager,
                 lvl1,
                 title="FASE 1: AS CATACUMBAS",
-                tip="Dica: Use [Shift] para erguer o escudo ou barreira e bloquear danos!"
+                tip="Dica: Use [Shift] para esquivar ou defender e [1] para poções!"
             )
             self.scene_manager.change_scene(loading)
         
     def open_character_select(self):
+        SETTINGS.COOP_ENABLED = False
         from scenes.character_select_scene import CharacterSelectScene
         self.scene_manager.change_scene(CharacterSelectScene(self.scene_manager, self))
         
@@ -57,25 +104,51 @@ class MainMenuScene(Scene):
         sys.exit()
 
     def handle_events(self, events: list[pygame.event.Event]) -> None:
-        pass # All input handled by INPUT manager in update
+        pass
         
     def update(self, dt: float) -> None:
+        self.time_sec += dt
+        self.atmosphere.update(dt)
         self.menu.handle_input(INPUT)
-        self.bg_timer += dt
         
     def draw(self, surface: pygame.Surface) -> None:
-        surface.fill(UI_BACKGROUND)
+        sw, sh = surface.get_size()
+        cx = sw // 2
         
-        # Simple retro background effect (moving lines)
-        offset = int(self.bg_timer * 20) % 20
-        for y in range(0, SETTINGS.GAME_HEIGHT, 20):
-            pygame.draw.line(surface, (30, 30, 40), (0, y + offset), (SETTINGS.GAME_WIDTH, y + offset))
-            
-        # Dev mode indicator badge
+        # 1. Dark Void Atmosphere Background with Floating Spores
+        self.atmosphere.draw_background(surface, show_rays=False)
+        
+        # 2. Top Delicate Flourish
+        HollowCrestRenderer.draw_top_flourish(surface, cx, 16, width=140)
+        
+        # 3. Grand Hollow Knight Luminous Title
+        HollowText.render_title_with_glow(surface, "RUIN RUNNER", cx, 40, size=28, letter_spacing=5)
+        
+        # 4. Master Under-Title Baroque Crest
+        HollowCrestRenderer.draw_master_title_crest(surface, cx, 68, width=260)
+        
+        # 5. Top Left Soul Orbs Indicator (clean & discrete)
+        orbs_count = SAVE.get_orbs()
+        f_orbs = HollowFonts.get(11)
+        orbs_surf = f_orbs.render(f"ORBES: {orbs_count}", True, (170, 205, 240))
+        surface.blit(orbs_surf, (22, 14))
+        
+        # Dev Mode Badge (if active)
         if SETTINGS.DEV_MODE:
-            dev_font = pygame.font.SysFont("Arial", 11, bold=True)
-            dev_surf = dev_font.render("[MODO DEV: INÍCIO NO BOSS ATIVADO]", True, (255, 140, 70))
-            dev_rect = dev_surf.get_rect(center=(SETTINGS.GAME_WIDTH // 2, 24))
-            surface.blit(dev_surf, dev_rect)
-            
-        self.menu.draw(surface, SETTINGS.GAME_WIDTH // 2, SETTINGS.GAME_HEIGHT // 2 - 40)
+            f_dev = HollowFonts.get(10, italic=True)
+            d_surf = f_dev.render("[MODO DEV: BOSS RUSH ATIVO]", True, (245, 150, 75))
+            surface.blit(d_surf, d_surf.get_rect(center=(cx, 88)))
+        
+        # 6. Central Menu Options Deck
+        self.menu.draw(surface, cx, 114)
+        
+        # 7. Discrete Hollow Knight Footer
+        f_footer = HollowFonts.get(9)
+        v_surf = f_footer.render("v3.2.0 • RUIN RUNNER", True, (80, 90, 110))
+        surface.blit(v_surf, (22, sh - 18))
+        
+        hint_surf = f_footer.render("[↑/↓ NAVEGAR]   [ENTER/Z CONFIRMAR]", True, (95, 105, 125))
+        surface.blit(hint_surf, hint_surf.get_rect(center=(cx, sh - 18)))
+        
+        c_surf = f_footer.render("TEAM RUIN", True, (80, 90, 110))
+        surface.blit(c_surf, (sw - c_surf.get_width() - 22, sh - 18))

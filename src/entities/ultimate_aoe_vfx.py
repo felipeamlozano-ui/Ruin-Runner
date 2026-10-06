@@ -970,12 +970,11 @@ class SamuraiJudgementCutVFX(BaseUltimateAoE_VFX):
         cx, cy = int(self.x - cam_x), int(self.center_y - cam_y)
         progress = clamp(self.time / self.duration, 0.0, 1.0)
         
-        # 1. Spatial Desaturation / Dimensional Void Sphere
+        # 1. Dimensional Void Sphere Perimeter Ring (Clean outline without screen-darkening fill)
         if progress < 0.65:
             void_alpha = int(140 * math.sin((progress / 0.65) * math.pi))
             void_surf = pygame.Surface((int(self.radius * 2 + 10), int(self.radius * 2 + 10)), pygame.SRCALPHA)
             vc = void_surf.get_width() // 2
-            pygame.draw.circle(void_surf, (15, 20, 35, void_alpha), (vc, vc), int(self.radius))
             pygame.draw.circle(void_surf, clamp_color((120, 230, 255, int(void_alpha * 0.75))), (vc, vc), int(self.radius), 2)
             surface.blit(void_surf, (cx - vc, cy - vc))
 
@@ -1078,14 +1077,7 @@ class ShinobiShadowDanceVFX(BaseUltimateAoE_VFX):
         cx, cy = int(self.x - cam_x), int(self.center_y - cam_y)
         progress = clamp(self.time / self.duration, 0.0, 1.0)
         
-        # 1. Volumetric Dark Purple Mist Covering the Area
-        mist_alpha = int(160 * math.sin(progress * math.pi))
-        if mist_alpha > 0:
-            for sc in self.shadow_clouds:
-                mx = int(cx + sc["pos"][0])
-                my = int(cy + sc["pos"][1])
-                mr = int(sc["radius"])
-                pygame.draw.circle(surface, clamp_color((sc["shade"] + 20, sc["shade"], sc["shade"] + 45, mist_alpha)), (mx, my), mr)
+        # 1. Dark mist blackout removed to maintain clear visual clarity during combat
 
         # 2. Blitzing Shadow Clone Vectors (Speed Lines & Phantom Silhouettes)
         for dash in self.clone_dashes:
@@ -1243,7 +1235,617 @@ class ShaiaDivineJudgementVFX(BaseUltimateAoE_VFX):
 
 
 # ========================================================================================
-# 11. POLYMORPHIC REGISTRY POPULATION
+# 11. ARCHETYPE 8: AURELIA (LIGHT / HEALER) - SANTUÁRIO SAGRADO
+# ========================================================================================
+
+class AureliaSanctuaryAoE_VFX(BaseUltimateAoE_VFX):
+    """
+    Aurelia: Santuário Sagrado.
+    Cúpula celestial translúcida com mandala dourada giratória no chão, três colunas verticais
+    de luz da alvorada e chuva de centelhas em formato de cruz sagrada que purificam a área.
+    """
+    def __init__(self, x: float, y: float, radius: float, character_id: str):
+        super().__init__(x, y, radius, character_id)
+        self.duration = 0.95
+        self.particles: List[Dict[str, Any]] = []
+        for _ in range(32):
+            self.particles.append({
+                "x": self.x + random.uniform(-self.radius * 0.85, self.radius * 0.85),
+                "y": self.y - random.uniform(10.0, 160.0),
+                "vx": random.uniform(-25.0, 25.0),
+                "vy": random.uniform(-80.0, -20.0),
+                "life": random.uniform(0.5, 0.9),
+                "max_life": 0.9,
+                "sz": random.uniform(3.0, 6.0),
+                "is_cross": random.random() < 0.6
+            })
+
+    def update(self, dt: float):
+        super().update(dt)
+        if not self.active: return
+        for p in self.particles:
+            p["x"] += p["vx"] * dt
+            p["y"] += p["vy"] * dt
+            p["life"] -= dt
+            if p["life"] <= 0:
+                p["life"] = p["max_life"]
+                p["x"] = self.x + random.uniform(-self.radius * 0.85, self.radius * 0.85)
+                p["y"] = self.y - random.uniform(5.0, 30.0)
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        cx, cy = int(self.x - cam_x), int(self.y - cam_y)
+        progress = clamp(self.time / self.duration, 0.0, 1.0)
+
+        # 1. Mandala Sagrada no Chão (Rings & Sacred Star)
+        mandala_alpha = int(240 * math.sin(progress * math.pi))
+        if mandala_alpha > 0:
+            cur_r = int(self.radius * ease_out_back(min(1.0, progress * 2.2)))
+            flat_h = max(6, int(cur_r * 0.38))
+            
+            mandala_rect = pygame.Rect(cx - cur_r, cy - flat_h // 2, cur_r * 2, flat_h)
+            pygame.draw.ellipse(surface, clamp_color((255, 235, 120, int(mandala_alpha * 0.35))), mandala_rect)
+            pygame.draw.ellipse(surface, clamp_color((255, 210, 50, mandala_alpha)), mandala_rect, 3)
+            
+            inner_rect = pygame.Rect(cx - cur_r // 2, cy - flat_h // 4, cur_r, flat_h // 2)
+            pygame.draw.ellipse(surface, clamp_color((255, 255, 200, int(mandala_alpha * 0.8))), inner_rect, 2)
+            
+            rot = progress * 1.5
+            pts = []
+            for i in range(12):
+                ang = rot + i * (math.pi / 6)
+                dist = cur_r * (0.9 if i % 2 == 0 else 0.45)
+                pts.append((cx + int(math.cos(ang) * dist), cy + int(math.sin(ang) * dist * 0.38)))
+            pygame.draw.polygon(surface, clamp_color((255, 240, 140, int(mandala_alpha * 0.6))), pts, 2)
+
+        # 2. Três Colunas Verticais de Luz da Alvorada
+        sky_y = cy - 550
+        cols = [
+            (0, 50, (255, 255, 255), (255, 220, 80)),
+            (-int(self.radius * 0.5), 26, (255, 255, 200), (255, 180, 50)),
+            (int(self.radius * 0.5), 26, (255, 255, 200), (255, 180, 50))
+        ]
+        col_alpha = int(220 * math.sin(progress * math.pi))
+        for ox, w, c_core, c_glow in cols:
+            lx = cx + ox
+            pygame.draw.line(surface, clamp_color((*c_glow, int(col_alpha * 0.6))), (lx, sky_y), (lx, cy), w + 8)
+            pygame.draw.line(surface, clamp_color((*c_core, col_alpha)), (lx, sky_y), (lx, cy), w)
+            br = w * 2
+            b_rect = pygame.Rect(lx - br, cy - int(br * 0.35), br * 2, int(br * 0.7))
+            pygame.draw.ellipse(surface, clamp_color((*c_core, col_alpha)), b_rect)
+
+        # 3. Partículas de Cruzes e Centelhas Flutuantes
+        for p in self.particles:
+            p_alpha = int(255 * (p["life"] / p["max_life"]))
+            px, py = int(p["x"] - cam_x), int(p["y"] - cam_y)
+            sz = int(p["sz"])
+            if p["is_cross"]:
+                pygame.draw.line(surface, clamp_color((255, 230, 80, p_alpha)), (px - sz, py), (px + sz, py), 2)
+                pygame.draw.line(surface, clamp_color((255, 230, 80, p_alpha)), (px, py - sz - 1), (px, py + sz + 1), 2)
+                pygame.draw.circle(surface, clamp_color((255, 255, 255, p_alpha)), (px, py), 1)
+            else:
+                pygame.draw.circle(surface, clamp_color((255, 245, 180, p_alpha)), (px, py), max(1, sz // 2))
+
+
+# ========================================================================================
+# 12. ARCHETYPE 9: KAELEN (ARCHER / RANGER) - CHUVA DE FLECHAS
+# ========================================================================================
+
+class KaelenArrowRainAoE_VFX(BaseUltimateAoE_VFX):
+    """
+    Kaelen: Chuva de Flechas.
+    Retículo tático verde-esmeralda gravado no chão seguido por uma saraivada massiva de 36
+    flechas espectrais despencando do céu com ondas de choque cônicas de impacto e folhas eólicas.
+    """
+    def __init__(self, x: float, y: float, radius: float, character_id: str):
+        super().__init__(x, y, radius, character_id)
+        self.duration = 0.90
+        self.arrows: List[Dict[str, Any]] = []
+        for i in range(36):
+            target_ox = random.uniform(-self.radius * 0.9, self.radius * 0.9)
+            delay = random.uniform(0.12, 0.45)
+            self.arrows.append({
+                "target_ox": target_ox,
+                "delay": delay,
+                "duration": 0.16,
+                "embed_time": 0.0,
+                "has_impacted": False,
+                "quiver": random.uniform(-3.0, 3.0),
+                "sz": random.uniform(24.0, 32.0)
+            })
+        self.leaves: List[Dict[str, Any]] = []
+        for _ in range(24):
+            self.leaves.append({
+                "x": self.x + random.uniform(-self.radius, self.radius),
+                "y": self.y - random.uniform(0, 120),
+                "vx": random.uniform(-90, 90),
+                "vy": random.uniform(-40, 20),
+                "rot": random.uniform(0, math.tau),
+                "life": random.uniform(0.4, 0.8)
+            })
+
+    def update(self, dt: float):
+        super().update(dt)
+        if not self.active: return
+        for arr in self.arrows:
+            if self.time >= arr["delay"] + arr["duration"]:
+                if not arr["has_impacted"]:
+                    arr["has_impacted"] = True
+                    arr["embed_time"] = self.time
+        for lf in self.leaves:
+            lf["x"] += lf["vx"] * dt
+            lf["y"] += lf["vy"] * dt
+            lf["rot"] += 8.0 * dt
+            lf["life"] -= dt
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        cx, cy = int(self.x - cam_x), int(self.y - cam_y)
+        progress = clamp(self.time / self.duration, 0.0, 1.0)
+
+        # 1. Retículo Tático Esmeralda no Chão
+        reticle_alpha = int(220 * math.sin(progress * math.pi))
+        if reticle_alpha > 0:
+            flat_h = int(self.radius * 0.36)
+            rect = pygame.Rect(cx - int(self.radius), cy - flat_h // 2, int(self.radius * 2), flat_h)
+            pygame.draw.ellipse(surface, clamp_color((50, 220, 80, int(reticle_alpha * 0.25))), rect)
+            pygame.draw.ellipse(surface, clamp_color((80, 255, 120, reticle_alpha)), rect, 2)
+            pygame.draw.line(surface, clamp_color((180, 255, 190, reticle_alpha)), (cx - int(self.radius), cy), (cx + int(self.radius), cy), 1)
+
+        # 2. Saraivada de Flechas Espectrais
+        sky_y = cy - 580
+        for arr in self.arrows:
+            tx = cx + int(arr["target_ox"])
+            if arr["delay"] <= self.time < arr["delay"] + arr["duration"]:
+                t_flight = (self.time - arr["delay"]) / arr["duration"]
+                head_x = tx - int(math.tan(math.radians(18)) * (1.0 - t_flight) * 580)
+                head_y = sky_y + int(t_flight * 580)
+                tail_x = head_x - 10
+                tail_y = head_y - int(arr["sz"])
+                pygame.draw.line(surface, (120, 255, 140), (tail_x, tail_y), (head_x, head_y), 3)
+                pygame.draw.line(surface, (255, 255, 255), (tail_x, tail_y), (head_x, head_y), 1)
+            elif arr["has_impacted"]:
+                since = self.time - arr["embed_time"]
+                if since < 0.35:
+                    quiver = math.sin(since * 35.0) * arr["quiver"] * (1.0 - since / 0.35)
+                    tail_x = tx + int(quiver) - 6
+                    tail_y = cy - int(arr["sz"] * 0.75)
+                    alpha = int(255 * (1.0 - since / 0.35))
+                    pygame.draw.line(surface, clamp_color((80, 240, 100, alpha)), (tail_x, tail_y), (tx, cy), 2)
+                    r_wave = int(since * 60)
+                    if r_wave > 0:
+                        w_rect = pygame.Rect(tx - r_wave, cy - r_wave // 3, r_wave * 2, max(2, (r_wave * 2) // 3))
+                        pygame.draw.ellipse(surface, clamp_color((120, 255, 160, int(alpha * 0.8))), w_rect, 1)
+
+        # 3. Folhas Eólicas
+        for lf in self.leaves:
+            if lf["life"] > 0:
+                lx, ly = int(lf["x"] - cam_x), int(lf["y"] - cam_y)
+                pygame.draw.circle(surface, clamp_color((100, 230, 120, 180)), (lx, ly), 2)
+
+
+# ========================================================================================
+# 13. ARCHETYPE 10: ZEPHYR (SUPPORT / ETHER) - VÓRTICE REPULSOR
+# ========================================================================================
+
+class ZephyrEtherVortexAoE_VFX(BaseUltimateAoE_VFX):
+    """
+    Zephyr: Vórtice Repulsor.
+    Ciclone de éter comprimido em espiral logarítmica com 4 braços de plasma cyan/indigo
+    que puxam partículas para o centro e detonam em uma explosão de choque repulsora de 360°.
+    """
+    def __init__(self, x: float, y: float, radius: float, character_id: str):
+        super().__init__(x, y, radius, character_id)
+        self.duration = 0.85
+        self.motes: List[Dict[str, Any]] = []
+        for _ in range(35):
+            self.motes.append({
+                "dist": random.uniform(20, self.radius),
+                "ang": random.uniform(0, math.tau),
+                "spd": random.uniform(240, 480),
+                "life": random.uniform(0.3, 0.7),
+                "sz": random.uniform(2.0, 4.5)
+            })
+
+    def update(self, dt: float):
+        super().update(dt)
+        if not self.active: return
+        for m in self.motes:
+            m["dist"] -= m["spd"] * dt
+            m["ang"] += 9.0 * dt
+            if m["dist"] <= 5.0:
+                m["dist"] = random.uniform(self.radius * 0.6, self.radius)
+                m["ang"] = random.uniform(0, math.tau)
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        cx, cy = int(self.x - cam_x), int(self.y - cam_y)
+        progress = clamp(self.time / self.duration, 0.0, 1.0)
+
+        # 1. Quatro Braços Espirais de Éter
+        rot = self.time * 12.0
+        spiral_alpha = int(240 * math.sin(progress * math.pi))
+        if spiral_alpha > 0:
+            for arm in range(4):
+                base_ang = rot + arm * (math.pi / 2.0)
+                arm_pts = []
+                for step in range(16):
+                    t_step = step / 15.0
+                    cur_r = self.radius * (1.0 - t_step)
+                    ang = base_ang + t_step * 2.4
+                    px = cx + int(math.cos(ang) * cur_r)
+                    py = cy + int(math.sin(ang) * (cur_r * 0.42))
+                    arm_pts.append((px, py))
+                if len(arm_pts) > 1:
+                    pygame.draw.lines(surface, clamp_color((50, 160, 255, int(spiral_alpha * 0.5))), False, arm_pts, 6)
+                    pygame.draw.lines(surface, clamp_color((120, 240, 255, spiral_alpha)), False, arm_pts, 3)
+                    pygame.draw.lines(surface, clamp_color((255, 255, 255, spiral_alpha)), False, arm_pts, 1)
+
+        # 2. Motes Etéreos Espiralando para dentro
+        for m in self.motes:
+            mx = cx + int(math.cos(m["ang"]) * m["dist"])
+            my = cy + int(math.sin(m["ang"]) * (m["dist"] * 0.42))
+            alpha = int(255 * (m["dist"] / self.radius))
+            pygame.draw.circle(surface, clamp_color((140, 240, 255, alpha)), (mx, my), int(m["sz"]))
+            pygame.draw.circle(surface, clamp_color((255, 255, 255, alpha)), (mx, my), max(1, int(m["sz"] * 0.5)))
+
+        # 3. Detonação Repulsora (Onda de choque em expansão)
+        if self.time >= 0.35:
+            det_prog = (self.time - 0.35) / (self.duration - 0.35)
+            det_r = int(self.radius * 1.15 * ease_out_expo(det_prog))
+            det_alpha = int(255 * (1.0 - det_prog))
+            if det_alpha > 0 and det_r > 4:
+                d_rect = pygame.Rect(cx - det_r, cy - int(det_r * 0.42), det_r * 2, int(det_r * 0.84))
+                pygame.draw.ellipse(surface, clamp_color((80, 220, 255, det_alpha)), d_rect, 4)
+                pygame.draw.ellipse(surface, clamp_color((255, 255, 255, det_alpha)), d_rect, 2)
+
+
+# ========================================================================================
+# 14. ARCHETYPE 11: BORAN (GUARDIAN / BASALT) - ONDA SÍSMICA
+# ========================================================================================
+
+class BoranSeismicWaveAoE_VFX(BaseUltimateAoE_VFX):
+    """
+    Boran: Onda Sísmica.
+    Impacto colossal de martelo que racha o solo em 8 direções, ergue anéis de monólitos
+    de basalto afiados e dispara ondas de choque telúricas pesadas com poeira e detritos.
+    """
+    def __init__(self, x: float, y: float, radius: float, character_id: str):
+        super().__init__(x, y, radius, character_id)
+        self.duration = 0.92
+        self.fissures: List[List[Tuple[float, float]]] = []
+        for i in range(8):
+            ang = i * (math.pi / 4.0) + random.uniform(-0.15, 0.15)
+            crack = [(self.x, self.y)]
+            for step in range(1, 6):
+                dist = (self.radius * (step / 5.0)) + random.uniform(-8, 8)
+                dev = random.uniform(-14, 14)
+                px = self.x + math.cos(ang) * dist + dev
+                py = self.y + math.sin(ang) * (dist * 0.38) + dev * 0.3
+                crack.append((px, py))
+            self.fissures.append(crack)
+            
+        self.spikes: List[Dict[str, Any]] = []
+        for i in range(10):
+            ang = random.uniform(0, math.tau)
+            dist = random.uniform(self.radius * 0.35, self.radius * 0.9)
+            self.spikes.append({
+                "x": self.x + math.cos(ang) * dist,
+                "y": self.y + math.sin(ang) * (dist * 0.38),
+                "h": random.uniform(28.0, 48.0),
+                "w": random.uniform(14.0, 24.0),
+                "delay": random.uniform(0.08, 0.22)
+            })
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        cx, cy = int(self.x - cam_x), int(self.y - cam_y)
+        progress = clamp(self.time / self.duration, 0.0, 1.0)
+
+        # 1. Fissuras Tectônicas Incandescentes
+        fissure_alpha = int(255 * math.sin(progress * math.pi))
+        if fissure_alpha > 0:
+            for crack in self.fissures:
+                screen_pts = [(int(p[0] - cam_x), int(p[1] - cam_y)) for p in crack]
+                if len(screen_pts) > 1:
+                    pygame.draw.lines(surface, clamp_color((180, 70, 20, fissure_alpha)), False, screen_pts, 5)
+                    pygame.draw.lines(surface, clamp_color((255, 170, 40, fissure_alpha)), False, screen_pts, 3)
+                    pygame.draw.lines(surface, clamp_color((255, 240, 160, fissure_alpha)), False, screen_pts, 1)
+
+        # 2. Monólitos e Espigões de Basalto Erompendo
+        for sp in self.spikes:
+            if self.time >= sp["delay"]:
+                sp_prog = min(1.0, (self.time - sp["delay"]) / 0.25)
+                cur_h = sp["h"] * ease_out_back(sp_prog)
+                cur_w = sp["w"]
+                sx, sy = int(sp["x"] - cam_x), int(sp["y"] - cam_y)
+                alpha = int(255 * (1.0 - max(0.0, (self.time - 0.55) / 0.37))) if self.time > 0.55 else 255
+                pts = [
+                    (sx, sy - int(cur_h)),
+                    (sx + int(cur_w * 0.5), sy),
+                    (sx - int(cur_w * 0.5), sy)
+                ]
+                pygame.draw.polygon(surface, clamp_color((70, 45, 25, alpha)), pts)
+                pygame.draw.polygon(surface, clamp_color((120, 80, 40, alpha)), [(sx, sy - int(cur_h)), (sx, sy), (sx + int(cur_w * 0.5), sy)])
+                pygame.draw.polygon(surface, clamp_color((255, 160, 40, alpha)), pts, 1)
+
+        # 3. Onda de Choque Sísmica de Baixa Frequência
+        wave_r = int(self.radius * ease_out_expo(progress))
+        wave_alpha = int(220 * (1.0 - progress))
+        if wave_alpha > 0 and wave_r > 2:
+            w_rect = pygame.Rect(cx - wave_r, cy - int(wave_r * 0.38), wave_r * 2, int(wave_r * 0.76))
+            pygame.draw.ellipse(surface, clamp_color((210, 130, 40, wave_alpha)), w_rect, 4)
+            pygame.draw.ellipse(surface, clamp_color((255, 210, 120, wave_alpha)), w_rect, 2)
+
+
+# ========================================================================================
+# 15. ARCHETYPE 12: KNIGHT (GALAHAD) - SOLO CONSAGRADO
+# ========================================================================================
+
+class KnightConsecratedGroundAoE_VFX(BaseUltimateAoE_VFX):
+    """
+    Galahad: Solo Consagrado.
+    Círculo sagrado com geometria rúnica no solo, pilares de luz solar ascendentes,
+    escudo protetor radiante e faíscas celestes que purificam os inimigos na área.
+    """
+    def __init__(self, x: float, y: float, radius: float, character_id: str):
+        super().__init__(x, y, radius, character_id)
+        self.duration = 0.90
+        self.pillars: List[Dict[str, Any]] = []
+        for i in range(6):
+            ang = (i * math.pi / 3.0) + random.uniform(-0.15, 0.15)
+            dist = self.radius * random.uniform(0.35, 0.85)
+            self.pillars.append({
+                "x": self.x + math.cos(ang) * dist,
+                "y": self.y + math.sin(ang) * (dist * 0.38),
+                "h": random.uniform(90.0, 160.0),
+                "w": random.uniform(14.0, 26.0),
+                "delay": random.uniform(0.05, 0.22)
+            })
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        cx, cy = int(self.x - cam_x), int(self.y - cam_y)
+        progress = clamp(self.time / self.duration, 0.0, 1.0)
+
+        # 1. Mandala Rúnica Consagrada Dourada no Solo
+        m_alpha = int(240 * math.sin(progress * math.pi))
+        if m_alpha > 0:
+            m_r = int(self.radius * (0.8 + 0.2 * ease_out_expo(progress)))
+            m_h = int(m_r * 0.40)
+            m_surf = pygame.Surface((m_r * 2 + 10, m_h * 2 + 10), pygame.SRCALPHA)
+            mc_x, mc_y = m_r + 5, m_h + 5
+            pygame.draw.ellipse(m_surf, clamp_color((255, 215, 60, m_alpha)), (mc_x - m_r, mc_y - m_h, m_r * 2, m_h * 2), 3)
+            pygame.draw.ellipse(m_surf, clamp_color((255, 255, 220, m_alpha)), (mc_x - int(m_r * 0.7), mc_y - int(m_h * 0.7), int(m_r * 1.4), int(m_h * 1.4)), 1)
+            for i in range(8):
+                ang = math.radians(i * 45 + self.time * 45.0)
+                rx = mc_x + int(math.cos(ang) * (m_r * 0.85))
+                ry = mc_y + int(math.sin(ang) * (m_h * 0.85))
+                pygame.draw.line(m_surf, clamp_color((255, 240, 150, m_alpha)), (rx - 4, ry), (rx + 4, ry), 2)
+                pygame.draw.line(m_surf, clamp_color((255, 240, 150, m_alpha)), (rx, ry - 3), (rx, ry + 3), 2)
+            surface.blit(m_surf, (cx - mc_x, cy - mc_y), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 2. Pilares de Luz Solar Ascendentes
+        for pil in self.pillars:
+            if self.time >= pil["delay"]:
+                p_prog = min(1.0, (self.time - pil["delay"]) / 0.35)
+                cur_h = pil["h"] * ease_out_expo(p_prog)
+                cur_w = pil["w"]
+                px = int(pil["x"] - cam_x)
+                py = int(pil["y"] - cam_y)
+                alpha = int(240 * (1.0 - max(0.0, (self.time - 0.45) / 0.45))) if self.time > 0.45 else 240
+                p_surf = pygame.Surface((int(cur_w) + 6, int(cur_h) + 6), pygame.SRCALPHA)
+                pygame.draw.rect(p_surf, clamp_color((255, 220, 80, alpha)), (3, 3, int(cur_w), int(cur_h)))
+                pygame.draw.rect(p_surf, clamp_color((255, 255, 255, alpha)), (3 + int(cur_w * 0.3), 3, max(2, int(cur_w * 0.4)), int(cur_h)))
+                surface.blit(p_surf, (px - int(cur_w) // 2 - 3, py - int(cur_h) - 3), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 3. Onda de Choque Sagrada Expansiva
+        wave_r = int(self.radius * ease_out_expo(progress))
+        wave_alpha = int(220 * (1.0 - progress))
+        if wave_alpha > 0 and wave_r > 2:
+            w_h = max(4, int(wave_r * 0.40))
+            w_surf = pygame.Surface((wave_r * 2 + 8, w_h + 8), pygame.SRCALPHA)
+            pygame.draw.ellipse(w_surf, clamp_color((255, 210, 80, wave_alpha)), (4, 4, wave_r * 2, w_h), 3)
+            pygame.draw.ellipse(w_surf, clamp_color((255, 255, 240, wave_alpha)), (4, 4, wave_r * 2, w_h), 1)
+            surface.blit(w_surf, (cx - wave_r - 4, cy - w_h // 2 - 4), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# ========================================================================================
+# 16. ARCHETYPE 13: WIZARD (IGNATIUS) - VÓRTICE DE MAGMA
+# ========================================================================================
+
+class WizardMagmaVortexAoE_VFX(BaseUltimateAoE_VFX):
+    """
+    Ignatius: Vórtice de Magma.
+    Redemoinho centrípeto de plasma e fogo que gira em turbilhão concêntrico
+    com labaredas ascendentes e calor brilhante, sugando e incinerando inimigos.
+    """
+    def __init__(self, x: float, y: float, radius: float, character_id: str):
+        super().__init__(x, y, radius, character_id)
+        self.duration = 0.88
+        self.spiral_arms: List[float] = [0.0, math.pi * 0.66, math.pi * 1.33]
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        cx, cy = int(self.x - cam_x), int(self.y - cam_y)
+        progress = clamp(self.time / self.duration, 0.0, 1.0)
+
+        # 1. Braços Espirais de Plasma em Rotação
+        spin = self.time * 12.0
+        v_alpha = int(240 * math.sin(progress * math.pi))
+        if v_alpha > 0:
+            for base_ang in self.spiral_arms:
+                pts = [(cx, cy)]
+                steps = 14
+                for st in range(1, steps):
+                    r_dist = (self.radius * (st / float(steps))) * ease_out_expo(progress)
+                    ang = base_ang + spin + (st * 0.35)
+                    sx = cx + math.cos(ang) * r_dist
+                    sy = cy + math.sin(ang) * (r_dist * 0.40)
+                    pts.append((int(sx), int(sy)))
+                if len(pts) > 2:
+                    pygame.draw.lines(surface, clamp_color((255, 80, 20, v_alpha)), False, pts, 4)
+                    pygame.draw.lines(surface, clamp_color((255, 200, 50, v_alpha)), False, pts, 2)
+                    pygame.draw.lines(surface, clamp_color((255, 255, 220, v_alpha)), False, pts, 1)
+
+        # 2. Núcleo Incandescente Central
+        core_r = max(4, int(18 * math.sin(progress * math.pi)))
+        core_surf = pygame.Surface((core_r * 2 + 8, int(core_r * 0.8) + 8), pygame.SRCALPHA)
+        pygame.draw.ellipse(core_surf, (255, 120, 20, v_alpha), (4, 4, core_r * 2, int(core_r * 0.8)))
+        pygame.draw.ellipse(core_surf, (255, 240, 140, v_alpha), (6, 5, core_r * 2 - 4, int(core_r * 0.8) - 2))
+        surface.blit(core_surf, (cx - core_r - 4, cy - int(core_r * 0.4) - 4), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 3. Anel de Choque Térmico
+        wave_r = int(self.radius * ease_out_expo(progress))
+        wave_alpha = int(220 * (1.0 - progress))
+        if wave_alpha > 0 and wave_r > 2:
+            w_h = max(4, int(wave_r * 0.40))
+            w_surf = pygame.Surface((wave_r * 2 + 8, w_h + 8), pygame.SRCALPHA)
+            pygame.draw.ellipse(w_surf, clamp_color((255, 140, 30, wave_alpha)), (4, 4, wave_r * 2, w_h), 3)
+            surface.blit(w_surf, (cx - wave_r - 4, cy - w_h // 2 - 4), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# ========================================================================================
+# 17. ARCHETYPE 14: SAMURAI ARCHER (HANZO) - CHUVA ESPIRITUAL DE JADE
+# ========================================================================================
+
+class SamuraiArcherSpiritRainAoE_VFX(BaseUltimateAoE_VFX):
+    """
+    Hanzo: Chuva de Flechas de Jade.
+    Círculo rúnico de invocação de onde flechas espirituais caem do céu em ângulo,
+    cravando no chão e liberando anéis de impacto e névoa espectral de jade.
+    """
+    def __init__(self, x: float, y: float, radius: float, character_id: str):
+        super().__init__(x, y, radius, character_id)
+        self.duration = 0.85
+        self.arrows: List[Dict[str, Any]] = []
+        for i in range(12):
+            ang = random.uniform(0, math.tau)
+            dist = self.radius * random.uniform(0.15, 0.88)
+            gx = self.x + math.cos(ang) * dist
+            gy = self.y + math.sin(ang) * (dist * 0.38)
+            self.arrows.append({
+                "gx": gx, "gy": gy,
+                "delay": random.uniform(0.06, 0.42),
+                "speed": random.uniform(750, 950),
+                "len": random.uniform(24, 38)
+            })
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        cx, cy = int(self.x - cam_x), int(self.y - cam_y)
+        progress = clamp(self.time / self.duration, 0.0, 1.0)
+
+        # 1. Círculo de Invocação Esmeralda
+        c_alpha = int(220 * math.sin(progress * math.pi))
+        if c_alpha > 0:
+            c_r = int(self.radius * (0.8 + 0.2 * progress))
+            c_h = int(c_r * 0.38)
+            c_surf = pygame.Surface((c_r * 2 + 8, c_h * 2 + 8), pygame.SRCALPHA)
+            pygame.draw.ellipse(c_surf, clamp_color((20, 240, 140, c_alpha)), (4, 4, c_r * 2, c_h * 2), 2)
+            pygame.draw.ellipse(c_surf, clamp_color((180, 255, 210, c_alpha)), (14, 8, c_r * 2 - 20, c_h * 2 - 8), 1)
+            surface.blit(c_surf, (cx - c_r - 4, cy - c_h - 4), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 2. Flechas Espirituais Caindo do Céu
+        for arr in self.arrows:
+            if self.time >= arr["delay"]:
+                a_prog = (self.time - arr["delay"]) / 0.16
+                ax = int(arr["gx"] - cam_x)
+                ay = int(arr["gy"] - cam_y)
+                if a_prog < 1.0:
+                    travel_y = (1.0 - a_prog) * 180.0
+                    travel_x = (1.0 - a_prog) * -40.0
+                    tip_x = int(ax + travel_x)
+                    tip_y = int(ay - travel_y)
+                    tail_x = int(tip_x - 10)
+                    tail_y = int(tip_y - arr["len"])
+                    pygame.draw.line(surface, clamp_color((30, 240, 150, 240)), (tail_x, tail_y), (tip_x, tip_y), 3)
+                    pygame.draw.line(surface, clamp_color((255, 255, 255, 255)), (tail_x, tail_y), (tip_x, tip_y), 1)
+                else:
+                    imp_p = min(1.0, (a_prog - 1.0) / 1.5)
+                    imp_alpha = int(200 * (1.0 - imp_p))
+                    if imp_alpha > 0:
+                        ir = max(2, int(18 * imp_p))
+                        pygame.draw.ellipse(surface, clamp_color((20, 240, 140, imp_alpha)), (ax - ir, ay - int(ir * 0.4), ir * 2, int(ir * 0.8)), 1)
+
+
+# ========================================================================================
+# 18. ARCHETYPE 15: KUNOICHI (AYAME) - DANÇA DAS SOMBRAS GÊMEAS
+# ========================================================================================
+
+class KunoichiTwinShadowsAoE_VFX(BaseUltimateAoE_VFX):
+    """
+    Ayame: Dança das Sombras Gêmeas.
+    Turbilhão de shurikens sombrios gigantes em rotação, pétalas de lótus carmesim
+    e fumaça ninja negra com cortes afiados em 360 graus.
+    """
+    def __init__(self, x: float, y: float, radius: float, character_id: str):
+        super().__init__(x, y, radius, character_id)
+        self.duration = 0.82
+        self.petals: List[Dict[str, Any]] = []
+        for _ in range(16):
+            ang = random.uniform(0, math.tau)
+            dist = self.radius * random.uniform(0.2, 0.9)
+            self.petals.append({
+                "ang": ang, "dist": dist,
+                "spd": random.uniform(4.0, 8.0),
+                "sz": random.uniform(3.0, 6.0)
+            })
+
+    def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
+        if not self.active: return
+        cam_x, cam_y = camera_offset.x, camera_offset.y
+        cx, cy = int(self.x - cam_x), int(self.y - cam_y)
+        progress = clamp(self.time / self.duration, 0.0, 1.0)
+
+        # 1. Anel de Shurikens Sombrios Giratórios
+        rot = self.time * 16.0
+        sh_alpha = int(250 * math.sin(progress * math.pi))
+        if sh_alpha > 0:
+            for i in range(4):
+                ang = rot + i * (math.pi / 2.0)
+                dist = (self.radius * 0.72) * ease_out_expo(progress)
+                sx = int(cx + math.cos(ang) * dist)
+                sy = int(cy + math.sin(ang) * (dist * 0.40))
+                sz = 14
+                sh_surf = pygame.Surface((sz * 2 + 4, sz * 2 + 4), pygame.SRCALPHA)
+                sc = sz + 2
+                pts = [
+                    (sc, sc - sz), (sc + 3, sc - 3), (sc + sz, sc), (sc + 3, sc + 3),
+                    (sc, sc + sz), (sc - 3, sc + 3), (sc - sz, sc), (sc - 3, sc - 3)
+                ]
+                pygame.draw.polygon(sh_surf, clamp_color((40, 10, 25, sh_alpha)), pts)
+                pygame.draw.polygon(sh_surf, clamp_color((230, 40, 100, sh_alpha)), pts, 1)
+                surface.blit(sh_surf, (sx - sc, sy - sc), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # 2. Pétalas Carmesins em Turbilhão
+        for pet in self.petals:
+            cur_ang = pet["ang"] + (self.time * pet["spd"])
+            cur_dist = pet["dist"] * (1.0 - progress * 0.3)
+            px = int(cx + math.cos(cur_ang) * cur_dist)
+            py = int(cy + math.sin(cur_ang) * (cur_dist * 0.40))
+            alpha = int(220 * math.sin(progress * math.pi))
+            pygame.draw.circle(surface, clamp_color((220, 30, 80, alpha)), (px, py), int(pet["sz"]))
+
+        # 3. Onda de Choque Carmesim Sombria
+        wave_r = int(self.radius * ease_out_expo(progress))
+        wave_alpha = int(210 * (1.0 - progress))
+        if wave_alpha > 0 and wave_r > 2:
+            w_h = max(4, int(wave_r * 0.38))
+            w_surf = pygame.Surface((wave_r * 2 + 8, w_h + 8), pygame.SRCALPHA)
+            pygame.draw.ellipse(w_surf, clamp_color((200, 20, 70, wave_alpha)), (4, 4, wave_r * 2, w_h), 2)
+            surface.blit(w_surf, (cx - wave_r - 4, cy - w_h // 2 - 4), special_flags=pygame.BLEND_RGBA_ADD)
+
+
+# ========================================================================================
+# 19. POLYMORPHIC REGISTRY POPULATION
 # ========================================================================================
 
 _AOE_VFX_REGISTRY.update({
@@ -1255,5 +1857,15 @@ _AOE_VFX_REGISTRY.update({
     "samurai": SamuraiJudgementCutVFX,
     "shinobi": ShinobiShadowDanceVFX,
     "shaia": ShaiaDivineJudgementVFX,
+    "aurelia": AureliaSanctuaryAoE_VFX,
+    "archer": KaelenArrowRainAoE_VFX,
+    "kaelen": KaelenArrowRainAoE_VFX,
+    "zephyr": ZephyrEtherVortexAoE_VFX,
+    "boran": BoranSeismicWaveAoE_VFX,
+    # New heroes - Dedicated bespoke AoE VFX
+    "kunoichi": KunoichiTwinShadowsAoE_VFX,
+    "samurai_archer": SamuraiArcherSpiritRainAoE_VFX,
+    "wizard": WizardMagmaVortexAoE_VFX,
+    "knight": KnightConsecratedGroundAoE_VFX,
 })
 

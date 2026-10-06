@@ -46,12 +46,11 @@ class DeathScreen:
         self.pulse_timer = 0.0
         self.particles: list[EmberParticle] = []
         
-        pygame.font.init()
-        self.font_skull = pygame.font.SysFont("Georgia", 32, bold=True)
-        self.font_title = pygame.font.SysFont("Georgia", 28, bold=True)
-        self.font_sub = pygame.font.SysFont("Arial", 13, italic=True)
-        self.font_btn = pygame.font.SysFont("Arial", 14, bold=True)
-        self.font_tip = pygame.font.SysFont("Arial", 11)
+        from ui.hollow_ui import HollowFonts
+        self.font_title = HollowFonts.get(26, bold=True)
+        self.font_sub = HollowFonts.get(12, italic=True)
+        self.font_btn = HollowFonts.get(12, bold=True)
+        self.font_tip = HollowFonts.get(10)
         
     def reset(self):
         self.alpha = 0.0
@@ -95,83 +94,81 @@ class DeathScreen:
         if not self.active or self.alpha <= 0:
             return
             
+        from ui.hollow_ui import HollowCrestRenderer, HollowColors
+        
         gw, gh = SETTINGS.GAME_WIDTH, SETTINGS.GAME_HEIGHT
         cx, cy = gw // 2, gh // 2
         
-        # 1. Dark Crimson & Charcoal Vignette Overlay
+        # 1. Dark Crimson & Charcoal Film Atmosphere (zero stepped circular banding)
+        for y in range(gh):
+            t = y / float(gh)
+            edge = abs(t - 0.5) * 2.0 # 0.0 at center, 1.0 at edges
+            r = int(14 + edge * 32)
+            g = int(5 + edge * 3)
+            b = int(7 + edge * 5)
+            pygame.draw.line(surface, (r, g, b), (0, y), (gw, y))
+            
+        # Darkening vignette veil
         overlay = pygame.Surface((gw, gh), pygame.SRCALPHA)
-        cur_alpha = int(self.alpha)
-        # Deep dark base
-        overlay.fill((8, 4, 6, cur_alpha))
-        
-        # Crimson blood aura pulse from screen center
-        pulse = 0.85 + 0.15 * math.sin(self.pulse_timer * 2.5)
-        aura_radius = int(gh * 0.7 * pulse)
-        aura_surf = pygame.Surface((aura_radius * 2, aura_radius * 2), pygame.SRCALPHA)
-        pygame.draw.circle(aura_surf, (90, 10, 15, int(70 * (self.alpha / self.target_alpha))), (aura_radius, aura_radius), aura_radius)
-        overlay.blit(aura_surf, (cx - aura_radius, cy - aura_radius), special_flags=pygame.BLEND_RGBA_ADD)
-        
-        # Border vignette shadows
-        pygame.draw.rect(overlay, (0, 0, 0, min(255, int(cur_alpha * 1.1))), (0, 0, gw, 30))
-        pygame.draw.rect(overlay, (0, 0, 0, min(255, int(cur_alpha * 1.1))), (0, gh - 30, gw, 30))
-        
+        v_alpha = int(220 * (self.alpha / self.target_alpha))
+        overlay.fill((4, 3, 6, 255 - v_alpha))
         surface.blit(overlay, (0, 0))
         
         # 2. Draw Floating Ember Particles
         for p in self.particles:
             p.draw(surface)
             
-        # 3. Gothic Title: "VOCÊ FOI DERROTADO"
-        glow_alpha = int(220 + 35 * math.sin(self.pulse_timer * 3.0))
+        # 3. Top Flourish above Title
+        HollowCrestRenderer.draw_top_flourish(surface, cx, cy - 85, width=150, alpha=int(self.alpha))
+        
+        # 4. Hollow Title: "VOCÊ FOI DERROTADO"
         title_text = "VOCÊ FOI DERROTADO"
         
-        # Outer glow shadow
-        shadow_surf = self.font_title.render(title_text, True, (60, 5, 10))
-        surface.blit(shadow_surf, (cx - shadow_surf.get_width() // 2 + 2, cy - 60 + 2))
+        # Shadow
+        shadow_surf = self.font_title.render(title_text, True, (0, 0, 0))
+        surface.blit(shadow_surf, (cx - shadow_surf.get_width() // 2 + 1, cy - 65 + 1))
         
-        # Main Title (Radiant blood red with gold core)
-        title_surf = self.font_title.render(title_text, True, (245, 55, 55))
-        surface.blit(title_surf, (cx - title_surf.get_width() // 2, cy - 60))
-        
-        # Top ornament skulls
-        ornament = "— ☠ —"
-        orn_surf = self.font_skull.render(ornament, True, (215, 170, 70))
-        surface.blit(orn_surf, (cx - orn_surf.get_width() // 2, cy - 95))
+        # Core
+        title_surf = self.font_title.render(title_text, True, (245, 235, 240))
+        surface.blit(title_surf, (cx - title_surf.get_width() // 2, cy - 65))
         
         # Subtitle
         sub_text = "A escuridão das ruínas consumiu o seu último suspiro..."
-        sub_surf = self.font_sub.render(sub_text, True, (200, 190, 195))
+        sub_surf = self.font_sub.render(sub_text, True, HollowColors.TEXT_NORMAL)
         surface.blit(sub_surf, (cx - sub_surf.get_width() // 2, cy - 25))
         
-        # Divider Line
-        line_w = 260
-        pygame.draw.line(surface, (140, 40, 45), (cx - line_w // 2, cy - 8), (cx + line_w // 2, cy - 8), 1)
-        pygame.draw.line(surface, (215, 170, 70), (cx - 40, cy - 8), (cx + 40, cy - 8), 2)
+        # Section Divider
+        HollowCrestRenderer.draw_section_divider(surface, cx, cy - 8, width=320, alpha=int(min(220, self.alpha)))
         
-        # 4. Interactive Action Buttons
+        # 5. Interactive Action Buttons
         if self.alpha >= 120:
             btn_y = cy + 18
+            mx, my = pygame.mouse.get_pos()
             
-            # [R] Tentar Novamente Button Frame
-            r_box = pygame.FRect(cx - 150, btn_y, 140, 32)
-            bg_box1 = pygame.Surface((int(r_box.width), int(r_box.height)), pygame.SRCALPHA)
-            bg_box1.fill((40, 12, 16, 210))
-            surface.blit(bg_box1, (r_box.x, r_box.y))
-            pygame.draw.rect(surface, (215, 60, 60), r_box, 1, border_radius=4)
-            
-            r_text = self.font_btn.render("[R] Reiniciar", True, (255, 220, 220))
-            surface.blit(r_text, r_text.get_rect(center=r_box.center))
+            # [R] Reiniciar Button Frame
+            r_box = pygame.Rect(cx - 150, btn_y, 140, 32)
+            r_hov = r_box.collidepoint(mx, my)
+            HollowCrestRenderer.draw_hollow_button(
+                surface,
+                r_box,
+                "REINICIAR [R]",
+                self.font_btn,
+                is_hovered=r_hov,
+                text_color=HollowColors.GOLD_CREST if r_hov else HollowColors.TEXT_TITLE
+            )
             
             # [ESC] Menu Principal Button Frame
-            m_box = pygame.FRect(cx + 10, btn_y, 140, 32)
-            bg_box2 = pygame.Surface((int(m_box.width), int(m_box.height)), pygame.SRCALPHA)
-            bg_box2.fill((20, 22, 30, 210))
-            surface.blit(bg_box2, (m_box.x, m_box.y))
-            pygame.draw.rect(surface, (100, 110, 140), m_box, 1, border_radius=4)
-            
-            m_text = self.font_btn.render("[ESC] Menu", True, (210, 215, 230))
-            surface.blit(m_text, m_text.get_rect(center=m_box.center))
+            m_box = pygame.Rect(cx + 10, btn_y, 140, 32)
+            m_hov = m_box.collidepoint(mx, my)
+            HollowCrestRenderer.draw_hollow_button(
+                surface,
+                m_box,
+                "MENU [ESC]",
+                self.font_btn,
+                is_hovered=m_hov,
+                text_color=HollowColors.GOLD_CREST if m_hov else HollowColors.TEXT_NORMAL
+            )
             
             # Footer tip
-            tip_surf = self.font_tip.render("Pressione [R] para tentar novamente ou [ESC] para sair", True, (160, 150, 160))
-            surface.blit(tip_surf, tip_surf.get_rect(center=(cx, gh - 20)))
+            tip_surf = self.font_tip.render("Pressione [R] para desafiar novamente ou [ESC] para o menu principal", True, HollowColors.TEXT_MUTED)
+            surface.blit(tip_surf, tip_surf.get_rect(center=(cx, gh - 22)))

@@ -63,6 +63,10 @@ class AnimationManager:
 
     def has_animation(self, state_name: str) -> bool:
         return state_name in self.animations
+
+    @property
+    def current_animation(self):
+        return self.animations.get(self.current_state)
             
     def play(self, state_name: str, force_reset: bool = False):
         if self.current_state != state_name or force_reset:
@@ -140,6 +144,8 @@ def load_spritesheet(
         if start_frame > 0 or max_frames > 0:
             end_idx = start_frame + max_frames if max_frames > 0 else len(all_raw_frames)
             frames = all_raw_frames[start_frame:end_idx]
+            if not frames and all_raw_frames:
+                frames = all_raw_frames
         else:
             frames = all_raw_frames
             

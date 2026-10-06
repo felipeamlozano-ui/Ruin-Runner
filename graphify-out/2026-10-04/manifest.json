@@ -1,0 +1,752 @@
+{
+  "assets/sprites/characters/coop/master_atlas_4heroes.json": {
+    "mtime": 1790724176.706221,
+    "seen": 1791161045.6049554,
+    "ast_hash": "593629a1fed5d86b79752873fe78d572",
+    "semantic_hash": "593629a1fed5d86b79752873fe78d572"
+  },
+  "build_native.sh": {
+    "mtime": 1790648093.1241593,
+    "seen": 1791161045.604961,
+    "ast_hash": "51541d50908d72c2c49aa8db618ab919",
+    "semantic_hash": "51541d50908d72c2c49aa8db618ab919"
+  },
+  "config/colors.py": {
+    "mtime": 1788444872.7889397,
+    "seen": 1791161045.6049633,
+    "ast_hash": "cf8fe5bcadd1c333028a26fc72ed3fee",
+    "semantic_hash": "cf8fe5bcadd1c333028a26fc72ed3fee"
+  },
+  "config/constants.py": {
+    "mtime": 1790707854.7587602,
+    "seen": 1791161045.6049645,
+    "ast_hash": "bebb366139993d21d1575ea392b829ad",
+    "semantic_hash": "bebb366139993d21d1575ea392b829ad"
+  },
+  "config/controls.py": {
+    "mtime": 1790645894.665846,
+    "seen": 1791161045.604966,
+    "ast_hash": "88fbf154a27998dc82d670ae57a0efa8",
+    "semantic_hash": "88fbf154a27998dc82d670ae57a0efa8"
+  },
+  "config/settings.py": {
+    "mtime": 1790724374.2733357,
+    "seen": 1791161045.6049674,
+    "ast_hash": "e15bc91a6c6dc48d144da9430de5d610",
+    "semantic_hash": "e15bc91a6c6dc48d144da9430de5d610"
+  },
+  "generate_assets.py": {
+    "mtime": 1788194170.6622024,
+    "seen": 1791161045.6049688,
+    "ast_hash": "a30adba298ef9e7bca5b2ce9698f8f1d",
+    "semantic_hash": "a30adba298ef9e7bca5b2ce9698f8f1d"
+  },
+  "generate_coop_characters.py": {
+    "mtime": 1790646041.7014978,
+    "seen": 1791161045.60497,
+    "ast_hash": "f62714045ba369f6c94c6e577a7c865b",
+    "semantic_hash": "f62714045ba369f6c94c6e577a7c865b"
+  },
+  "main.py": {
+    "mtime": 1788194003.5818734,
+    "seen": 1791161045.6049712,
+    "ast_hash": "a5ad309f449751579adcee27eed140d0",
+    "semantic_hash": "a5ad309f449751579adcee27eed140d0"
+  },
+  "performance_baseline.json": {
+    "mtime": 1790648317.09557,
+    "seen": 1791161045.6049724,
+    "ast_hash": "7f047f3c188fcc62facf9fc852781181",
+    "semantic_hash": "7f047f3c188fcc62facf9fc852781181"
+  },
+  "scratch/analyze_segments.py": {
+    "mtime": 1790680381.3186705,
+    "seen": 1791161045.6049736,
+    "ast_hash": "b25ac7f101a8511973c31f8820977e6d",
+    "semantic_hash": "b25ac7f101a8511973c31f8820977e6d"
+  },
+  "scratch/build_boss_masterpiece.py": {
+    "mtime": 1790719635.3573549,
+    "seen": 1791161045.604975,
+    "ast_hash": "5fafeb090c7c16eb08f3e13778ae802f",
+    "semantic_hash": "5fafeb090c7c16eb08f3e13778ae802f"
+  },
+  "scratch/build_character_sprites.py": {
+    "mtime": 1790680556.4229014,
+    "seen": 1791161045.6049762,
+    "ast_hash": "ac4f9c73d2844b76bffadfcd80de26d7",
+    "semantic_hash": "ac4f9c73d2844b76bffadfcd80de26d7"
+  },
+  "scratch/build_master_sprite_atlas.py": {
+    "mtime": 1790724146.0828254,
+    "seen": 1791161045.6049774,
+    "ast_hash": "0020a79b984ff31bba9879405690e9d8",
+    "semantic_hash": "0020a79b984ff31bba9879405690e9d8"
+  },
+  "scratch/build_masterpiece_sprites.py": {
+    "mtime": 1790705297.9523385,
+    "seen": 1791161045.6049788,
+    "ast_hash": "1a45de6c0b5273b0d93e16833b0bb060",
+    "semantic_hash": "1a45de6c0b5273b0d93e16833b0bb060"
+  },
+  "scratch/build_perfect_engine_sprites.py": {
+    "mtime": 1790719463.4334455,
+    "seen": 1791161045.6049798,
+    "ast_hash": "3684a8933537bc63d85d4ea700ba6250",
+    "semantic_hash": "3684a8933537bc63d85d4ea700ba6250"
+  },
+  "scratch/build_perfect_sprites.py": {
+    "mtime": 1790692340.156248,
+    "seen": 1791161045.604981,
+    "ast_hash": "d16c47dda153eb3d8e183f0704d9d90f",
+    "semantic_hash": "d16c47dda153eb3d8e183f0704d9d90f"
+  },
+  "scratch/compose_perfect_image5.py": {
+    "mtime": 1790725006.7626874,
+    "seen": 1791161045.6049824,
+    "ast_hash": "d2af8cffe4ad5a7164cd4c196cfada1e",
+    "semantic_hash": "d2af8cffe4ad5a7164cd4c196cfada1e"
+  },
+  "scratch/fix_mage_animations.py": {
+    "mtime": 1790719519.3438873,
+    "seen": 1791161045.6049836,
+    "ast_hash": "95b8dfa3ca881e4cf24299b8346a7f47",
+    "semantic_hash": "95b8dfa3ca881e4cf24299b8346a7f47"
+  },
+  "scratch/inspect_sheets.py": {
+    "mtime": 1790680304.1532447,
+    "seen": 1791161045.6049848,
+    "ast_hash": "ba4849fabb5016e69fefe24bdfc0a2cb",
+    "semantic_hash": "ba4849fabb5016e69fefe24bdfc0a2cb"
+  },
+  "scratch/patch_enemy_ai.py": {
+    "mtime": 1790720562.0670762,
+    "seen": 1791161045.6049862,
+    "ast_hash": "51ac2410fd7c1554c704289eea9c3d61",
+    "semantic_hash": "51ac2410fd7c1554c704289eea9c3d61"
+  },
+  "scratch/profile_coop_bottleneck.py": {
+    "mtime": 1790682199.4887338,
+    "seen": 1791161045.6049874,
+    "ast_hash": "39f7b6e1c66b0f58fecfd2534f0505a2",
+    "semantic_hash": "39f7b6e1c66b0f58fecfd2534f0505a2"
+  },
+  "scratch/robust_sprite_processor.py": {
+    "mtime": 1790684939.761333,
+    "seen": 1791161045.6049888,
+    "ast_hash": "709148e4711204ecf5366420a9cf7802",
+    "semantic_hash": "709148e4711204ecf5366420a9cf7802"
+  },
+  "scratch/smoke_test_game.py": {
+    "mtime": 1790681420.93732,
+    "seen": 1791161045.6049902,
+    "ast_hash": "0007673c95711d591d186c5d74696f94",
+    "semantic_hash": "0007673c95711d591d186c5d74696f94"
+  },
+  "scratch/sprite_pipeline_core.py": {
+    "mtime": 1790723640.8874133,
+    "seen": 1791161045.6049914,
+    "ast_hash": "38fc298155ae9a8084ef7e2e0de3c3ef",
+    "semantic_hash": "38fc298155ae9a8084ef7e2e0de3c3ef"
+  },
+  "scratch/sprite_utils.py": {
+    "mtime": 1790680529.0066123,
+    "seen": 1791161045.6049926,
+    "ast_hash": "b115e3ce5f307507ad969d43f7becb51",
+    "semantic_hash": "b115e3ce5f307507ad969d43f7becb51"
+  },
+  "scratch/test_character_select_and_coop.py": {
+    "mtime": 1790681247.1798613,
+    "seen": 1791161045.6049936,
+    "ast_hash": "773e6b65a5d17d847f91aa08ea91a761",
+    "semantic_hash": "773e6b65a5d17d847f91aa08ea91a761"
+  },
+  "scratch/test_extraction.py": {
+    "mtime": 1790680478.726215,
+    "seen": 1791161045.6049948,
+    "ast_hash": "b72eb539544d809d8a4e16657dbc290a",
+    "semantic_hash": "b72eb539544d809d8a4e16657dbc290a"
+  },
+  "scratch/test_skills_and_characters.py": {
+    "mtime": 1790684018.4820323,
+    "seen": 1791161045.6049962,
+    "ast_hash": "d5e55a37e9b69395c1da581e3ed9003f",
+    "semantic_hash": "d5e55a37e9b69395c1da581e3ed9003f"
+  },
+  "scratch/test_sprite_cleaner.py": {
+    "mtime": 1790723529.451666,
+    "seen": 1791161045.6049972,
+    "ast_hash": "c7c08795f0963aef3a515aa0ea0a0b31",
+    "semantic_hash": "c7c08795f0963aef3a515aa0ea0a0b31"
+  },
+  "scratch/write_boss_file.py": {
+    "mtime": 1790720234.6518445,
+    "seen": 1791161045.6049984,
+    "ast_hash": "ce945e7d68468b20e84fbbb4ee6be641",
+    "semantic_hash": "ce945e7d68468b20e84fbbb4ee6be641"
+  },
+  "scratch/write_boss_scene.py": {
+    "mtime": 1790720449.2664523,
+    "seen": 1791161045.6049995,
+    "ast_hash": "65f8ccb96de93f2fb11f1ccd2e1e9a30",
+    "semantic_hash": "65f8ccb96de93f2fb11f1ccd2e1e9a30"
+  },
+  "src/engine/animation.py": {
+    "mtime": 1790680909.7415025,
+    "seen": 1791161045.6050007,
+    "ast_hash": "e6bd77b55a1dd4a7388ec2883df72523",
+    "semantic_hash": "e6bd77b55a1dd4a7388ec2883df72523"
+  },
+  "src/engine/camera.py": {
+    "mtime": 1790646302.8725026,
+    "seen": 1791161045.6050017,
+    "ast_hash": "74626e239a401583fd0ba3c1baed9e22",
+    "semantic_hash": "74626e239a401583fd0ba3c1baed9e22"
+  },
+  "src/engine/collision.py": {
+    "mtime": 1788194272.3899758,
+    "seen": 1791161045.605003,
+    "ast_hash": "74f43291d767d97c858a7aad39df4c56",
+    "semantic_hash": "74f43291d767d97c858a7aad39df4c56"
+  },
+  "src/engine/event_bus.py": {
+    "mtime": 1788193990.2644386,
+    "seen": 1791161045.6050043,
+    "ast_hash": "a83914d1f08e0e82dba8a703590d784f",
+    "semantic_hash": "a83914d1f08e0e82dba8a703590d784f"
+  },
+  "src/engine/game.py": {
+    "mtime": 1790720724.727216,
+    "seen": 1791161045.6050053,
+    "ast_hash": "23f9b80e623ffa81cd1d98eb2e1c1321",
+    "semantic_hash": "23f9b80e623ffa81cd1d98eb2e1c1321"
+  },
+  "src/engine/game_state.py": {
+    "mtime": 1788194017.4698846,
+    "seen": 1791161045.6050067,
+    "ast_hash": "bd019e9c2f299d0375174c4b87e83285",
+    "semantic_hash": "bd019e9c2f299d0375174c4b87e83285"
+  },
+  "src/engine/input_manager.py": {
+    "mtime": 1790645908.6045902,
+    "seen": 1791161045.6050076,
+    "ast_hash": "e4dd4e6e206dda62cc9a8a22b9dff7b9",
+    "semantic_hash": "e4dd4e6e206dda62cc9a8a22b9dff7b9"
+  },
+  "src/engine/lighting.py": {
+    "mtime": 1790724485.545706,
+    "seen": 1791161045.6050086,
+    "ast_hash": "215c985e227c6dedf3b1f4339101d7c6",
+    "semantic_hash": "215c985e227c6dedf3b1f4339101d7c6"
+  },
+  "src/engine/resource_manager.py": {
+    "mtime": 1788194364.2183542,
+    "seen": 1791161045.60501,
+    "ast_hash": "508e54f472c1fe79b191e019d33d02ff",
+    "semantic_hash": "508e54f472c1fe79b191e019d33d02ff"
+  },
+  "src/engine/scene_manager.py": {
+    "mtime": 1788301900.038899,
+    "seen": 1791161045.605011,
+    "ast_hash": "8452d08bec52b8417f6378f86a457b38",
+    "semantic_hash": "8452d08bec52b8417f6378f86a457b38"
+  },
+  "src/engine/timer.py": {
+    "mtime": 1788193995.271384,
+    "seen": 1791161045.6050122,
+    "ast_hash": "205d995f221cef33b083de4283df579f",
+    "semantic_hash": "205d995f221cef33b083de4283df579f"
+  },
+  "src/engine/v3/ai/neural_ai.py": {
+    "mtime": 1790719848.276058,
+    "seen": 1791161045.6050146,
+    "ast_hash": "1d1763e7546a7a39202db96933b0e47d",
+    "semantic_hash": "1d1763e7546a7a39202db96933b0e47d"
+  },
+  "src/engine/v3/camera/camera_v3.py": {
+    "mtime": 1790648236.494821,
+    "seen": 1791161045.6050153,
+    "ast_hash": "b658e8d72dbc1328c3953f8362373326",
+    "semantic_hash": "b658e8d72dbc1328c3953f8362373326"
+  },
+  "src/engine/v3/core/adaptive_quality.py": {
+    "mtime": 1790620312.198411,
+    "seen": 1791161045.6050165,
+    "ast_hash": "409a1b8ac3c40ea7a326e62c6dd30a1a",
+    "semantic_hash": "409a1b8ac3c40ea7a326e62c6dd30a1a"
+  },
+  "src/engine/v3/core/jit_backend.py": {
+    "mtime": 1790620269.3048613,
+    "seen": 1791161045.6050177,
+    "ast_hash": "59c16222616451b92f8cdc52de55b00c",
+    "semantic_hash": "59c16222616451b92f8cdc52de55b00c"
+  },
+  "src/engine/v3/core/memory_manager.py": {
+    "mtime": 1790621964.93203,
+    "seen": 1791161045.6050186,
+    "ast_hash": "6d783d515511f2563043c87f68380c74",
+    "semantic_hash": "6d783d515511f2563043c87f68380c74"
+  },
+  "src/engine/v3/core/pipeline.py": {
+    "mtime": 1790707916.4935873,
+    "seen": 1791161045.6050198,
+    "ast_hash": "cb8f21512e10d033704c57cfe42326a2",
+    "semantic_hash": "cb8f21512e10d033704c57cfe42326a2"
+  },
+  "src/engine/v3/core/profiler.py": {
+    "mtime": 1790682957.6081839,
+    "seen": 1791161045.605021,
+    "ast_hash": "cd05febe034df37ea37396d2c8e130e4",
+    "semantic_hash": "cd05febe034df37ea37396d2c8e130e4"
+  },
+  "src/engine/v3/core/surface_pool.py": {
+    "mtime": 1790620277.1509213,
+    "seen": 1791161045.6050222,
+    "ast_hash": "a5408fd14ee57a8597873e96fb601a93",
+    "semantic_hash": "a5408fd14ee57a8597873e96fb601a93"
+  },
+  "src/engine/v3/core/threading_worker.py": {
+    "mtime": 1790620319.568511,
+    "seen": 1791161045.6050231,
+    "ast_hash": "474e457330fbe4611785c7e4522f1513",
+    "semantic_hash": "474e457330fbe4611785c7e4522f1513"
+  },
+  "src/engine/v3/ecs/components.py": {
+    "mtime": 1790620332.7998717,
+    "seen": 1791161045.6050246,
+    "ast_hash": "7dfa5f7a7a1bd011f27d069401326dc1",
+    "semantic_hash": "7dfa5f7a7a1bd011f27d069401326dc1"
+  },
+  "src/engine/v3/ecs/systems.py": {
+    "mtime": 1790620360.3206031,
+    "seen": 1791161045.6050255,
+    "ast_hash": "24017392108f629338cd2d588cd12bd2",
+    "semantic_hash": "24017392108f629338cd2d588cd12bd2"
+  },
+  "src/engine/v3/ecs/world.py": {
+    "mtime": 1790620343.221683,
+    "seen": 1791161045.6050265,
+    "ast_hash": "8a9863dd60ff77f97f33b82d1c55d5fd",
+    "semantic_hash": "8a9863dd60ff77f97f33b82d1c55d5fd"
+  },
+  "src/engine/v3/geometry/marching_squares.py": {
+    "mtime": 1790620517.615858,
+    "seen": 1791161045.6050277,
+    "ast_hash": "23ffe17c663dd5d6c44809347f6376f1",
+    "semantic_hash": "23ffe17c663dd5d6c44809347f6376f1"
+  },
+  "src/engine/v3/geometry/procedural_fx.py": {
+    "mtime": 1790620541.1529224,
+    "seen": 1791161045.6050289,
+    "ast_hash": "1899fac8cb4e84f1db3925b561f50741",
+    "semantic_hash": "1899fac8cb4e84f1db3925b561f50741"
+  },
+  "src/engine/v3/geometry/sdf_2d.py": {
+    "mtime": 1790620506.2723908,
+    "seen": 1791161045.6050298,
+    "ast_hash": "610db244938431bbb47b36574c7b486c",
+    "semantic_hash": "610db244938431bbb47b36574c7b486c"
+  },
+  "src/engine/v3/geometry/spline_renderer.py": {
+    "mtime": 1790620528.5482495,
+    "seen": 1791161045.6050313,
+    "ast_hash": "be0ac1c3a4e7d004f71c6aac35a1f82f",
+    "semantic_hash": "be0ac1c3a4e7d004f71c6aac35a1f82f"
+  },
+  "src/engine/v3/lighting/ambient_occlusion.py": {
+    "mtime": 1790620464.3806908,
+    "seen": 1791161045.6050322,
+    "ast_hash": "85fdefb71f050787f7269c303b272443",
+    "semantic_hash": "85fdefb71f050787f7269c303b272443"
+  },
+  "src/engine/v3/lighting/fake_rtx.py": {
+    "mtime": 1790620497.8541782,
+    "seen": 1791161045.6050334,
+    "ast_hash": "afe71505787ab8c833d43f8849dee48b",
+    "semantic_hash": "afe71505787ab8c833d43f8849dee48b"
+  },
+  "src/engine/v3/lighting/materials.py": {
+    "mtime": 1790647570.5677066,
+    "seen": 1791161045.6050346,
+    "ast_hash": "ec55337bc18c42f020e5cf41a8acc72d",
+    "semantic_hash": "ec55337bc18c42f020e5cf41a8acc72d"
+  },
+  "src/engine/v3/lighting/normal_maps.py": {
+    "mtime": 1790620476.4195423,
+    "seen": 1791161045.6050355,
+    "ast_hash": "f4ead637ae92067795a6137207b880ff",
+    "semantic_hash": "f4ead637ae92067795a6137207b880ff"
+  },
+  "src/engine/v3/lighting/radiance_cache.py": {
+    "mtime": 1790620485.192796,
+    "seen": 1791161045.6050367,
+    "ast_hash": "48db04b801690eb63657d7995d5ddc7c",
+    "semantic_hash": "48db04b801690eb63657d7995d5ddc7c"
+  },
+  "src/engine/v3/lighting/raycasting2d.py": {
+    "mtime": 1790646435.8381152,
+    "seen": 1791161045.6050513,
+    "ast_hash": "df7210a15a440fd4ad5adb85e6986de7",
+    "semantic_hash": "df7210a15a440fd4ad5adb85e6986de7"
+  },
+  "src/engine/v3/lighting/shadows.py": {
+    "mtime": 1790620442.477371,
+    "seen": 1791161045.6050527,
+    "ast_hash": "fb67a1be24cebacd52ca88d2479d7e92",
+    "semantic_hash": "fb67a1be24cebacd52ca88d2479d7e92"
+  },
+  "src/engine/v3/lighting/volumetric.py": {
+    "mtime": 1790624520.384436,
+    "seen": 1791161045.6050537,
+    "ast_hash": "20f62f143a605949b95c2948c1d0a4cf",
+    "semantic_hash": "20f62f143a605949b95c2948c1d0a4cf"
+  },
+  "src/engine/v3/native/native_bridge.py": {
+    "mtime": 1790719769.081486,
+    "seen": 1791161045.605055,
+    "ast_hash": "6b78ffafb25cd86c18ff7200ba8b7e94",
+    "semantic_hash": "6b78ffafb25cd86c18ff7200ba8b7e94"
+  },
+  "src/engine/v3/native/ruin_native.c": {
+    "mtime": 1790719690.4806283,
+    "seen": 1791161045.605056,
+    "ast_hash": "2d4b41d47d12ce13d9e557e5808b9a6e",
+    "semantic_hash": "2d4b41d47d12ce13d9e557e5808b9a6e"
+  },
+  "src/engine/v3/particles/hit_effects.py": {
+    "mtime": 1790620582.9084287,
+    "seen": 1791161045.6050572,
+    "ast_hash": "9f32f5e9c8bfe7987fa2fbb7cddc46ba",
+    "semantic_hash": "9f32f5e9c8bfe7987fa2fbb7cddc46ba"
+  },
+  "src/engine/v3/particles/particle_engine.py": {
+    "mtime": 1790648169.7722526,
+    "seen": 1791161045.6050587,
+    "ast_hash": "eeebffa4819f18673d8b81286f94e79b",
+    "semantic_hash": "eeebffa4819f18673d8b81286f94e79b"
+  },
+  "src/engine/v3/particles/trail_renderer.py": {
+    "mtime": 1790620570.176347,
+    "seen": 1791161045.6050596,
+    "ast_hash": "7f69621d21895a6445e9d0958a1983b2",
+    "semantic_hash": "7f69621d21895a6445e9d0958a1983b2"
+  },
+  "src/engine/v3/particles/vfx_profile.py": {
+    "mtime": 1790647617.1692078,
+    "seen": 1791161045.6050608,
+    "ast_hash": "a744062013b142b3dc17a54128cf8c4d",
+    "semantic_hash": "a744062013b142b3dc17a54128cf8c4d"
+  },
+  "src/engine/v3/postfx/bloom.py": {
+    "mtime": 1790691883.3075843,
+    "seen": 1791161045.6050618,
+    "ast_hash": "eb46b6bcc0c137c770a963cd9c07c05a",
+    "semantic_hash": "eb46b6bcc0c137c770a963cd9c07c05a"
+  },
+  "src/engine/v3/postfx/color_grading.py": {
+    "mtime": 1790624158.116423,
+    "seen": 1791161045.6050637,
+    "ast_hash": "ada9368073bef0e2d69ed2e1339a9963",
+    "semantic_hash": "ada9368073bef0e2d69ed2e1339a9963"
+  },
+  "src/engine/v3/postfx/post_processor.py": {
+    "mtime": 1790620619.0052822,
+    "seen": 1791161045.6050649,
+    "ast_hash": "0281dcd936b16e958736835eba31aa98",
+    "semantic_hash": "0281dcd936b16e958736835eba31aa98"
+  },
+  "src/engine/v3/postfx/screen_effects.py": {
+    "mtime": 1790724320.9710617,
+    "seen": 1791161045.6050663,
+    "ast_hash": "105cbcc3195023940adb553716b08065",
+    "semantic_hash": "105cbcc3195023940adb553716b08065"
+  },
+  "src/engine/v3/spatial/chunk_renderer.py": {
+    "mtime": 1790620412.818045,
+    "seen": 1791161045.6050677,
+    "ast_hash": "66d06cd4548911012cad20870f2fbcda",
+    "semantic_hash": "66d06cd4548911012cad20870f2fbcda"
+  },
+  "src/engine/v3/spatial/quadtree.py": {
+    "mtime": 1790620401.4381733,
+    "seen": 1791161045.6050694,
+    "ast_hash": "87d1c923f38dfd1e807bdaa213de6d84",
+    "semantic_hash": "87d1c923f38dfd1e807bdaa213de6d84"
+  },
+  "src/engine/v3/upscaling/antialiasing.py": {
+    "mtime": 1790720628.1781917,
+    "seen": 1791161045.6050708,
+    "ast_hash": "fd57a79b1e1596f7b6bad02cb97f6062",
+    "semantic_hash": "fd57a79b1e1596f7b6bad02cb97f6062"
+  },
+  "src/engine/v3/upscaling/fsr2d.py": {
+    "mtime": 1790645866.4646196,
+    "seen": 1791161045.605072,
+    "ast_hash": "040dc5582edfca58e3ee37e3107b3c99",
+    "semantic_hash": "040dc5582edfca58e3ee37e3107b3c99"
+  },
+  "src/engine/v3/upscaling/ruin_upscaler.py": {
+    "mtime": 1790720673.1094441,
+    "seen": 1791161045.6050735,
+    "ast_hash": "a6dae2f01cf0f8dc8e45e1201146cc91",
+    "semantic_hash": "a6dae2f01cf0f8dc8e45e1201146cc91"
+  },
+  "src/engine/v3/upscaling/tsr.py": {
+    "mtime": 1790620643.0222888,
+    "seen": 1791161045.605075,
+    "ast_hash": "60fc94c474cb203c9043b1976c763810",
+    "semantic_hash": "60fc94c474cb203c9043b1976c763810"
+  },
+  "src/engine/v3/weather/weather_engine.py": {
+    "mtime": 1790620667.143532,
+    "seen": 1791161045.6050766,
+    "ast_hash": "90c450cdd7295f538987f8d01c51b337",
+    "semantic_hash": "90c450cdd7295f538987f8d01c51b337"
+  },
+  "src/entities/boss.py": {
+    "mtime": 1790720290.9407642,
+    "seen": 1791161045.6050775,
+    "ast_hash": "e57f087898d03942e1d47f0d3e68a990",
+    "semantic_hash": "e57f087898d03942e1d47f0d3e68a990"
+  },
+  "src/entities/character_data.py": {
+    "mtime": 1790724265.5763752,
+    "seen": 1791161045.6050787,
+    "ast_hash": "d01c2e9a752ecbe7d8c8f08bab3d1512",
+    "semantic_hash": "d01c2e9a752ecbe7d8c8f08bab3d1512"
+  },
+  "src/entities/collectible.py": {
+    "mtime": 1788535769.7697475,
+    "seen": 1791161045.6050808,
+    "ast_hash": "5c40d33085c0109a919436ed2bd56f4e",
+    "semantic_hash": "5c40d33085c0109a919436ed2bd56f4e"
+  },
+  "src/entities/coop_synergy.py": {
+    "mtime": 1790648071.7128456,
+    "seen": 1791161045.605082,
+    "ast_hash": "386e59bfc88b5904bb5f1d65cfad77ff",
+    "semantic_hash": "386e59bfc88b5904bb5f1d65cfad77ff"
+  },
+  "src/entities/enemy.py": {
+    "mtime": 1790721048.1396303,
+    "seen": 1791161045.605084,
+    "ast_hash": "a34207f4184b019a85a23d0f94523748",
+    "semantic_hash": "a34207f4184b019a85a23d0f94523748"
+  },
+  "src/entities/player.py": {
+    "mtime": 1790720902.5848787,
+    "seen": 1791161045.6050851,
+    "ast_hash": "d485e62187f89eb67041f9979fc32fd1",
+    "semantic_hash": "d485e62187f89eb67041f9979fc32fd1"
+  },
+  "src/entities/portal.py": {
+    "mtime": 1788201596.1227708,
+    "seen": 1791161045.6050866,
+    "ast_hash": "54db3ee8717ccc6a6231d49dc42ed604",
+    "semantic_hash": "54db3ee8717ccc6a6231d49dc42ed604"
+  },
+  "src/entities/projectile.py": {
+    "mtime": 1790683480.8164182,
+    "seen": 1791161045.6050878,
+    "ast_hash": "1376742cafad64679aea98843971bc56",
+    "semantic_hash": "1376742cafad64679aea98843971bc56"
+  },
+  "src/entities/prop.py": {
+    "mtime": 1788535704.4236603,
+    "seen": 1791161045.605089,
+    "ast_hash": "183342cc5c72cca95197ca68d8ca2c4e",
+    "semantic_hash": "183342cc5c72cca95197ca68d8ca2c4e"
+  },
+  "src/entities/traps.py": {
+    "mtime": 1788535712.2320428,
+    "seen": 1791161045.6050904,
+    "ast_hash": "75becb39a99458306f5821dc05ba3cb5",
+    "semantic_hash": "75becb39a99458306f5821dc05ba3cb5"
+  },
+  "src/entities/ultimate_aoe_vfx.py": {
+    "mtime": 1790683459.9806848,
+    "seen": 1791161045.6050913,
+    "ast_hash": "6aa01df8c6e290652765c0d17f5240f9",
+    "semantic_hash": "6aa01df8c6e290652765c0d17f5240f9"
+  },
+  "src/entities/ultimate_system.py": {
+    "mtime": 1790684203.3273625,
+    "seen": 1791161045.6050925,
+    "ast_hash": "771691fa79880ce8e7f658dfca203c25",
+    "semantic_hash": "771691fa79880ce8e7f658dfca203c25"
+  },
+  "src/scenes/boss_scene.py": {
+    "mtime": 1790720460.0261478,
+    "seen": 1791161045.6050937,
+    "ast_hash": "caa6b37997c1c1117e183143706ab492",
+    "semantic_hash": "caa6b37997c1c1117e183143706ab492"
+  },
+  "src/scenes/character_select_scene.py": {
+    "mtime": 1790683737.4938767,
+    "seen": 1791161045.605095,
+    "ast_hash": "a94ef8c2bf83c7860c40c6db5ce53eb0",
+    "semantic_hash": "a94ef8c2bf83c7860c40c6db5ce53eb0"
+  },
+  "src/scenes/level_scene.py": {
+    "mtime": 1790692415.813317,
+    "seen": 1791161045.6050959,
+    "ast_hash": "1a58ecdbcabb36e905b619f797488f39",
+    "semantic_hash": "1a58ecdbcabb36e905b619f797488f39"
+  },
+  "src/scenes/loading_scene.py": {
+    "mtime": 1788301989.0849507,
+    "seen": 1791161045.6050973,
+    "ast_hash": "6678fe10a2f0cca8648cbbeb819a999a",
+    "semantic_hash": "6678fe10a2f0cca8648cbbeb819a999a"
+  },
+  "src/scenes/main_menu.py": {
+    "mtime": 1788544174.7507734,
+    "seen": 1791161045.6050985,
+    "ast_hash": "2ec5a152f48ceff080c2614820f07f7b",
+    "semantic_hash": "2ec5a152f48ceff080c2614820f07f7b"
+  },
+  "src/scenes/settings_menu.py": {
+    "mtime": 1790724430.0904636,
+    "seen": 1791161045.6050994,
+    "ast_hash": "beb8a48d457e536bd0adfd0531a85698",
+    "semantic_hash": "beb8a48d457e536bd0adfd0531a85698"
+  },
+  "src/ui/death_screen.py": {
+    "mtime": 1788436172.253754,
+    "seen": 1791161045.6051009,
+    "ast_hash": "aec20bd383850d98ffdd3e6f7209a487",
+    "semantic_hash": "aec20bd383850d98ffdd3e6f7209a487"
+  },
+  "src/ui/hud.py": {
+    "mtime": 1790692367.5202155,
+    "seen": 1791161045.6051018,
+    "ast_hash": "87df75149471a9cac67e38df4c20e65d",
+    "semantic_hash": "87df75149471a9cac67e38df4c20e65d"
+  },
+  "src/ui/menu.py": {
+    "mtime": 1788194566.8268216,
+    "seen": 1791161045.605103,
+    "ast_hash": "1c9eb66b0aa13813ad33834aae771154",
+    "semantic_hash": "1c9eb66b0aa13813ad33834aae771154"
+  },
+  "src/ui/pause.py": {
+    "mtime": 1788435838.9302945,
+    "seen": 1791161045.6051042,
+    "ast_hash": "d6601d77f846087ebd4efac0ae45fff3",
+    "semantic_hash": "d6601d77f846087ebd4efac0ae45fff3"
+  },
+  "src/utils/math_utils.py": {
+    "mtime": 1788194001.5122404,
+    "seen": 1791161045.6051054,
+    "ast_hash": "b4987dec70537e7047877014772af0d9",
+    "semantic_hash": "b4987dec70537e7047877014772af0d9"
+  },
+  "src/world/checkpoint.py": {
+    "mtime": 1788196725.4833903,
+    "seen": 1791161045.6051064,
+    "ast_hash": "2504df786fea0d16098ae16bc88ccdbb",
+    "semantic_hash": "2504df786fea0d16098ae16bc88ccdbb"
+  },
+  "src/world/tilemap.py": {
+    "mtime": 1788194441.397077,
+    "seen": 1791161045.6051078,
+    "ast_hash": "47b22d4c9775dfc043a8dd4b7e9d5a2c",
+    "semantic_hash": "47b22d4c9775dfc043a8dd4b7e9d5a2c"
+  },
+  "tests/benchmark_ruin_engine_v3.py": {
+    "mtime": 1790621310.1371353,
+    "seen": 1791161045.6051087,
+    "ast_hash": "57c2071e810ae03f9c39908975e7ba51",
+    "semantic_hash": "57c2071e810ae03f9c39908975e7ba51"
+  },
+  "tests/benchmark_suite.py": {
+    "mtime": 1790648281.1172576,
+    "seen": 1791161045.6051097,
+    "ast_hash": "bffb2593674a01208d1bbc4414c14ea6",
+    "semantic_hash": "bffb2593674a01208d1bbc4414c14ea6"
+  },
+  "tests/test_character_select.py": {
+    "mtime": 1788539410.3098736,
+    "seen": 1791161045.6051111,
+    "ast_hash": "21e3e1f92e91dc8201f7473c3df534bd",
+    "semantic_hash": "21e3e1f92e91dc8201f7473c3df534bd"
+  },
+  "tests/test_coop_and_new_features.py": {
+    "mtime": 1790647468.9575438,
+    "seen": 1791161045.605112,
+    "ast_hash": "a865574f9b81a6fbe627462c54124543",
+    "semantic_hash": "a865574f9b81a6fbe627462c54124543"
+  },
+  "tests/test_dev_mode.py": {
+    "mtime": 1788544199.650691,
+    "seen": 1791161045.605113,
+    "ast_hash": "482f52139b468d1ce15b686215ee8c89",
+    "semantic_hash": "482f52139b468d1ce15b686215ee8c89"
+  },
+  "tests/test_full_game_diagnostics.py": {
+    "mtime": 1790671194.52613,
+    "seen": 1791161045.6051145,
+    "ast_hash": "cd419ad5a212007d22c29ad6b3df1b3d",
+    "semantic_hash": "cd419ad5a212007d22c29ad6b3df1b3d"
+  },
+  "tests/test_game_launch.py": {
+    "mtime": 1788538084.384858,
+    "seen": 1791161045.6051154,
+    "ast_hash": "feb1cf838aa337ccfe6a93a89c2e9ce6",
+    "semantic_hash": "feb1cf838aa337ccfe6a93a89c2e9ce6"
+  },
+  "tests/test_new_features.py": {
+    "mtime": 1788544505.7598577,
+    "seen": 1791161045.6051166,
+    "ast_hash": "bb56d9d02bdcd0dae34763571b0b17e5",
+    "semantic_hash": "bb56d9d02bdcd0dae34763571b0b17e5"
+  },
+  "tests/test_ruin_engine_v3.py": {
+    "mtime": 1790621164.8332152,
+    "seen": 1791161045.6051178,
+    "ast_hash": "de3a08c7d69597670d294dd5721be6d2",
+    "semantic_hash": "de3a08c7d69597670d294dd5721be6d2"
+  },
+  "tests/test_skill_damage.py": {
+    "mtime": 1788544257.543435,
+    "seen": 1791161045.605119,
+    "ast_hash": "a60560823892c24ae54fc38cff85dfd4",
+    "semantic_hash": "a60560823892c24ae54fc38cff85dfd4"
+  },
+  "tests/test_tactical_balance.py": {
+    "mtime": 1788541733.351432,
+    "seen": 1791161045.60512,
+    "ast_hash": "a2ee271ede6aed9ff38ffd035316bd5b",
+    "semantic_hash": "a2ee271ede6aed9ff38ffd035316bd5b"
+  },
+  "tests/test_ultimate_aoe_vfx.py": {
+    "mtime": 1790620158.254484,
+    "seen": 1791161045.6051214,
+    "ast_hash": "89e8c87953377ab390f82106d2c6dfcd",
+    "semantic_hash": "89e8c87953377ab390f82106d2c6dfcd"
+  },
+  "tests/test_v3_boss_and_neural_ai.py": {
+    "mtime": 1790721060.561548,
+    "seen": 1791161045.6051223,
+    "ast_hash": "45509380290949e9e6413e2c511ce8e5",
+    "semantic_hash": "45509380290949e9e6413e2c511ce8e5"
+  },
+  "assets/audio/dragon-studio-sword-slice-393847.mp3": {
+    "mtime": 1788303311.6153057,
+    "seen": 1791161045.6051235,
+    "ast_hash": "672003ed1818024609a401b7b8160085",
+    "semantic_hash": "672003ed1818024609a401b7b8160085"
+  },
+  "assets/audio/freesound_community-sfx_jump_07-80241.mp3": {
+    "mtime": 1788303979.5028834,
+    "seen": 1791161045.6051247,
+    "ast_hash": "cd8abeac021373924bcf601cd7685919",
+    "semantic_hash": "cd8abeac021373924bcf601cd7685919"
+  },
+  "assets/audio/universfield-sword-blade-slicing-flesh-352708.mp3": {
+    "mtime": 1788304154.6044908,
+    "seen": 1791161045.605126,
+    "ast_hash": "78c35e68013852ec3b0916a5b3deab8d",
+    "semantic_hash": "78c35e68013852ec3b0916a5b3deab8d"
+  }
+}
