@@ -99,11 +99,19 @@ class RockProp:
                     player.take_damage(12, knockback=(2.0 if player.rect.centerx > self.rect.centerx else -2.0, -3.0))
 
     def draw(self, surface: pygame.Surface, cam_offset: tuple):
-        """Draws rock with camera offset and strict frustum culling."""
+        """Draws rock with camera offset, ground contact shadow and strict frustum culling."""
         cam_x, cam_y = cam_offset
         sw, sh = surface.get_size()
         
         # Frustum culling check
         if self.rect.right - cam_x >= 0 and self.rect.left - cam_x <= sw:
             if self.rect.bottom - cam_y >= 0 and self.rect.top - cam_y <= sh:
+                # Soft ground contact drop shadow
+                shadow_w = int(self.rect.width * 0.92)
+                shadow_h = max(5, int(shadow_w * 0.22))
+                shadow_surf = pygame.Surface((shadow_w, shadow_h), pygame.SRCALPHA)
+                pygame.draw.ellipse(shadow_surf, (15, 12, 18, 105), (0, 0, shadow_w, shadow_h))
+                core_w, core_h = max(2, int(shadow_w * 0.60)), max(2, int(shadow_h * 0.60))
+                pygame.draw.ellipse(shadow_surf, (10, 8, 14, 145), ((shadow_w - core_w) // 2, (shadow_h - core_h) // 2, core_w, core_h))
+                surface.blit(shadow_surf, (self.rect.centerx - cam_x - shadow_w // 2, self.rect.bottom - cam_y - shadow_h // 2))
                 surface.blit(self.image, (self.rect.x - cam_x, self.rect.y - cam_y))

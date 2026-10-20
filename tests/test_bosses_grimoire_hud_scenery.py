@@ -25,7 +25,7 @@ from ui.hud import HUD
 from ui.input_prompt_icon import InputPromptIcon
 from engine.v3.weather.clouds import CloudsManager, ParallaxBackground
 from entities.prop import Prop
-from engine.stage_manager import STAGE_CATALOG
+from engine.stage_manager import STAGE_CATALOG, STAGE_MGR
 
 
 class TestBossesRefactor(unittest.TestCase):
@@ -36,9 +36,9 @@ class TestBossesRefactor(unittest.TestCase):
 
     def test_boss1_skeleton_boss(self):
         boss = SkeletonBoss(200, 200)
-        self.assertIn("ESPADACHIM", boss.name.upper())
+        self.assertTrue("REI ESQUELETO" in boss.name.upper() or "ESPADACHIM" in boss.name.upper())
         self.assertFalse(boss.is_dead)
-        self.assertEqual(boss.scale, 1.20)
+        self.assertEqual(boss.scale, 1.0, "Skeleton Boss must use native 1:1 scale for crisp pixel art")
         self.assertTrue(boss.can_interrupt)
         
         # Test super armor during attack
@@ -94,8 +94,8 @@ class TestBossesRefactor(unittest.TestCase):
     def test_boss4_samurai_scale_and_moveset(self):
         boss = SamuraiBoss(350, 200)
         self.assertIn("SAMURAI", boss.name.upper())
-        self.assertGreaterEqual(boss.scale, 2.0, "Samurai scale must be doubled")
-        self.assertGreaterEqual(boss.rect.height, 120)
+        self.assertEqual(boss.scale, 2.0, "Samurai scale must be crisp integer 2.0x")
+        self.assertGreaterEqual(boss.rect.height, 65, "Samurai rect fitted to prevent midair floating")
 
         # Test parry posture
         boss.state = "PARRY"
@@ -106,22 +106,9 @@ class TestBossesRefactor(unittest.TestCase):
         self.assertLess(player.health, p_hp_before, "Attacking samurai during parry must inflict counter damage")
         self.assertEqual(player.state, "HURT", "Player must suffer stagger upon being parried")
 
-    def test_boss5_impaler_moveset_and_enrage(self):
+    def test_boss5_impaler_removed(self):
         boss = ImpalerBoss(500, 200)
-        self.assertIn("RUÍNAS", boss.name.upper())
-        self.assertTrue(hasattr(boss, "_ember_particles"))
-        
-        # Test Ground Spike hazard
-        spike = GroundSpike(250, 280, damage=35)
-        self.assertEqual(spike.state, "TELEGRAPH")
-        spike.update(0.75)
-        self.assertEqual(spike.state, "ERUPT")
-
-        # Test Enrage trigger (<40% HP)
-        player = Player(100, 200)
-        boss.health = boss.max_health * 0.35
-        boss.update(0.05, [], player)
-        self.assertTrue(boss.enraged)
+        self.assertTrue(isinstance(boss, SkeletonBoss), "ImpalerBoss must redirect to SkeletonBoss")
 
 
 class TestGrimoireScene(unittest.TestCase):
@@ -224,6 +211,135 @@ class TestSceneryAndCloudsParallax(unittest.TestCase):
         x0 = cm.clouds[0].x
         cm.update(0.1)
         self.assertNotEqual(cm.clouds[0].x, x0, "Clouds must autoscroll independently")
+
+    def test_terrae_1_and_3_scenery_and_clouds(self):
+        """Verify fine-tuned cloud horizons, tinting, opacity, and parallax layers for Mundo 1-1 and 1-3."""
+        # 1. Mundo 1-1 StageConfig verification
+        t1 = STAGE_CATALOG["terrae_1"]
+        self.assertEqual(t1.sky_horizon_y, 48)
+        self.assertEqual(t1.cloud_count, 6)
+        self.assertEqual(t1.cloud_tint, (255, 190, 140))
+        self.assertEqual(t1.cloud_opacity_scale, 0.40)
+        self.assertEqual(t1.layer_files, ["sea.png", "bamboo.png", "bridge.png"])
+        self.assertEqual(t1.layer_initial_offsets, [0, 0, 0])
+
+        # ParallaxRenderer with split layers and initial offsets
+        STAGE_MGR.load_stage("terrae_1")
+        p_rend = STAGE_MGR.parallax_renderer
+        self.assertIsNotNone(p_rend)
+        self.assertTrue(p_rend.has_split_layers)
+        self.assertEqual(len(p_rend.layers), 3)
+        for layer in p_rend.layers:
+            self.assertEqual(layer[3], 0)
+
+        # Drawing split layers & Silksong foreground silhouette
+        test_surf = pygame.Surface((640, 360), pygame.SRCALPHA)
+        p_rend.draw_sky_layer(test_surf, cam_x=0)
+        p_rend.draw_midground_layer(test_surf, cam_x=0)
+        p_rend.draw_foreground_layer(test_surf, cam_x=0)
+        self.assertIsNotNone(p_rend.foreground_silhouette_surf)
+        p_rend.draw_foreground_silhouette(test_surf, cam_x=0)
+        p_rend.draw(test_surf, cam_x=100)
+
+        # CloudsManager with low-horizon and sunset tinting
+        cm1 = CloudsManager(
+            theme=t1.cloud_theme,
+            map_width=t1.map_width,
+            cloud_count=t1.cloud_count,
+            screen_w=640,
+            sky_horizon_y=t1.sky_horizon_y,
+            cloud_tint=t1.cloud_tint,
+            cloud_opacity_scale=t1.cloud_opacity_scale
+        )
+        self.assertEqual(len(cm1.clouds), 6)
+        for c in cm1.clouds:
+            self.assertLessEqual(c.y + c.h, 48.0, f"Cloud base {c.y + c.h} exceeds horizon {48.0}")
+            self.assertGreaterEqual(c.alpha, 40, f"Cloud alpha {c.alpha} below minimum 40")
+            self.assertLessEqual(c.alpha, 85, f"Cloud alpha {c.alpha} above maximum 85")
+
+        cm1.draw(test_surf, (0, 0), 640, 360)
+
+        # 2. Mundo 1-3 StageConfig verification
+        t3 = STAGE_CATALOG["terrae_3"]
+        self.assertEqual(t3.sky_horizon_y, 75)
+        self.assertEqual(t3.cloud_count, 14)
+        self.assertEqual(t3.cloud_tint, (225, 235, 240))
+        self.assertEqual(t3.cloud_opacity_scale, 1.0)
+
+        cm3 = CloudsManager(
+            theme=t3.cloud_theme,
+            map_width=t3.map_width,
+            cloud_count=t3.cloud_count,
+            screen_w=640,
+            sky_horizon_y=t3.sky_horizon_y,
+            cloud_tint=t3.cloud_tint,
+            cloud_opacity_scale=t3.cloud_opacity_scale
+        )
+        self.assertEqual(len(cm3.clouds), 14)
+        cm3.draw(test_surf, (50, 0), 640, 360)
+
+
+class TestSilksongLightingPipeline(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        pygame.init()
+        pygame.display.set_mode((640, 360))
+
+    def test_silksong_lighting_features(self):
+        from engine.lighting import LightingEngine, LightSource
+        le = LightingEngine(theme="sunset", screen_w=640, screen_h=360, floor_y=280)
+
+        # 1. Static AO Map & Anamorphic Vignette
+        self.assertIsNotNone(le._static_ao_map)
+        self.assertEqual(le._static_ao_map.get_size(), (640, 360))
+
+        # 2. Hero Glow & Rim Light
+        self.assertIsNotNone(le._hero_glow_surf)
+        self.assertIsNotNone(le._hero_rim_surf)
+
+        # 3. Dynamic Foot Contact AO Stamps
+        self.assertIsNotNone(le._ao_stamp_small)
+        self.assertIsNotNone(le._ao_stamp_med)
+        self.assertIsNotNone(le._ao_stamp_large)
+
+        # 4. Volumetric Diagonal God Rays
+        self.assertEqual(len(le._god_ray_surfs), 3)
+
+        # 5. Fixed Dust Motes Pool
+        self.assertEqual(le.num_dust, 45)
+        self.assertEqual(len(le.dust_halo_surfs), 3)
+        self.assertEqual(len(le.dust_x), 45)
+        self.assertEqual(len(le.dust_layer), 45)
+
+        # 6. Render passes
+        screen = pygame.Surface((640, 360))
+        cam_offset = pygame.math.Vector2(100, 0)
+
+        # Background dust batch
+        le.draw_ambient_particles_background(screen, cam_offset)
+
+        # Entity Contact AO
+        from entities.prop import Prop
+        dummy_prop = Prop(150, 270, "rock", 1.0)
+        le.draw_entity_ao(screen, [dummy_prop], cam_offset)
+
+        # Foreground dust batch
+        le.draw_ambient_particles_foreground(screen, cam_offset)
+
+        # God Rays
+        le.draw_god_rays(screen, cam_offset)
+
+        # Point lights + Hero Glow pass
+        lights = [LightSource(200, 250, 48, (255, 180, 80), 0.85, flicker=True)]
+        le.draw_point_lights(screen, lights, cam_offset, hero_pos=(160, 270))
+
+        # Additive Bloom pass
+        emissives = [(200, 250, 24, (255, 140, 50), 0.40)]
+        le.draw_additive_glows(screen, emissives, cam_offset)
+
+        # Update cycle (simulating 60 frames)
+        for _ in range(60):
+            le.update(1.0 / 60.0)
 
 
 if __name__ == "__main__":

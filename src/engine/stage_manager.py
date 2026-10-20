@@ -6,6 +6,7 @@ Includes multi-stage planetary progression and retro RPG story dialogues.
 """
 
 import os
+import math
 import pygame
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Any, Optional
@@ -33,16 +34,23 @@ class StageConfig:
     boss_type: Optional[str] = None
     floor_y: int = 280
     dialogue_intro: List[Dict[str, Any]] = field(default_factory=list)
+    cinematic_actor: Optional[str] = None
+    cloud_count: int = 14
+    sky_horizon_y: int = 70
+    cloud_tint: Optional[Tuple[int, int, int]] = None
+    cloud_opacity_scale: float = 1.0
+    layer_initial_offsets: List[int] = field(default_factory=list)
 
 
 class ParallaxRenderer:
-    """Zero-allocation, seamless multi-layer parallax renderer with continuous boundary synthesis."""
+    """Zero-allocation, seamless multi-layer parallax renderer with continuous boundary synthesis and Silksong foreground silhouettes."""
     
-    def __init__(self, bg_folder: str, layer_files: List[str], speeds: List[float], screen_h: int = 360):
-        self.layers: List[Tuple[pygame.Surface, float, int]] = []
-        self._load_and_prebake(bg_folder, layer_files, speeds, screen_h)
+    def __init__(self, bg_folder: str, layer_files: List[str], speeds: List[float], screen_h: int = 360, initial_offsets: Optional[List[int]] = None):
+        self.layers: List[Tuple[pygame.Surface, float, int, int]] = []
+        self.foreground_silhouette_surf: Optional[pygame.Surface] = None
+        self._load_and_prebake(bg_folder, layer_files, speeds, screen_h, initial_offsets)
         
-    def _synthesize_seamless_tile(self, clean_surf: pygame.Surface, target_w: int = 640, blend_w: int = 160) -> pygame.Surface:
+    def _synthesize_seamless_tile(self, clean_surf: pygame.Surface, target_w: int = 640, blend_w: int = 24) -> pygame.Surface:
         """
         Synthesizes a 100% continuous horizontally tileable surface with ZERO visual cuts.
         Eliminates seam discontinuities using cosine-eased boundary synthesis.
@@ -96,28 +104,103 @@ class ParallaxRenderer:
             print(f"Warning: Boundary synthesis fallback triggered: {err}")
             return pygame.transform.smoothscale(clean_surf, (target_w, 360))
 
-    def _load_and_prebake(self, folder: str, files: List[str], speeds: List[float], screen_h: int):
+    def _load_and_prebake(self, folder: str, files: List[str], speeds: List[float], screen_h: int, initial_offsets: Optional[List[int]] = None):
         for idx, fname in enumerate(files):
             full_path = os.path.join(folder, fname)
             speed = speeds[idx] if idx < len(speeds) else (0.1 * (idx + 1))
+            init_off = initial_offsets[idx] if (initial_offsets and idx < len(initial_offsets)) else 0
             
             if os.path.exists(full_path):
                 try:
                     raw = pygame.image.load(full_path)
                     raw_w, raw_h = raw.get_size()
                     
-                    # Trim 2-6px edge artifacts from asset export borders
-                    trim_x = min(6, raw_w // 100)
-                    if trim_x > 0:
-                        clean_raw = raw.subsurface(pygame.Rect(trim_x, 0, raw_w - trim_x * 2, raw_h))
+                    # Align bottom-cropped RPG battleground layers (e.g. bamboo.png, bridge.png) to bottom of 2160 canvas
+                    if raw_w == 3840 and raw_h < 2160 and ("1" in folder or "rpg_battlegrounds" in folder):
+                        padded = pygame.Surface((raw_w, 2160), pygame.SRCALPHA)
+                        padded.blit(raw, (0, 2160 - raw_h))
+                        raw = padded
+                        raw_h = 2160
+
+                    # Trim edge framing artifacts: for bamboo fence, crop arena-corner leaves (outer 70px)
+                    if "bamboo" in fname.lower() and raw_w == 3840:
+                        clean_raw = raw.subsurface(pygame.Rect(70, 0, raw_w - 140, raw_h))
                     else:
-                        clean_raw = raw
+                        trim_x = min(6, raw_w // 100)
+                        if trim_x > 0:
+                            clean_raw = raw.subsurface(pygame.Rect(trim_x, 0, raw_w - trim_x * 2, raw_h))
+                        else:
+                            clean_raw = raw
                         
-                    seamless = self._synthesize_seamless_tile(clean_raw, target_w=640, blend_w=160)
+                    seamless = self._synthesize_seamless_tile(clean_raw, target_w=640, blend_w=24)
                     self._apply_perspective_stone_floor(seamless, fname)
-                    self.layers.append((seamless, speed, seamless.get_width()))
+                    self.layers.append((seamless, speed, seamless.get_width(), init_off))
                 except Exception as err:
                     print(f"Warning: Failed to pre-bake parallax layer {full_path}: {err}")
+
+        # Pre-bake Silksong Foreground Parallax Silhouette layer
+        self._prebake_foreground_silhouette(folder, files)
+
+    def _prebake_foreground_silhouette(self, folder: str, files: List[str]):
+        """
+        Synthesizes a softly blurred dark foreground silhouette layer (Silksong 1.35x foreground parallax).
+        Pre-baked once at stage initialization with 0 runtime allocations.
+        """
+        import numpy as np
+        sw, sh = 640, 360
+        self.foreground_silhouette_surf = pygame.Surface((sw, sh), pygame.SRCALPHA, 32)
+        
+        is_beach_bamboo = any("bamboo" in f.lower() or "1" in folder for f in files)
+        sil_color = (12, 10, 18) # Deep Hollow Knight silhouette tone
+        
+        if is_beach_bamboo:
+            # 1. Dark bamboo tips and reeds rising from bottom edge (y = 325..360)
+            for x_pos in [15, 60, 115, 175, 245, 315, 385, 455, 520, 585]:
+                h_stalk = int(30 + (x_pos * 13) % 24)
+                w_stalk = int(9 + (x_pos * 7) % 5)
+                pygame.draw.rect(self.foreground_silhouette_surf, (*sil_color, 240), (x_pos, sh - h_stalk, w_stalk, h_stalk))
+                # Angled cut on bamboo tip
+                pygame.draw.polygon(self.foreground_silhouette_surf, (*sil_color, 240), [
+                    (x_pos, sh - h_stalk),
+                    (x_pos + w_stalk, sh - h_stalk - 5),
+                    (x_pos + w_stalk, sh - h_stalk)
+                ])
+                # Foreground leaves
+                pygame.draw.ellipse(self.foreground_silhouette_surf, (*sil_color, 215), (x_pos - 8, sh - h_stalk + 4, 24, 10))
+            
+            # 2. Upper corner foliage framing the camera
+            pygame.draw.ellipse(self.foreground_silhouette_surf, (*sil_color, 225), (-15, -10, 85, 42))
+            pygame.draw.ellipse(self.foreground_silhouette_surf, (*sil_color, 210), (25, 10, 55, 28))
+            pygame.draw.ellipse(self.foreground_silhouette_surf, (*sil_color, 225), (sw - 70, -10, 85, 42))
+            pygame.draw.ellipse(self.foreground_silhouette_surf, (*sil_color, 210), (sw - 80, 10, 55, 28))
+        else:
+            # Castle / Fortress / Catacombs: hanging chains at top corners and dark stone battlement spikes at bottom
+            for x_pos in [40, 120, 200, 280, 360, 440, 520, 600]:
+                spike_h = int(24 + (x_pos * 11) % 18)
+                pygame.draw.polygon(self.foreground_silhouette_surf, (*sil_color, 245), [
+                    (x_pos - 12, sh),
+                    (x_pos + 12, sh),
+                    (x_pos, sh - spike_h)
+                ])
+            pygame.draw.line(self.foreground_silhouette_surf, (*sil_color, 230), (15, 0), (15, 45), 4)
+            pygame.draw.line(self.foreground_silhouette_surf, (*sil_color, 230), (35, 0), (35, 30), 3)
+            pygame.draw.line(self.foreground_silhouette_surf, (*sil_color, 230), (sw - 20, 0), (sw - 20, 42), 4)
+            pygame.draw.line(self.foreground_silhouette_surf, (*sil_color, 230), (sw - 40, 0), (sw - 40, 28), 3)
+
+        # Apply subtle 3x3 box blur in NumPy to soften foreground edges (depth of field)
+        try:
+            alpha = pygame.surfarray.pixels_alpha(self.foreground_silhouette_surf)
+            a_float = alpha.astype(np.float32)
+            blurred = (a_float + np.roll(a_float, 1, axis=0) + np.roll(a_float, -1, axis=0) +
+                       np.roll(a_float, 1, axis=1) + np.roll(a_float, -1, axis=1)) / 5.0
+            alpha[:] = np.clip(blurred, 0, 255).astype(np.uint8)
+            del alpha
+        except Exception:
+            pass
+
+        disp = pygame.display.get_surface()
+        if disp:
+            self.foreground_silhouette_surf = self.foreground_silhouette_surf.convert_alpha()
 
     def _apply_perspective_stone_floor(self, surface: pygame.Surface, fname: str) -> None:
         """
@@ -145,91 +228,151 @@ class ParallaxRenderer:
 
         overlay = pygame.Surface((w, h), pygame.SRCALPHA)
 
-        # 1. Back wall ambient occlusion drop shadow (soft depth grounding)
-        ao_h = int(16 * (h / 360.0))
+        # 1. Back wall-to-floor Ambient Occlusion contact shadow (Separates vertical background wall from horizontal floor)
+        ao_h = int(20 * (h / 360.0))
         for dy in range(ao_h):
-            alpha = int(105 * (1.0 - dy / float(ao_h)))
-            pygame.draw.line(overlay, (18, 16, 22, alpha), (0, y_start + dy), (w, y_start + dy))
+            t = dy / float(ao_h)
+            alpha = int(115 * ((1.0 - t) ** 1.4))
+            pygame.draw.line(overlay, (14, 12, 18, alpha), (0, y_start + dy), (w, y_start + dy))
 
-        # 2. Front balustrade contact shadow / crevice
-        crevice_h = int(8 * (h / 360.0))
+        # 2. Front balustrade contact shadow (grounds foreground railing)
+        crevice_h = int(10 * (h / 360.0))
         for dy in range(crevice_h):
-            alpha = int(85 * (dy / float(crevice_h)))
-            pygame.draw.line(overlay, (14, 12, 18, alpha), (0, y_end - crevice_h + dy), (w, y_end - crevice_h + dy))
+            alpha = int(80 * (dy / float(crevice_h)))
+            pygame.draw.line(overlay, (12, 10, 16, alpha), (0, y_end - crevice_h + dy), (w, y_end - crevice_h + dy))
 
-        # Stone color base palette
-        if "bamboo" in fn_lower:
-            base_rgb = (150, 120, 85)
-            groove_col = (45, 32, 20)
-            highlight_col = (210, 180, 140)
-        elif "castle" in fn_lower:
-            base_rgb = (115, 110, 120)
-            groove_col = (25, 22, 28)
-            highlight_col = (195, 190, 205)
-        else:
-            base_rgb = (142, 137, 131)
-            groove_col = (34, 30, 36)
-            highlight_col = (220, 215, 205)
+        # 3. Horizontal perspective terrace paving (wide horizontal slabs, NO vertical brick-stack wall)
+        if "castle" in fn_lower:
+            # Stage 4-3: "O Altar da Névoa Dourada" — Warm golden stone terrace with wide horizontal slabs
+            depth_steps = [0.0, 0.22, 0.48, 0.74, 1.0]
+            row_ys = [int(y_start + t * floor_h) for t in depth_steps]
+            
+            # Subtle warm golden mist wash across the terrace floor
+            mist_surf = pygame.Surface((w, floor_h), pygame.SRCALPHA)
+            for my in range(floor_h):
+                mt = my / float(floor_h)
+                m_alpha = int(18 + 14 * math.sin(mt * math.pi))
+                pygame.draw.line(mist_surf, (225, 195, 130, m_alpha), (0, my), (w, my))
+            overlay.blit(mist_surf, (0, y_start))
 
-        # 3. Draw flagstones row by row
-        for r in range(len(row_ys) - 1):
-            y_top = row_ys[r]
-            y_bot = row_ys[r + 1]
-            rh = y_bot - y_top
-            if rh <= 0:
-                continue
+            for r in range(len(row_ys) - 1):
+                y_top = row_ys[r]
+                y_bot = row_ys[r + 1]
+                rh = y_bot - y_top
+                if rh <= 0:
+                    continue
 
-            # Perspective block width grows toward camera
-            base_bw = int((40 + r * 5) * (w / 640.0))
-            num_blocks = max(4, round(w / float(base_bw)))
-            bw = w / float(num_blocks)
-            x_offset = (r % 2) * (bw * 0.5)
+                # Wide stone slabs (140-200px wide, ~3.5x to 4x wider than row height)
+                base_bw = int((140 + r * 20) * (w / 640.0))
+                num_blocks = max(3, round(w / float(base_bw)))
+                bw = w / float(num_blocks)
+                x_offset = (r % 2) * (bw * 0.5)
 
-            for b in range(num_blocks):
-                bx = (b * bw + x_offset) % w
-                block_w = int(bw)
-                
-                seed_val = (r * 37 + b * 19) % 100
-                shade = (seed_val - 50) * 0.32
-                
-                bsurf = pygame.Surface((block_w, rh), pygame.SRCALPHA)
-                col = (
-                    max(0, min(255, int(base_rgb[0] + shade))),
-                    max(0, min(255, int(base_rgb[1] + shade))),
-                    max(0, min(255, int(base_rgb[2] + shade * 0.8))),
-                    38
-                )
-                bsurf.fill(col)
-                
-                # Top edge bevel highlight
-                pygame.draw.line(bsurf, (*highlight_col, 55), (1, 1), (block_w - 2, 1), 1)
-                # Left bevel highlight
-                pygame.draw.line(bsurf, (*highlight_col, 35), (1, 1), (1, rh - 2), 1)
-                # Right shadow
-                pygame.draw.line(bsurf, (groove_col[0], groove_col[1], groove_col[2], 55), (block_w - 1, 1), (block_w - 1, rh - 1), 1)
-                # Bottom groove shadow
-                pygame.draw.line(bsurf, (groove_col[0], groove_col[1], groove_col[2], 65), (1, rh - 1), (block_w - 1, rh - 1), 1)
+                for b in range(num_blocks):
+                    bx = (b * bw + x_offset) % w
+                    block_w = int(bw)
+                    
+                    seed_val = (r * 41 + b * 23) % 100
+                    shade = (seed_val - 50) * 0.15
+                    bsurf = pygame.Surface((block_w, rh), pygame.SRCALPHA)
+                    col = (
+                        max(0, min(255, int(185 + shade))),
+                        max(0, min(255, int(165 + shade))),
+                        max(0, min(255, int(135 + shade * 0.8))),
+                        22
+                    )
+                    bsurf.fill(col)
+                    
+                    # Delicate horizontal rim highlight on upper edge
+                    pygame.draw.line(bsurf, (245, 230, 195, 30), (2, 0), (block_w - 3, 0), 1)
+                    # Subtle vertical joint shadow
+                    pygame.draw.line(bsurf, (50, 42, 32, 28), (block_w - 1, 0), (block_w - 1, rh - 1), 1)
+                    
+                    ibx = int(bx)
+                    overlay.blit(bsurf, (ibx, y_top))
+                    if ibx + block_w > w:
+                        overlay.blit(bsurf, (ibx - w, y_top))
 
-                ibx = int(bx)
-                overlay.blit(bsurf, (ibx, y_top))
-                if ibx + block_w > w:
-                    overlay.blit(bsurf, (ibx - w, y_top))
-
-            # Horizontal mortar groove across the entire width
-            groove_alpha = min(190, int(85 + r * 11))
-            pygame.draw.line(overlay, (*groove_col, groove_alpha), (0, y_bot - 1), (w, y_bot - 1), 1)
-            # Sunlight highlight on lower rim of joint
-            if y_bot < y_end:
-                hl_alpha = min(140, int(50 + r * 9))
-                pygame.draw.line(overlay, (*highlight_col, hl_alpha), (0, y_bot), (w, y_bot), 1)
+                # Horizontal paving joint across the entire bridge width
+                joint_alpha = min(120, int(45 + r * 15))
+                pygame.draw.line(overlay, (42, 35, 28, joint_alpha), (0, y_bot - 1), (w, y_bot - 1), 1)
+                if y_bot < y_end:
+                    pygame.draw.line(overlay, (240, 220, 175, int(joint_alpha * 0.5)), (0, y_bot), (w, y_bot), 1)
 
         surface.blit(overlay, (0, 0))
 
-    def draw(self, surface: pygame.Surface, cam_x: float, cam_y: float = 0.0):
-        """Dual-slice blit algorithm with 100% seamless continuity."""
+    @property
+    def has_split_layers(self) -> bool:
+        """True if stage background is decomposed into distinct depth planes (sky, towers, bridge)."""
+        return len(self.layers) >= 2
+
+    def _draw_single_layer(self, surface: pygame.Surface, surf: pygame.Surface, speed: float, lw: int, cam_x: float, init_off: int = 0):
+        """Dual-slice seamless blit for an individual layer."""
         sw = surface.get_width()
-        for surf, speed, lw in self.layers:
-            offset_x = int(cam_x * speed) % lw
+        offset_x = (int(cam_x * speed) + init_off) % lw
+        x1 = -offset_x
+        x2 = x1 + lw
+        surface.blit(surf, (x1, 0))
+        if x2 < sw:
+            surface.blit(surf, (x2, 0))
+        if x2 + lw < sw:
+            surface.blit(surf, (x2 + lw, 0))
+
+    def draw_sky_layer(self, surface: pygame.Surface, cam_x: float, cam_y: float = 0.0):
+        """Draws the distant sky and mountain horizon plane (Layer 0)."""
+        if self.layers:
+            layer = self.layers[0]
+            surf, speed, lw = layer[0], layer[1], layer[2]
+            init_off = layer[3] if len(layer) > 3 else 0
+            self._draw_single_layer(surface, surf, speed, lw, cam_x, init_off)
+
+    def draw_midground_layer(self, surface: pygame.Surface, cam_x: float, cam_y: float = 0.0):
+        """Draws midground structures such as fortress castle towers and walls (Layer 1)."""
+        if len(self.layers) >= 2:
+            layer = self.layers[1]
+            surf, speed, lw = layer[0], layer[1], layer[2]
+            init_off = layer[3] if len(layer) > 3 else 0
+            self._draw_single_layer(surface, surf, speed, lw, cam_x, init_off)
+
+    def draw_foreground_layer(self, surface: pygame.Surface, cam_x: float, cam_y: float = 0.0):
+        """Draws foreground bridge walkways, floors, and railings (Layer 2+)."""
+        if len(self.layers) >= 3:
+            for layer in self.layers[2:]:
+                surf, speed, lw = layer[0], layer[1], layer[2]
+                init_off = layer[3] if len(layer) > 3 else 0
+                self._draw_single_layer(surface, surf, speed, lw, cam_x, init_off)
+
+    def draw_foreground_silhouette(self, surface: pygame.Surface, cam_x: float, cam_y: float = 0.0):
+        """Draws fast-moving blurred foreground silhouette elements with subtle wind sway (Silksong 1.35x)."""
+        from config.settings import SETTINGS
+        if not getattr(SETTINGS, "FOREGROUND_SILHOUETTE", True):
+            return
+        if getattr(self, "foreground_silhouette_surf", None) is None:
+            return
+            
+        import time
+        from engine.game_feel import GAME_FEEL
+        sway_y = int(GAME_FEEL.get_foliage_wind_sway(time.time(), layer_scale=0.8))
+        sway_x = int(GAME_FEEL.get_foliage_wind_sway(time.time() * 0.7, layer_scale=1.2))
+
+        sw = surface.get_width()
+        lw = self.foreground_silhouette_surf.get_width()
+        offset_x = int(cam_x * 1.35) % lw
+        x1 = -offset_x + sway_x
+        x2 = x1 + lw
+        surface.blit(self.foreground_silhouette_surf, (x1, sway_y))
+        if x2 < sw:
+            surface.blit(self.foreground_silhouette_surf, (x2, sway_y))
+        if x2 + lw < sw:
+            surface.blit(self.foreground_silhouette_surf, (x2 + lw, sway_y))
+
+    def draw(self, surface: pygame.Surface, cam_x: float, cam_y: float = 0.0):
+        """Dual-slice blit algorithm with 100% seamless continuity (all layers)."""
+        sw = surface.get_width()
+        for layer in self.layers:
+            surf, speed, lw = layer[0], layer[1], layer[2]
+            init_off = layer[3] if len(layer) > 3 else 0
+            offset_x = (int(cam_x * speed) + init_off) % lw
             x1 = -offset_x
             x2 = x1 + lw
             surface.blit(surf, (x1, 0))
@@ -250,8 +393,13 @@ STAGE_CATALOG: Dict[str, StageConfig] = {
         biome_theme="road",
         cloud_theme="white",
         bg_folder=os.path.join("assets", "sprites", "stages", "rpg_battlegrounds", "PNG", "1"),
-        layer_files=["bamboo bridge.png"],
-        layer_speeds=[0.35],
+        layer_files=["sea.png", "bamboo.png", "bridge.png"],
+        layer_speeds=[0.08, 0.20, 0.35],
+        layer_initial_offsets=[0, 0, 0],
+        cloud_count=6,
+        sky_horizon_y=48,
+        cloud_tint=(255, 190, 140),
+        cloud_opacity_scale=0.40,
         map_width=3200,
         floor_y=280,
         enemies=[
@@ -269,10 +417,11 @@ STAGE_CATALOG: Dict[str, StageConfig] = {
         next_stage="terrae_2",
         next_title="MUNDO 1-2: PONTE DA FLORESTA ANCESTRAL",
         dialogue_intro=[
-            {"speaker": "ELDER VULKAN", "text": "Shaia, você pousou na Costa dos Bambus. A antiga barreira elemental começou a ruir...", "portrait": "vulkan", "color": (80, 200, 255)},
+            {"speaker": "ARQUIMAGO IGNATIUS", "text": "Shaia, você pousou na Costa dos Bambus. A antiga barreira elemental das Ruínas começou a ruir...", "portrait": "wizard", "color": (80, 200, 255)},
             {"speaker": "SHAIA", "text": "Posso sentir a corrupção na terra. Os mortos-vivos estão se erguendo das marés!", "portrait": "shaia", "color": (255, 200, 80)},
-            {"speaker": "ELDER VULKAN", "text": "Avance pela ponte flutuante. O núcleo da ruína está protegido no coração da floresta!", "portrait": "vulkan", "color": (80, 200, 255)}
-        ]
+            {"speaker": "ARQUIMAGO IGNATIUS", "text": "Avance pela ponte flutuante. O núcleo da ruína precisa ser purificado antes que o mundo seja consumido!", "portrait": "wizard", "color": (80, 200, 255)}
+        ],
+        cinematic_actor="wizard"
     ),
     "terrae_2": StageConfig(
         stage_id="terrae_2",
@@ -301,9 +450,10 @@ STAGE_CATALOG: Dict[str, StageConfig] = {
         next_stage="terrae_3",
         next_title="MUNDO 1-3: PORTÃO DA FORTALEZA ESMERALDA",
         dialogue_intro=[
-            {"speaker": "SHAIA", "text": "A floresta está infestada de xamãs esqueléticos... A energia de magma abaixo do solo está pulsando.", "portrait": "shaia", "color": (255, 200, 80)},
-            {"speaker": "LUNARIA", "text": "Fique atenta aos ataques à distância! Use [Shift] para esquivar e contra-atacar com [E]!", "portrait": "lunaria", "color": (220, 140, 255)}
-        ]
+            {"speaker": "SHAIA", "text": "A floresta ancestral está infestada de xamãs esqueléticos... A energia de magma abaixo do solo está pulsando.", "portrait": "shaia", "color": (255, 200, 80)},
+            {"speaker": "AYAME", "text": "Guerreira! Cuidado com os ataques à distância entre as árvores. Use [Shift] para esquivar e retalhe com [E]!", "portrait": "kunoichi", "color": (255, 140, 180)}
+        ],
+        cinematic_actor="kunoichi"
     ),
     "terrae_3": StageConfig(
         stage_id="terrae_3",
@@ -312,8 +462,13 @@ STAGE_CATALOG: Dict[str, StageConfig] = {
         biome_theme="road",
         cloud_theme="gray",
         bg_folder=os.path.join("assets", "sprites", "stages", "rpg_battlegrounds", "PNG", "4"),
-        layer_files=["castle bridge.png"],
-        layer_speeds=[0.35],
+        layer_files=["background.png", "tower.png", "bridge.png"],
+        layer_speeds=[0.12, 0.28, 0.35],
+        layer_initial_offsets=[0, 0, 0],
+        cloud_count=14,
+        sky_horizon_y=75,
+        cloud_tint=(225, 235, 240),
+        cloud_opacity_scale=1.0,
         map_width=3800,
         floor_y=280,
         enemies=[
@@ -369,10 +524,11 @@ STAGE_CATALOG: Dict[str, StageConfig] = {
         next_stage="sanguis_2",
         next_title="MUNDO 2-2: O SALÃO DO TRONO CARMESIM",
         dialogue_intro=[
-            {"speaker": "CARMILLA", "text": "Mais uma tola ousa pisar no palácio sagrado da Lua de Sangue...", "portrait": "carmilla", "color": (255, 80, 140)},
-            {"speaker": "SHAIA", "text": "A praga dos vampiros escravizou este planeta por séculos. Vim libertá-lo!", "portrait": "shaia", "color": (255, 200, 80)},
-            {"speaker": "CARMILLA", "text": "Sua carne mortal alimentará nossas bestas antes do amanhecer!", "portrait": "carmilla", "color": (255, 80, 140)}
-        ]
+            {"speaker": "SHAIA", "text": "O terraço do palácio está deserto... A lua de sangue parece drenar a essência de Sanguis.", "portrait": "shaia", "color": (255, 200, 80)},
+            {"speaker": "SIR GALAHAD", "text": "Guerreira! Cuidado com os lanceiros das sombras. O palácio foi transformado em fortaleza pelo carrasco de ferro!", "portrait": "knight", "color": (200, 210, 230)},
+            {"speaker": "SHAIA", "text": "Galahad! Encontrarei o núcleo deste pesadelo e destruirei o carrasco.", "portrait": "shaia", "color": (255, 200, 80)}
+        ],
+        cinematic_actor="knight"
     ),
     "sanguis_2": StageConfig(
         stage_id="sanguis_2",
@@ -402,9 +558,10 @@ STAGE_CATALOG: Dict[str, StageConfig] = {
         next_stage="sanguis_3",
         next_title="MUNDO 2-3: A CRIPTA PROFANADA",
         dialogue_intro=[
-            {"speaker": "SHAIA", "text": "O salão está impregnado com a essência do abismo... As sombras conspiram entre as colunas.", "portrait": "shaia", "color": (255, 200, 80)},
-            {"speaker": "CARMILLA", "text": "Você não passará pelo meu carrasco blindado... O Empalador já sente seu sangue!", "portrait": "carmilla", "color": (255, 80, 140)}
-        ]
+            {"speaker": "SHAIA", "text": "O salão do trono foi abandonado às pressas. Mas a essência do abismo pulsa logo abaixo de nossos pés.", "portrait": "shaia", "color": (255, 200, 80)},
+            {"speaker": "AYAME", "text": "Shaia, vigie a retaguarda! O Rei Esqueleto aguarda no salão do trono das profundezas. Seus golpes de montante são colossais!", "portrait": "kunoichi", "color": (255, 140, 180)}
+        ],
+        cinematic_actor="kunoichi"
     ),
     "sanguis_3": StageConfig(
         stage_id="sanguis_3",
@@ -431,12 +588,12 @@ STAGE_CATALOG: Dict[str, StageConfig] = {
         traps=[(800, 266), (1700, 266), (2600, 266)],
         portal_x=3700,
         next_stage="boss",
-        boss_type="impaler",
-        next_title="CONFRONTO: O EMPALADOR ABISSAL",
+        boss_type="skeleton_king",
+        next_title="CONFRONTO: O REI ESQUELETO",
         dialogue_intro=[
-            {"speaker": "SHAIA", "text": "O cheiro de ferro e morte empesteia o ar. Estacas afiadas cobrem as paredes...", "portrait": "shaia", "color": (255, 200, 80)},
-            {"speaker": "O EMPALADOR ABISSAL", "text": "INVASORES SERÃO EMPALADOS! NINGUÉM DEIXA O CASTELO VIVO!", "portrait": "boss", "color": (220, 60, 90)},
-            {"speaker": "SHAIA", "text": "Sua armadura pode ser pesada, mas minha lâmina é mais rápida!", "portrait": "shaia", "color": (255, 200, 80)}
+            {"speaker": "SHAIA", "text": "O trono dos ossos nos aguarda. O monarca ancestral ergue sua espada...", "portrait": "shaia", "color": (255, 200, 80)},
+            {"speaker": "REI ESQUELETO", "text": "Miseráveis invasores... Diante do trono eterno, vocês tombarão!", "portrait": "boss", "color": (240, 220, 160)},
+            {"speaker": "SHAIA", "text": "Seu reinado de ossos termina hoje!", "portrait": "shaia", "color": (255, 200, 80)}
         ]
     ),
 
@@ -469,10 +626,11 @@ STAGE_CATALOG: Dict[str, StageConfig] = {
         next_stage="glacies_2",
         next_title="MUNDO 3-2: A FLORESTA DOS MORTOS CONGELADOS",
         dialogue_intro=[
-            {"speaker": "SHAIA", "text": "O frio deste planeta é sobrenatural... O castelo parece uma tumba de gelo eterno.", "portrait": "shaia", "color": (255, 200, 80)},
-            {"speaker": "ESPÍRITO DO GELO", "text": "Fugi, guerreira... A fera quimérica ancestral devorou todos os guardiões.", "portrait": "spirit", "color": (140, 220, 255)},
-            {"speaker": "SHAIA", "text": "Não posso recuar. O núcleo congelado deste mundo precisa ser purificado!", "portrait": "shaia", "color": (255, 200, 80)}
-        ]
+            {"speaker": "SHAIA", "text": "O frio deste planeta é sobrenatural... As pedras parecem túmulos de gelo eterno.", "portrait": "shaia", "color": (255, 200, 80)},
+            {"speaker": "ARQUIMAGO IGNATIUS", "text": "Shaia! A geada profana não é natural. Um Monstro Quimérico ancestral corrompeu os glaciares deste mundo!", "portrait": "wizard", "color": (100, 200, 255)},
+            {"speaker": "SHAIA", "text": "Não recuaremos, Ignatius. O núcleo congelado deste reino será libertado!", "portrait": "shaia", "color": (255, 200, 80)}
+        ],
+        cinematic_actor="wizard"
     ),
     "glacies_2": StageConfig(
         stage_id="glacies_2",
@@ -501,8 +659,9 @@ STAGE_CATALOG: Dict[str, StageConfig] = {
         next_title="MUNDO 3-3: O ABISMO GELADO",
         dialogue_intro=[
             {"speaker": "SHAIA", "text": "Árvores ressequidas sob a neve perpétua... A névoa verde carrega veneno necrosante.", "portrait": "shaia", "color": (255, 200, 80)},
-            {"speaker": "ESPÍRITO DO GELO", "text": "Tenha cuidado! A saliva da fera dissolve até as armaduras mais resistentes!", "portrait": "spirit", "color": (140, 220, 255)}
-        ]
+            {"speaker": "MESTRE HANZO", "text": "Mantenha distância, Shaia! A saliva da fera corrói o próprio aço. Esquive em [Shift] e perfure nos intervalos!", "portrait": "archer", "color": (240, 200, 100)}
+        ],
+        cinematic_actor="samurai_archer"
     ),
     "glacies_3": StageConfig(
         stage_id="glacies_3",
@@ -656,7 +815,8 @@ class StageManager:
                 cfg.bg_folder,
                 cfg.layer_files,
                 cfg.layer_speeds,
-                screen_h=360
+                screen_h=360,
+                initial_offsets=cfg.layer_initial_offsets
             )
         return cfg
 

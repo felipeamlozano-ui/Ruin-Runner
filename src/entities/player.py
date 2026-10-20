@@ -563,6 +563,9 @@ class Player:
     def _anchor_x(self, state: str, img_w: int) -> float:
         """Horizontal body anchor inside the frame. New hero sheets are not centered in their 128px
         frames, so the body (not the frame) must be aligned with the hitbox."""
+        if self.profile.id in ("samurai_archer", "archer", "kaelen"):
+            # Standardized fixed bottom-center foot pivot (anchor = 0.5, 1.0)
+            return 60.0
         if self.profile.id not in self.NEW_HERO_IDS:
             return img_w / 2
         key = state if state in ("walk", "run", "dash") else "idle"
@@ -579,6 +582,22 @@ class Player:
         val = sum(centers) / len(centers) if centers else img_w / 2
         self._anchor_cache[key] = val
         return val
+
+    def get_projectile_spawn_point(self) -> tuple[float, float]:
+        """Unified origin coordinate for arrows/magic bolts and bow flash VFX."""
+        if self.character_id in ("samurai_archer", "archer", "kaelen"):
+            off_x = 34 if self.facing_right else -34
+            return (self.rect.centerx + off_x, self.rect.bottom - 46)
+        else:
+            off_x = 22 if self.facing_right else -22
+            return (self.rect.centerx + off_x, self.rect.bottom - 36)
+
+    @property
+    def y_sort_pivot(self) -> float:
+        """Dynamic vertical rendering depth: ensures player is in front of obstacle when standing on it."""
+        if getattr(self, "standing_on_obstacle_bottom", None) is not None:
+            return float(self.standing_on_obstacle_bottom) + 0.1
+        return float(self.rect.bottom)
 
     def _begin_attack_anim(self):
         """Starts the [J] animation, chaining combo variants when the hero has them."""
@@ -763,6 +782,8 @@ class Player:
         if self.is_dashing:
             self.dash_timer -= dt
             self.dash_ghost_timer += dt
+            from engine.game_feel import GAME_FEEL
+            GAME_FEEL.emit_dust(self.rect.centerx, self.rect.bottom, "dash", facing_right=self.facing_right)
             
             # Spawn ghost clone every 0.04s during dash
             if self.dash_ghost_timer >= 0.04:
@@ -779,6 +800,16 @@ class Player:
             if self.dash_timer <= 0:
                 self.is_dashing = False
                 self.velocity.x *= 0.3
+
+        # Emit reactive footstep dust when running on ground
+        if getattr(self, "on_ground", False) and abs(self.velocity.x) > 60:
+            if not hasattr(self, "_footstep_dust_timer"):
+                self._footstep_dust_timer = 0.20
+            self._footstep_dust_timer -= dt
+            if self._footstep_dust_timer <= 0:
+                self._footstep_dust_timer = 0.20
+                from engine.game_feel import GAME_FEEL
+                GAME_FEEL.emit_dust(self.rect.centerx, self.rect.bottom, "footstep", facing_right=self.facing_right)
                 
         # Update Whirlwind Tempest Skill State
         if self.is_casting_aoe:
@@ -1109,9 +1140,17 @@ class Player:
                 self.velocity.y = self.jump_speed
                 self.on_ground = False
                 self.can_double_jump = True
+                self._pending_shots.clear()
+                self.magic_sigil_timer = 0.0
+                self.is_attacking = False
+                self.is_casting_magic = False
             elif self.can_double_jump:
                 self.velocity.y = self.jump_speed * 0.70
                 self.can_double_jump = False
+                self._pending_shots.clear()
+                self.magic_sigil_timer = 0.0
+                self.is_attacking = False
+                self.is_casting_magic = False
                 
         # Ground Attack [J] - 0.25s snappy attack cooldown via delta time
         if self.input.is_action_just_pressed("ATTACK") and not self.is_attacking and not self.is_blocking and not self.is_drinking_potion and self.attack_cooldown <= 0:
@@ -1133,8 +1172,7 @@ class Player:
                     # Ranged archetypes shoot basic projectile on [J]
                     if self.archetype in ("mage", "healer", "archer", "support", "ninja"):
                         from entities.projectile import Projectile
-                        proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
-                        proj_y = self.rect.centery - 8
+                        proj_x, proj_y = self.get_projectile_spawn_point()
                         ptype = j_skill.projectile_type or ("arrow_fast" if self.archetype == "archer" else "arcane_bolt")
                         self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type=ptype, damage=j_skill.damage))
             
@@ -1166,8 +1204,7 @@ class Player:
                             self.companion.mana = min(self.companion.max_mana, self.companion.mana + 35.0)
 
                     from entities.projectile import Projectile
-                    proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
-                    proj_y = self.rect.centery - 8
+                    proj_x, proj_y = self.get_projectile_spawn_point()
                     ptype = k_skill.projectile_type or "fireball"
                     is_burn = (self.passive_id == "ignis_smoldering_ashes")
                     damage = k_skill.damage
@@ -1197,6 +1234,10 @@ class Player:
         self.dash_cooldown = 0.35
         self.invulnerable = True
         self.invulnerability_timer = self.dash_duration + 0.06
+        self._pending_shots.clear()
+        self.magic_sigil_timer = 0.0
+        self.is_attacking = False
+        self.is_casting_magic = False
         
         if getattr(self, "character_id", "") == "samurai" or getattr(self, "passive_id", "") == "samurai_perfect_focus":
             self.attack_cooldown = 0.0
@@ -1229,8 +1270,7 @@ class Player:
         self._begin_attack_anim()
         if self.archetype in ("mage", "healer", "archer", "support", "ninja"):
             from entities.projectile import Projectile
-            proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
-            proj_y = self.rect.centery - 8
+            proj_x, proj_y = self.get_projectile_spawn_point()
             ptype = j_skill.projectile_type or ("arrow_fast" if self.archetype == "archer" else "arcane_bolt")
             self.projectiles.append(Projectile(proj_x, proj_y, self.facing_right, is_enemy=False, projectile_type=ptype, damage=j_skill.damage))
         return True
@@ -1258,8 +1298,7 @@ class Player:
             if self.companion and not getattr(self.companion, "is_dead", False):
                 self.companion.mana = min(self.companion.max_mana, self.companion.mana + 35.0)
         from entities.projectile import Projectile
-        proj_x = self.rect.right + 8 if self.facing_right else self.rect.left - 28
-        proj_y = self.rect.centery - 8
+        proj_x, proj_y = self.get_projectile_spawn_point()
         ptype = k_skill.projectile_type or "fireball"
         is_burn = (self.passive_id == "ignis_smoldering_ashes")
         damage = k_skill.damage
@@ -1384,20 +1423,42 @@ class Player:
                 break
 
         # Track true ground footprint for grounded contact shadow and Y-sort
+        foot_l = self.rect.left + 4
+        foot_r = self.rect.right - 4
+        floor_below = None
+        tile_below = None
+        for tile in tiles:
+            # Overlap check horizontally
+            if tile.right > foot_l and tile.left < foot_r and tile.top >= self.rect.bottom - 6:
+                if floor_below is None or tile.top < floor_below:
+                    floor_below = tile.top
+                    tile_below = tile
+
         if self.on_ground:
             self.ground_y = self.rect.bottom
+            self.shadow_surface_y = self.rect.bottom
+            self.shadow_surface_tile = tile_below
+            if tile_below is not None and tile_below.width < 140:
+                self.standing_on_obstacle_bottom = tile_below.bottom
+            else:
+                self.standing_on_obstacle_bottom = None
         else:
-            floor_below = None
-            for tile in tiles:
-                if tile.left < self.rect.centerx < tile.right and tile.top >= self.rect.bottom - 4:
-                    if floor_below is None or tile.top < floor_below:
-                        floor_below = tile.top
+            self.standing_on_obstacle_bottom = None
             if floor_below is not None:
                 self.ground_y = floor_below
+                self.shadow_surface_y = floor_below
+                self.shadow_surface_tile = tile_below
+            else:
+                self.shadow_surface_y = getattr(self, "ground_y", self.rect.bottom)
+                self.shadow_surface_tile = None
                 
     def take_damage(self, amount: int):
         if self.is_dashing or self.is_casting_ultimate:
             return
+        self._pending_shots.clear()
+        self.magic_sigil_timer = 0.0
+        self.is_attacking = False
+        self.is_casting_magic = False
             
         # 1. Blocking: absorbs 100% damage while holding Shift
         if self.is_blocking:
@@ -1479,19 +1540,35 @@ class Player:
             pygame.draw.circle(aura_surf, (*col, 45), (pulse_rad + 2, pulse_rad + 2), pulse_rad, width=1)
             surface.blit(aura_surf, (self.rect.centerx - camera_offset.x - pulse_rad - 2, self.rect.centery - camera_offset.y - pulse_rad - 2))
 
-        # 0. Contact Drop Shadow under feet (Grounded presence anchored to floor)
-        shadow_ground_y = getattr(self, "ground_y", self.rect.bottom)
+        # 0. Contact Drop Shadow under feet (Grounded presence anchored to floor/obstacle)
+        shadow_ground_y = getattr(self, "shadow_surface_y", getattr(self, "ground_y", self.rect.bottom))
         air_height = max(0, shadow_ground_y - self.rect.bottom)
-        scale = max(0.4, 1.0 - air_height / 250.0)
-        shadow_w = int(46 * scale)
-        shadow_h = int(12 * scale)
-        alpha = int(120 * scale)
+        scale = max(0.35, 1.0 - air_height / 180.0)
+        base_w = int(46 * scale)
+        shadow_h = max(3, int(12 * scale))
+        alpha = int(120 * (scale ** 1.5))
+        
+        # Check clipping against obstacle surface
+        surf_tile = getattr(self, "shadow_surface_tile", None)
+        cx = self.rect.centerx
+        shadow_w = base_w
+        if surf_tile and surf_tile.width < 140:
+            sh_left = cx - base_w // 2
+            sh_right = cx + base_w // 2
+            avail_left = max(sh_left, surf_tile.left)
+            avail_right = min(sh_right, surf_tile.right)
+            if avail_right > avail_left:
+                shadow_w = int(avail_right - avail_left)
+                cx = (avail_left + avail_right) // 2
+            else:
+                shadow_w = 0
+
         if shadow_w > 2 and shadow_h > 2 and alpha > 0:
             shadow_surf = pygame.Surface((shadow_w, shadow_h), pygame.SRCALPHA)
             pygame.draw.ellipse(shadow_surf, (0, 0, 0, alpha), (0, 0, shadow_w, shadow_h))
             core_w, core_h = max(2, int(shadow_w * 0.62)), max(2, int(shadow_h * 0.62))
             pygame.draw.ellipse(shadow_surf, (0, 0, 0, min(255, int(alpha * 1.35))), ((shadow_w - core_w) // 2, (shadow_h - core_h) // 2, core_w, core_h))
-            surface.blit(shadow_surf, (self.rect.centerx - camera_offset.x - shadow_w // 2, shadow_ground_y - camera_offset.y - shadow_h // 2 + 1))
+            surface.blit(shadow_surf, (cx - camera_offset.x - shadow_w // 2, shadow_ground_y - camera_offset.y - shadow_h // 2 + 1))
 
         # 0.1 Astra Celestial Barrier (Soft ambient back-glow drawn BEHIND the character model)
         if self.celestial_barrier_active and not self.is_dead:
@@ -1515,6 +1592,12 @@ class Player:
         draw_x = self.rect.centerx - camera_offset.x - (_ax if self.facing_right else img_rect.width - _ax)
         ground_off = getattr(self.profile, "ground_offset_y", 7)
         draw_y = self.rect.bottom - camera_offset.y - img_rect.height + ground_off
+        
+        # Silksong Hit-Stop Directional Micro-Shake
+        from engine.game_feel import GAME_FEEL
+        shake_x, shake_y = GAME_FEEL.get_entity_shake_offset(self)
+        draw_x += shake_x
+        draw_y += shake_y
         
         if not self.facing_right:
             img = pygame.transform.flip(img, True, False)
@@ -1596,20 +1679,20 @@ class Player:
         if self.is_attacking:
             self._draw_attack_vfx(surface, camera_offset)
 
-        # 7. Magic Conjuration Sigil / Hand Flash (subtle, focused at hand)
-        if self.magic_sigil_timer > 0:
+        # 7. Magic Conjuration Sigil / Bow Flash (subtle, anchored to muzzle point)
+        if self.magic_sigil_timer > 0 and (self.is_attacking or self.is_casting_magic):
             sig_t = self.magic_sigil_timer / 0.38
             flash_alpha = int(140 * sig_t)
             flash_rad = max(4, int(7 + 4 * (1.0 - sig_t)))
-            hand_x = self.rect.right + 4 if self.facing_right else self.rect.left - 4
-            hx = hand_x - camera_offset.x
-            hy = self.rect.centery - camera_offset.y + 2
+            sp_x, sp_y = self.get_projectile_spawn_point()
+            hx = sp_x - camera_offset.x
+            hy = sp_y - camera_offset.y
             sig_surf = pygame.Surface((flash_rad * 2 + 6, flash_rad * 2 + 6), pygame.SRCALPHA)
             sc = flash_rad + 3
-            sig_col = getattr(self.profile, "color_theme", (255, 140, 40))
+            sig_col = getattr(self.profile, "color_theme", (120, 215, 100))
             pygame.draw.circle(sig_surf, (*sig_col, int(flash_alpha * 0.5)), (sc, sc), flash_rad)
             pygame.draw.circle(sig_surf, (255, 255, 255, flash_alpha), (sc, sc), max(2, flash_rad // 3))
-            # Subtle small cross star spark at fingertip
+            # Subtle small cross star spark at muzzle
             spark_len = flash_rad + 2
             pygame.draw.line(sig_surf, (255, 255, 255, flash_alpha), (sc - spark_len, sc), (sc + spark_len, sc), 1)
             pygame.draw.line(sig_surf, (255, 255, 255, flash_alpha), (sc, sc - spark_len), (sc, sc + spark_len), 1)

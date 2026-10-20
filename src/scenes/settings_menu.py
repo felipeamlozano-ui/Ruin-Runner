@@ -59,15 +59,22 @@ class SettingsMenuScene(Scene):
                 ("EFEITOS SONOROS (SFX)", f"{s_pct}%", self._adjust_sfx_vol),
             ]
         elif self.active_tab == 2:
-            # GRAPHICS
-            preset = getattr(SETTINGS, "QUALITY_PRESET", "Otimizado").upper()
-            vk = "VULKAN GPU" if getattr(SETTINGS, "VULKAN_ENABLED", False) else "SDL HARDWARE"
+            # GRAPHICS (4 Master Presets + Standardized Vulkan GPU Native)
+            PRESET_DISPLAY = {
+                "low": "LOW (DESEMPENHO EXTREMO)",
+                "medium": "MEDIUM (EQUILIBRADO)",
+                "high": "HIGH (CINEMATOGRÁFICO)",
+                "ultra": "ULTRA (SILKSONG MÁXIMO)"
+            }
+            cur_preset = getattr(SETTINGS, "GRAPHICS_PRESET", "high").lower()
+            preset_str = PRESET_DISPLAY.get(cur_preset, "HIGH (CINEMATOGRÁFICO)")
+            backend_str = "VULKAN (GPU NATIVE)"
             blm = "ATIVADO (HDR)" if SETTINGS.BLOOM_ENABLED else "DESATIVADO"
             crt = "ATIVADO" if SETTINGS.SCANLINES_ENABLED else "DESATIVADO"
             vgt = "ATIVADO" if SETTINGS.VIGNETTE_ENABLED else "DESATIVADO"
             return [
-                ("PREDEFINIÇÃO DE QUALIDADE", preset, self._toggle_preset),
-                ("MOTOR DE RENDERIZAÇÃO", vk, self._toggle_backend),
+                ("PREDEFINIÇÃO GRÁFICA MESTRE", preset_str, self._cycle_preset),
+                ("MOTOR GRÁFICO (GPU PADRÃO)", backend_str, lambda d: None),
                 ("BLOOM FÍSICO HDR", blm, self._toggle_bloom),
                 ("SCANLINES RETRÔ CRT", crt, self._toggle_scanlines),
                 ("VINHETA CINEMATOGRÁFICA", vgt, self._toggle_vignette),
@@ -104,50 +111,69 @@ class SettingsMenuScene(Scene):
     def _adjust_master_vol(self, delta: int):
         SETTINGS.MASTER_VOLUME = max(0.0, min(1.0, round(SETTINGS.MASTER_VOLUME + delta * 0.05, 2)))
         pygame.mixer.music.set_volume(SETTINGS.MUSIC_VOLUME * SETTINGS.MASTER_VOLUME)
+        SETTINGS.save_settings()
 
     def _adjust_music_vol(self, delta: int):
         SETTINGS.MUSIC_VOLUME = max(0.0, min(1.0, round(SETTINGS.MUSIC_VOLUME + delta * 0.05, 2)))
         pygame.mixer.music.set_volume(SETTINGS.MUSIC_VOLUME * SETTINGS.MASTER_VOLUME)
+        SETTINGS.save_settings()
 
     def _adjust_sfx_vol(self, delta: int):
         SETTINGS.SFX_VOLUME = max(0.0, min(1.0, round(SETTINGS.SFX_VOLUME + delta * 0.05, 2)))
+        SETTINGS.save_settings()
 
     def _toggle_res(self, delta: int):
         SETTINGS.RESOLUTION_INDEX = (SETTINGS.RESOLUTION_INDEX + delta) % len(SETTINGS.RESOLUTIONS)
         from engine.game import Game
         if Game.instance:
             Game.instance.apply_display_settings()
+        SETTINGS.save_settings()
 
     def _toggle_fullscreen(self, delta: int):
         SETTINGS.FULLSCREEN = not SETTINGS.FULLSCREEN
         from engine.game import Game
         if Game.instance:
             Game.instance.apply_display_settings()
+        SETTINGS.save_settings()
 
     def _toggle_stretch(self, delta: int):
         SETTINGS.FULLSCREEN_STRETCH = not SETTINGS.FULLSCREEN_STRETCH
+        SETTINGS.save_settings()
 
     def _adjust_brightness(self, delta: int):
         SETTINGS.BRIGHTNESS = max(-0.20, min(0.20, round(SETTINGS.BRIGHTNESS + delta * 0.02, 2)))
+        SETTINGS.save_settings()
 
     def _adjust_contrast(self, delta: int):
         SETTINGS.CONTRAST = max(0.80, min(1.30, round(SETTINGS.CONTRAST + delta * 0.05, 2)))
+        SETTINGS.save_settings()
+
+    def _cycle_preset(self, delta: int):
+        order = ["low", "medium", "high", "ultra"]
+        cur = getattr(SETTINGS, "GRAPHICS_PRESET", "high").lower()
+        idx = order.index(cur) if cur in order else 2
+        new_idx = (idx + delta) % len(order)
+        new_preset = order[new_idx]
+        SETTINGS.apply_graphics_preset(new_preset)
+        SETTINGS.save_settings()
 
     def _toggle_preset(self, delta: int):
-        cur = getattr(SETTINGS, "QUALITY_PRESET", "Otimizado")
-        SETTINGS.QUALITY_PRESET = "Ultra Neo-Retro" if cur == "Otimizado" else "Otimizado"
+        self._cycle_preset(delta)
 
     def _toggle_backend(self, delta: int):
-        SETTINGS.VULKAN_ENABLED = not getattr(SETTINGS, "VULKAN_ENABLED", False)
+        pass # Locked to standardized Vulkan backend
 
     def _toggle_bloom(self, delta: int):
         SETTINGS.BLOOM_ENABLED = not SETTINGS.BLOOM_ENABLED
+        SETTINGS.save_settings()
 
     def _toggle_scanlines(self, delta: int):
         SETTINGS.SCANLINES_ENABLED = not SETTINGS.SCANLINES_ENABLED
+        SETTINGS.save_settings()
 
     def _toggle_vignette(self, delta: int):
         SETTINGS.VIGNETTE_ENABLED = not SETTINGS.VIGNETTE_ENABLED
+        SETTINGS.save_settings()
 
     def _adjust_shake(self, delta: int):
         SETTINGS.SCREEN_SHAKE = max(0.0, min(1.0, round(SETTINGS.SCREEN_SHAKE + delta * 0.1, 1)))

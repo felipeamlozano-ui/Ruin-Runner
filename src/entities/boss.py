@@ -96,9 +96,10 @@ class SkeletonBoss:
     def __init__(self, x: float, y: float):
         self.pos = pygame.math.Vector2(x, y)
         self.velocity = pygame.math.Vector2(0, 0)
-        # Hitbox (55, 110) scaled 20% larger than previous (46, 92)
-        self.scale = 1.20
-        self.rect = pygame.FRect(x, y, 55, 110)
+        # Hitbox (46, 92) for crisp 1:1 native pixel art in 640x360 arena
+        self.scale = 1.0
+        self.rect = pygame.FRect(x, y, 46, 92)
+        self.ground_y = 320.0
         
         # Health & Poise Shield Balance
         self.max_health = 20000
@@ -107,7 +108,7 @@ class SkeletonBoss:
         self.shield = self.max_shield
         self.shield_recharge_cooldown = 0.0
         
-        self.name = "Cavaleiro Negro / Espadachim Carmesim"
+        self.name = "O Rei Esqueleto"
         self.attack_damage = 35
         self.touch_damage = 0  # No unfair contact damage
         self.is_dead = False
@@ -155,13 +156,12 @@ class SkeletonBoss:
         self.has_dealt_damage_in_attack = False
         self.camera_shake_triggered = False
         
-        # Animation & Anchor configuration
-        # Canvas: 192x160 base, scaled 1.20x. Anchor scaled: (90, 180) right, (139, 180) left.
+        # Animation & Anchor configuration (192x160 native frames)
         self.frame_width = 192
         self.frame_height = 160
-        self.anchor_x_right = int(75 * self.scale)  # 90
-        self.anchor_x_left = int(116 * self.scale)  # 139
-        self.anchor_y = int(150 * self.scale)       # 180
+        self.anchor_x_right = 75
+        self.anchor_x_left = 116
+        self.anchor_y = 150
         
         self.anim_manager = AnimationManager()
         self._load_all_animations()
@@ -728,8 +728,8 @@ class SkeletonBoss:
                     self.velocity.y = 0
 
         # Hard floor clamp safety
-        if self.rect.bottom > 425:
-            self.rect.bottom = 425
+        if self.rect.bottom > self.ground_y:
+            self.rect.bottom = self.ground_y
             self.velocity.y = 0
             self.on_ground = True
 
@@ -741,13 +741,18 @@ class SkeletonBoss:
 
         # ── 1. Ground Contact Shadow (Permanently anchors feet to floor without cutting) ──
         if not self.is_dead:
-            sh_w = 104
-            sh_h = 20
-            shadow_surf = pygame.Surface((sh_w, sh_h), pygame.SRCALPHA)
-            pygame.draw.ellipse(shadow_surf, (0, 0, 0, 130), (0, 0, sh_w, sh_h))
-            core_w, core_h = int(sh_w * 0.65), int(sh_h * 0.65)
-            pygame.draw.ellipse(shadow_surf, (0, 0, 0, 190), ((sh_w - core_w) // 2, (sh_h - core_h) // 2, core_w, core_h))
-            surface.blit(shadow_surf, (self.rect.centerx - cam_x - sh_w // 2, self.rect.bottom - cam_y - sh_h // 2))
+            ground_y = self.ground_y
+            air_h = max(0.0, ground_y - self.rect.bottom)
+            sh_scale = max(0.4, 1.0 - air_h / 260.0)
+            sh_w = int(88 * sh_scale)
+            sh_h = int(18 * sh_scale)
+            sh_alpha = int(130 * sh_scale)
+            if sh_w > 4 and sh_h > 4 and sh_alpha > 0:
+                shadow_surf = pygame.Surface((sh_w, sh_h), pygame.SRCALPHA)
+                pygame.draw.ellipse(shadow_surf, (0, 0, 0, sh_alpha), (0, 0, sh_w, sh_h))
+                core_w, core_h = int(sh_w * 0.65), int(sh_h * 0.65)
+                pygame.draw.ellipse(shadow_surf, (0, 0, 0, min(255, int(sh_alpha * 1.45))), ((sh_w - core_w) // 2, (sh_h - core_h) // 2, core_w, core_h))
+                surface.blit(shadow_surf, (self.rect.centerx - cam_x - sh_w // 2, ground_y - cam_y - sh_h // 2))
 
         # ── 1.5 Draw Shadow Trail Afterimages (Gap closer dash) ──
         for aft_surf, ax, ay, alpha in self._afterimages:

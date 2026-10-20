@@ -36,6 +36,39 @@ class _Particle:
         pygame.draw.circle(s, (*self.color, alpha), (r, r), r)
         surface.blit(s, (self.x - cam_x - r, self.y - cam_y - r))
 
+class _BoneParticle:
+    """Lightweight physics-driven ivory bone splinter particle for skeleton death."""
+    __slots__ = ("x", "y", "vx", "vy", "gravity", "life", "max_life", "w", "h", "color", "rot", "rot_speed")
+    def __init__(self, x: float, y: float, vx: float, vy: float):
+        self.x = float(x)
+        self.y = float(y)
+        self.vx = float(vx)
+        self.vy = float(vy)
+        self.gravity = 420.0
+        self.life = self.max_life = random.uniform(0.6, 1.1)
+        self.w = random.randint(3, 6)
+        self.h = random.randint(2, 4)
+        self.color = random.choice([(235, 230, 215), (210, 205, 190), (180, 175, 160)])
+        self.rot = random.uniform(0, 360)
+        self.rot_speed = random.uniform(-400, 400)
+
+    def update(self, dt: float) -> bool:
+        self.vy += self.gravity * dt
+        self.x += self.vx * dt
+        self.y += self.vy * dt
+        self.rot += self.rot_speed * dt
+        self.life -= dt
+        return self.life > 0
+
+    def draw(self, surface: pygame.Surface, cam_x: float, cam_y: float):
+        t = max(0.0, self.life / self.max_life)
+        alpha = int(255 * t)
+        s = pygame.Surface((self.w * 2, self.h * 2), pygame.SRCALPHA)
+        pygame.draw.rect(s, (*self.color, alpha), (self.w // 2, self.h // 2, self.w, self.h))
+        rotated = pygame.transform.rotate(s, self.rot)
+        rw, rh = rotated.get_size()
+        surface.blit(rotated, (self.x - cam_x - rw // 2, self.y - cam_y - rh // 2))
+
 # ─────────────────────────────────────────────────────────────────────────────
 class Enemy:
     def __init__(self, x: float, y: float, width: float, height: float):
@@ -43,6 +76,12 @@ class Enemy:
         self.velocity = pygame.math.Vector2(0, 0)
         self.rect = pygame.FRect(x, y, width, height)
         self.ground_y = self.rect.bottom
+        self.shadow_surface_y = self.rect.bottom
+        self.shadow_surface_tile = None
+        self.standing_on_obstacle_bottom = None
+        self.death_timer = 0.0
+        self.death_duration = 0.85
+        self._bone_particles: list[_BoneParticle] = []
         
         self.health = 3
         self.is_dead = False
@@ -108,8 +147,33 @@ class Enemy:
             self.change_state("HURT")
             
     def die(self):
+        if self.is_dead:
+            return
         self.is_dead = True
+        self.death_timer = self.death_duration
         self.change_state("DEAD")
+        # Scatter bone fragments
+        cx, cy = self.rect.centerx, self.rect.centery
+        for _ in range(random.randint(12, 18)):
+            ang = random.uniform(0, math.pi * 2)
+            spd = random.uniform(50, 160)
+            vx = math.cos(ang) * spd
+            vy = math.sin(ang) * spd - 60
+            self._bone_particles.append(_BoneParticle(cx, cy, vx, vy))
+
+    @property
+    def is_death_complete(self) -> bool:
+        if not self.is_dead:
+            return False
+        has_dead_anim = self.anim_manager.has_animation("dead")
+        anim_done = self.anim_manager.is_finished("dead") if has_dead_anim else True
+        return (self.death_timer <= 0) and anim_done and len(self._bone_particles) == 0
+
+    @property
+    def y_sort_pivot(self) -> float:
+        if getattr(self, "standing_on_obstacle_bottom", None) is not None:
+            return float(self.standing_on_obstacle_bottom) + 0.1
+        return float(self.rect.bottom)
 
     def change_state(self, new_state: str):
         self.state = new_state
@@ -130,6 +194,10 @@ class Enemy:
             if self.guard_timer <= 0:
                 self.is_guarding = False
         self._guard_sparks = [p for p in self._guard_sparks if p.update(effective_dt)]
+        if self.is_dead:
+            if self.death_timer > 0:
+                self.death_timer = max(0.0, self.death_timer - dt)
+        self._bone_particles = [p for p in self._bone_particles if p.update(dt)]
             
         # Apply Gravity
         self.velocity.y += GRAVITY * (self.slow_factor if self.slow_timer > 0 else 1.0)
@@ -140,8 +208,10 @@ class Enemy:
         self.rect.x = self.pos.x
         
         # Collide X
+        collided_x = False
         for tile in tiles:
             if self.rect.colliderect(tile):
+                collided_x = True
                 if self.velocity.x > 0:
                     self.rect.right = tile.left
                 elif self.velocity.x < 0:
@@ -149,6 +219,10 @@ class Enemy:
                 self.pos.x = self.rect.x
                 self.velocity.x = 0
                 break
+
+        if collided_x and getattr(self, "state", "") == "PATROL":
+            self.patrol_dir = -getattr(self, "patrol_dir", 1)
+            self.facing_right = self.patrol_dir > 0
                 
         # Move Y
         self.pos.y += self.velocity.y * effective_dt
@@ -167,42 +241,83 @@ class Enemy:
                 self.velocity.y = 0
                 break
 
+        # Track true ground footprint for grounded contact shadow and Y-sort
+        foot_l = self.rect.left + 4
+        foot_r = self.rect.right - 4
+        floor_below = None
+        tile_below = None
+        for tile in tiles:
+            if tile.right > foot_l and tile.left < foot_r and tile.top >= self.rect.bottom - 6:
+                if floor_below is None or tile.top < floor_below:
+                    floor_below = tile.top
+                    tile_below = tile
+
         if self.on_ground:
             self.ground_y = self.rect.bottom
+            self.shadow_surface_y = self.rect.bottom
+            self.shadow_surface_tile = tile_below
+            if tile_below is not None and tile_below.width < 140:
+                self.standing_on_obstacle_bottom = tile_below.bottom
+            else:
+                self.standing_on_obstacle_bottom = None
         else:
-            floor_below = None
-            for tile in tiles:
-                if tile.left < self.rect.centerx < tile.right and tile.top >= self.rect.bottom - 4:
-                    if floor_below is None or tile.top < floor_below:
-                        floor_below = tile.top
+            self.standing_on_obstacle_bottom = None
             if floor_below is not None:
                 self.ground_y = floor_below
+                self.shadow_surface_y = floor_below
+                self.shadow_surface_tile = tile_below
+            else:
+                self.shadow_surface_y = getattr(self, "ground_y", self.rect.bottom)
+                self.shadow_surface_tile = None
 
     def update(self, dt: float, tiles: list[pygame.FRect], player):
         pass
 
     def draw_contact_shadow(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2, width: int = None, height: int = None, alpha: int = 125):
         """Renders grounded dual-layer contact drop shadow anchored to foot pivot."""
-        if self.is_dead:
+        if self.is_death_complete:
             return
-        ground_y = getattr(self, "ground_y", self.rect.bottom)
+        ground_y = getattr(self, "shadow_surface_y", getattr(self, "ground_y", self.rect.bottom))
         air_height = max(0, ground_y - self.rect.bottom)
-        scale = max(0.4, 1.0 - air_height / 250.0)
-        sw = int((width if width is not None else max(44, int(self.rect.width * 1.25))) * scale)
-        sh = int((height if height is not None else 12) * scale)
-        a = int(alpha * scale)
-        if sw > 2 and sh > 2 and a > 0:
-            shadow_surf = pygame.Surface((sw, sh), pygame.SRCALPHA)
+        scale = max(0.35, 1.0 - air_height / 180.0)
+        base_w = int((width if width is not None else max(44, int(self.rect.width * 1.25))) * scale)
+        shadow_h = max(3, int((height if height is not None else 12) * scale))
+        base_alpha = alpha
+        if self.is_dead:
+            base_alpha = int(alpha * max(0.0, self.death_timer / max(0.01, self.death_duration)))
+        a = int(base_alpha * scale)
+        
+        # Check obstacle surface clipping
+        surf_tile = getattr(self, "shadow_surface_tile", None)
+        cx = self.rect.centerx
+        sw = base_w
+        if surf_tile and surf_tile.width < 140:
+            sh_left = cx - base_w // 2
+            sh_right = cx + base_w // 2
+            avail_left = max(sh_left, surf_tile.left)
+            avail_right = min(sh_right, surf_tile.right)
+            if avail_right > avail_left:
+                sw = int(avail_right - avail_left)
+                cx = (avail_left + avail_right) // 2
+            else:
+                sw = 0
+
+        if sw > 2 and shadow_h > 2 and a > 0:
+            shadow_surf = pygame.Surface((sw, shadow_h), pygame.SRCALPHA)
             # Outer soft falloff
-            pygame.draw.ellipse(shadow_surf, (0, 0, 0, a), (0, 0, sw, sh))
+            pygame.draw.ellipse(shadow_surf, (0, 0, 0, a), (0, 0, sw, shadow_h))
             # Inner dark contact core
-            core_w, core_h = max(2, int(sw * 0.62)), max(2, int(sh * 0.62))
-            pygame.draw.ellipse(shadow_surf, (0, 0, 0, min(255, int(a * 1.35))), ((sw - core_w) // 2, (sh - core_h) // 2, core_w, core_h))
-            surface.blit(shadow_surf, (self.rect.centerx - camera_offset.x - sw // 2, ground_y - camera_offset.y - sh // 2 + 1))
+            core_w, core_h = max(2, int(sw * 0.62)), max(2, int(shadow_h * 0.62))
+            pygame.draw.ellipse(shadow_surf, (0, 0, 0, min(255, int(a * 1.35))), ((sw - core_w) // 2, (shadow_h - core_h) // 2, core_w, core_h))
+            surface.blit(shadow_surf, (cx - camera_offset.x - sw // 2, ground_y - camera_offset.y - shadow_h // 2 + 1))
+
+    def draw_death_effects(self, surface: pygame.Surface, cam_x: float, cam_y: float):
+        for bp in self._bone_particles:
+            bp.draw(surface, cam_x, cam_y)
 
     def draw(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
-        if self.is_dead and self.anim_manager.is_finished("dead"):
-            return # Don't draw if fully dead (or could draw last frame)
+        if self.is_death_complete:
+            return
 
         # Draw soft contact drop shadow under feet (Grounded presence)
         self.draw_contact_shadow(surface, camera_offset)
@@ -221,6 +336,11 @@ class Enemy:
             tinted = img.copy()
             tinted.fill((130, 205, 255), special_flags=pygame.BLEND_RGBA_MULT)
             surface.blit(tinted, (draw_x, draw_y))
+        elif self.is_dead:
+            fade_alpha = max(0, min(255, int(255 * (self.death_timer / max(0.01, self.death_duration)))))
+            faded = img.copy()
+            faded.set_alpha(fade_alpha)
+            surface.blit(faded, (draw_x, draw_y))
         else:
             surface.blit(img, (draw_x, draw_y))
             
@@ -235,6 +355,8 @@ class Enemy:
             
         for spk in self._guard_sparks:
             spk.draw(surface, camera_offset.x, camera_offset.y)
+
+        self.draw_death_effects(surface, camera_offset.x, camera_offset.y)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

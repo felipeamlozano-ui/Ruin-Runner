@@ -78,8 +78,8 @@ class Game:
             self.scanlines = self._build_scanlines(want)
 
     def apply_display_settings(self):
-        """Applies resolution, fullscreen, and window flags."""
-        flags = 0
+        """Applies resolution, fullscreen, and window flags using GPU Hardware Scaling."""
+        flags = pygame.SCALED
         if SETTINGS.FULLSCREEN:
             flags |= pygame.FULLSCREEN
         else:
@@ -88,14 +88,13 @@ class Game:
         cur_res = SETTINGS.RESOLUTIONS[SETTINGS.RESOLUTION_INDEX]
         SETTINGS.WINDOW_WIDTH, SETTINGS.WINDOW_HEIGHT = cur_res
         
-        try:
-            if SETTINGS.FULLSCREEN:
-                self.screen = pygame.display.set_mode((0, 0), flags)
-            else:
-                self.screen = pygame.display.set_mode(cur_res, flags)
-        except Exception as err:
-            print(f"Display mode change notice: {err}")
-            self.screen = pygame.display.set_mode(cur_res, pygame.RESIZABLE)
+        # Native GPU Hardware-accelerated presentation via Vulkan (with fallback to direct3d11/opengl)
+        from engine.system_optimizer import create_hardware_display
+        self.screen, active_driver = create_hardware_display(
+            (SETTINGS.GAME_WIDTH, SETTINGS.GAME_HEIGHT),
+            flags
+        )
+        self.active_render_driver = active_driver
             
         if hasattr(self, "fsr_engine"):
             self.fsr_engine.tw = SETTINGS.WINDOW_WIDTH
@@ -105,13 +104,6 @@ class Game:
         if hasattr(self, "pipeline"):
             self.pipeline.window_w = SETTINGS.WINDOW_WIDTH
             self.pipeline.window_h = SETTINGS.WINDOW_HEIGHT
-
-        # Initialize or resize Vulkan hardware rendering context
-        if hasattr(self, "vulkan_backend"):
-            if getattr(SETTINGS, "VULKAN_ENABLED", False):
-                self.vulkan_backend.initialize(self.screen.get_size())
-            else:
-                self.vulkan_backend.available = False
 
         pygame.display.set_caption("Ruin Runner")
         
@@ -135,8 +127,6 @@ class Game:
             elif event.type == pygame.VIDEORESIZE:
                 if not SETTINGS.FULLSCREEN:
                     SETTINGS.WINDOW_WIDTH, SETTINGS.WINDOW_HEIGHT = event.w, event.h
-                    if hasattr(self, "vulkan_backend"):
-                        self.vulkan_backend.resize(event.w, event.h)
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_F11:
                     SETTINGS.FULLSCREEN = not SETTINGS.FULLSCREEN
@@ -161,53 +151,13 @@ class Game:
         # 2. Post-processing Scanlines if enabled
         if SETTINGS.SCANLINES_ENABLED:
             self.game_surface.blit(self.scanlines, (0, 0))
-            
-        # 3. Viewport calculation for 4:3 letterbox or edge-to-edge
-        sw, sh = self.screen.get_size()
-        gw, gh = self.game_surface.get_size()
-        
-        # Edge-to-edge mode: fill the whole screen (no black bars)
-        if SETTINGS.FULLSCREEN_STRETCH:
-            target_w, target_h = sw, sh
-            target_x, target_y = 0, 0
-        else:
-            # Maintain aspect ratio with letterbox/pillarbox bars
-            scale_factor = min(sw / gw, sh / gh)
-            target_w = int(gw * scale_factor)
-            target_h = int(gh * scale_factor)
-            target_x = (sw - target_w) // 2
-            target_y = (sh - target_h) // 2
-        
-        # 4. Low-Level GPU Hardware Presentation (Vulkan via wgpu)
-        vulkan_rendered = False
-        if getattr(SETTINGS, "VULKAN_ENABLED", False) and getattr(self, "vulkan_backend", None) and self.vulkan_backend.available:
-            if PROFILER.enabled:
-                PROFILER.render_overlay(self.game_surface)
-            vulkan_rendered = self.vulkan_backend.render_frame(
-                self.game_surface,
-                (target_x, target_y, target_w, target_h),
-                scanlines=getattr(SETTINGS, "SCANLINES_ENABLED", False),
-                vignette=SETTINGS.VIGNETTE_ENABLED,
-                time_sec=self.timer.time
-            )
 
-        # 5. High-Performance Hardware/C Presentation Pipeline (Zero-Lag 60 FPS)
-        if not vulkan_rendered:
-            src = self.game_surface
-            if SETTINGS.ANTIALIASING or (SETTINGS.RUIN_ENGINE_V3 and SETTINGS.AA_MODE != "Off"):
-                # Crisp integer pre-scale keeps pixel-art edges sharp before the smooth fractional resize (Dead Cells standard)
-                if getattr(SETTINGS, "CRISP_UPSCALE", True) and target_w >= 2 * gw:
-                    f = target_w // gw
-                    src = pygame.transform.scale(self.game_surface, (gw * f, gh * f))
-                scaled_buf = pygame.transform.smoothscale(src, (target_w, target_h))
-            else:
-                scaled_buf = pygame.transform.scale(self.game_surface, (target_w, target_h))
-                
-            self.screen.fill((10, 10, 15)) # Clean letterbox background
-            self.screen.blit(scaled_buf, (target_x, target_y))
-            PROFILER.render_overlay(self.screen)
-            pygame.display.flip()
+        # 3. GPU Hardware Presentation (Zero CPU Scaling Overhead)
+        # Direct 1:1 blit to hardware backbuffer and presentation handled in VRAM by Vulkan driver
+        self.screen.blit(self.game_surface, (0, 0))
+        PROFILER.render_overlay(self.screen)
+        pygame.display.flip()
 
-        # 6. Adaptive Quality Governor evaluation
+        # 4. Adaptive Quality Governor evaluation
         ADAPTIVE_QUALITY.update(PROFILER.fps)
 

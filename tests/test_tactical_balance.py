@@ -253,6 +253,8 @@ def run_tests():
     print("\n[9] Testing Boss Scene Arena (2560px width, zoom-out surface, dynamic Phase 2)...")
     sm = SceneManager()
     boss_scene = BossScene(sm)
+    if boss_scene.dialogue_box:
+        boss_scene.dialogue_box.is_finished = True
     assert boss_scene.map_width == 2560, f"Arena width should be 2560, got {boss_scene.map_width}"
     assert boss_scene.arena_w == 640 and boss_scene.arena_h == 480, "Virtual arena surface must be 640x480 for 1.25x wider FOV zoom-out"
     assert len(boss_scene.props) == 0, f"Expected 0 props/barrels on arena floor, got {len(boss_scene.props)}"

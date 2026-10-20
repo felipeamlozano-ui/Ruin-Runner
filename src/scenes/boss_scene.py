@@ -50,7 +50,7 @@ class WaterDroplet:
         self.vy = random.uniform(180.0, 320.0)
         self.color = color
 
-    def update(self, dt: float, floor_y: float = 425.0) -> bool:
+    def update(self, dt: float, floor_y: float = 320.0) -> bool:
         self.y += self.vy * dt
         return self.y < floor_y
 
@@ -60,13 +60,9 @@ BOSS_DIALOGUES = {
         ("TITÃ DEMONÍACO", "RUAAAGHH! MINHA LAMA CORROSIVA CONSUMIRÁ SUA ALMA!"),
         ("SHAIA", "Permaneçam firmes! Destruam o núcleo sombrio deste titã!")
     ],
-    "impaler": [
-        ("EMPALADOR ABISSAL", "Mais oferendas para empalar sob os céus escarlates..."),
-        ("LUNARIA", "Sua lâmina profana não tocará nossa luz! Prepare-se!")
-    ],
     "monster_creature": [
         ("MONSTRO QUIMÉRICO", "GRRRRROAAARR! O GELO ETERNO RECLAMA SEUS OSSOS!"),
-        ("CARMILLA", "Uma besta feroz dos glaciares... Mostre-me sua ferocidade ancestral!")
+        ("SHAIA", "Uma besta colossal dos glaciares... Quebre o selo da corrupção!")
     ],
     "samurai": [
         ("LORDE SAMURAI", "Saquem suas lâminas. Somente o aço mais puro cruzará este altar celeste."),
@@ -79,19 +75,23 @@ BOSS_DIALOGUES = {
 }
 
 class BossScene(Scene):
-    # Render natively at the arena resolution; Game resizes its buffer accordingly
-    internal_size = (640, 480)
+    # Render natively at 16:9 matching the game resolution; zero downscale blur
+    internal_size = (640, 360)
     def __init__(self, scene_manager, boss_type: str = "skeleton_king"):
         self.scene_manager = scene_manager
         self.boss_type = boss_type
+        
+        # Freeze GC during active boss combat
+        from engine.system_optimizer import freeze_gc_for_gameplay
+        freeze_gc_for_gameplay("BossScene")
         
         from ui.dialogue_box import DialogueBox
         intro_lines = BOSS_DIALOGUES.get(self.boss_type, BOSS_DIALOGUES["skeleton_king"])
         self.dialogue_box = DialogueBox(intro_lines)
         
-        # Virtual Arena Resolution (1.25x Wider FOV camera zoom-out)
+        # Native 16:9 Arena Resolution
         self.arena_w = 640
-        self.arena_h = 480
+        self.arena_h = 360
         self.arena_surf = pygame.Surface((self.arena_w, self.arena_h))
         
         # Arena map bounds (Epic 2560px arena width)
@@ -147,20 +147,30 @@ class BossScene(Scene):
         self.bg_phase4.blit(tint_p4, (0, 0))
         
         # Blood Moon in sky
-        moon_cx, moon_cy = 1280, 105
-        pygame.draw.circle(self.bg_phase4, (255, 60, 40), (moon_cx, moon_cy), 65)
-        pygame.draw.circle(self.bg_phase4, (210, 25, 25), (moon_cx, moon_cy), 56)
-        pygame.draw.circle(self.bg_phase4, (255, 120, 80), (moon_cx, moon_cy), 76, 4)
+        moon_cx, moon_cy = 1280, 85
+        pygame.draw.circle(self.bg_phase4, (255, 60, 40), (moon_cx, moon_cy), 55)
+        pygame.draw.circle(self.bg_phase4, (210, 25, 25), (moon_cx, moon_cy), 48)
+        pygame.draw.circle(self.bg_phase4, (255, 120, 80), (moon_cx, moon_cy), 64, 3)
         
-        # Magma Floor Fissures along ground level (Y = 422 - 435)
+        # Magma Floor Fissures along ground level (Y = 318 - 322)
         for fx in range(60, self.map_width - 80, 130):
-            pts = [(fx, 423), (fx + 25, 427), (fx + 55, 422), (fx + 85, 428), (fx + 110, 423)]
-            pygame.draw.lines(self.bg_phase4, (255, 170, 30), False, pts, 3)
-            pygame.draw.lines(self.bg_phase4, (255, 60, 20), False, pts, 5)
+            pts = [(fx, 318), (fx + 25, 321), (fx + 55, 318), (fx + 85, 322), (fx + 110, 318)]
+            pygame.draw.lines(self.bg_phase4, (255, 170, 30), False, pts, 2)
+            pygame.draw.lines(self.bg_phase4, (255, 60, 20), False, pts, 4)
 
-        # Arena Pillars & Torches
-        self.pillar_x_coords = [320, 780, 1280, 1780, 2240]
+        # Walkable Floor Lane
+        self.FLOOR_TOP_Y = 240
+        self.FLOOR_BOTTOM_Y = 320
+
+        # Arena Pillars & Torches (Anchored to solid masonry columns outside door archway spans)
+        self.pillar_x_coords = [416, 928, 1440, 1952, 2464]
+
+        # Environmental Floor Occlusion Rocks: REMOVIDAS do cenário de Boss por completo a pedido
+        self.environmental_rocks = []
         
+        # Pre-render perspective stone paving without any artificial grid lines
+        self._bake_floor_perspective_tiles()
+
         # Dynamic Scenery Elements (Item 9)
         self.scene_time = 0.0
         self.droplets: list[WaterDroplet] = []
@@ -173,7 +183,7 @@ class BossScene(Scene):
         # Player & Entities (Spawned grounded on arena floor, facing boss)
         p1_char = getattr(SETTINGS, "CURRENT_CHARACTER", "shaia")
         p1_dev = getattr(SETTINGS, "P1_INPUT_DEVICE", "keyboard")
-        self.player = Player(160, 340, character_id=p1_char, player_index=0, input_device=p1_dev)
+        self.player = Player(160, self.FLOOR_BOTTOM_Y - 70, character_id=p1_char, player_index=0, input_device=p1_dev)
         self.player.facing_right = True
         self.hud = HUD(self.player, stage_title="FASE 5: A SALA DO TRONO (CHEFE)", player_index=0)
         
@@ -185,7 +195,7 @@ class BossScene(Scene):
         if self.coop_enabled:
             p2_char = getattr(SETTINGS, "P2_CHARACTER", "lunaria")
             p2_dev = getattr(SETTINGS, "P2_INPUT_DEVICE", "keyboard")
-            self.player2 = Player(210, 340, character_id=p2_char, player_index=1, input_device=p2_dev)
+            self.player2 = Player(210, self.FLOOR_BOTTOM_Y - 70, character_id=p2_char, player_index=1, input_device=p2_dev)
             self.player2.facing_right = True
             self.player.companion = self.player2
             self.player2.companion = self.player
@@ -206,22 +216,18 @@ class BossScene(Scene):
         # Boss (Spawned grounded on arena floor opposite player, facing player)
         if self.boss_type == "demon_slime":
             from entities.bosses_pack import DemonSlimeBoss
-            self.boss = DemonSlimeBoss(470, 260)
+            self.boss = DemonSlimeBoss(470, self.FLOOR_BOTTOM_Y - 145)
             self.hud.stage_title = "CONFRONTO: O TITÃ DEMONÍACO"
         elif self.boss_type == "samurai":
             from entities.bosses_pack import SamuraiBoss
-            self.boss = SamuraiBoss(470, 297)
+            self.boss = SamuraiBoss(470, self.FLOOR_BOTTOM_Y - 100)
             self.hud.stage_title = "CONFRONTO: LORDE SAMURAI"
-        elif self.boss_type == "impaler":
-            from entities.bosses_pack import ImpalerBoss
-            self.boss = ImpalerBoss(470, 303)
-            self.hud.stage_title = "CONFRONTO: O EMPALADOR ABISSAL"
         elif self.boss_type == "monster_creature":
             from entities.bosses_pack import MonsterCreatureBoss
-            self.boss = MonsterCreatureBoss(470, 190)
+            self.boss = MonsterCreatureBoss(470, self.FLOOR_BOTTOM_Y - 140)
             self.hud.stage_title = "CONFRONTO: O MONSTRO QUIMÉRICO"
         else:
-            self.boss = SkeletonBoss(470, 315)
+            self.boss = SkeletonBoss(470, self.FLOOR_BOTTOM_Y - 100)
             self.hud.stage_title = "FASE 5: A SALA DO TRONO (CHEFE)"
             
         self.boss.facing_right = False
@@ -239,6 +245,23 @@ class BossScene(Scene):
         self.font_victory = pygame.font.SysFont("Arial", 36, bold=True)
         self.font_sub = pygame.font.SysFont("Arial", 16, bold=True)
         
+    def _bake_floor_perspective_tiles(self):
+        """
+        Bakes soft ambient occlusion depth into the wall-floor seam.
+        Artifical mesh/grid lines removed to ensure pure visual clarity.
+        """
+        floor_h = self.FLOOR_BOTTOM_Y - self.FLOOR_TOP_Y
+        floor_surf = pygame.Surface((self.map_width, floor_h + 40), pygame.SRCALPHA)
+
+        # Soft base gradient shadow along the wall-floor seam
+        for y_off in range(12):
+            alpha = int(45 * (1.0 - y_off / 12.0))
+            pygame.draw.line(floor_surf, (5, 5, 10, alpha), (0, y_off), (self.map_width, y_off))
+
+        # Blit clean floor shading onto all phase backgrounds
+        for bg in (self.bg_phase1, self.bg_phase2, self.bg_phase3, self.bg_phase4):
+            bg.blit(floor_surf, (0, self.FLOOR_TOP_Y))
+
     def unpause(self):
         self.paused = False
         
@@ -273,9 +296,9 @@ class BossScene(Scene):
 
         # Arena Lock: Solid floor and lateral screen bounds trapping entities in visible area
         solid_rects = [
-            pygame.FRect(-100, 425, self.map_width + 200, 80), # Solid Floor (Y=425)
-            pygame.FRect(-60, 0, 80, 500),                     # Left Wall Barrier
-            pygame.FRect(620, 0, 80, 500)                      # Right Wall Barrier
+            pygame.FRect(-100, self.FLOOR_BOTTOM_Y, self.map_width + 200, 80), # Solid Floor (Y=FLOOR_BOTTOM_Y)
+            pygame.FRect(-60, 0, 80, 500),                                     # Left Wall Barrier
+            pygame.FRect(self.map_width - 25, 0, 80, 500)                      # Right Wall Barrier
         ]
         
         active_players = [p for p in [self.player, self.player2] if p]
@@ -283,17 +306,17 @@ class BossScene(Scene):
         # 1. Update Players with Arena Lock enforcement
         for p in active_players:
             p.update(dt, solid_rects, self.enemies, self.camera)
-            # Enforce screen edge Arena Lock
-            if p.rect.left < 25:
-                p.rect.left = 25
+            # Enforce arena edge bounds across full combat space
+            if p.rect.left < 35:
+                p.rect.left = 35
                 p.pos.x = float(p.rect.x)
                 p.velocity.x = 0
-            elif p.rect.right > 615:
-                p.rect.right = 615
+            elif p.rect.right > self.map_width - 35:
+                p.rect.right = self.map_width - 35
                 p.pos.x = float(p.rect.x)
                 p.velocity.x = 0
-            if p.rect.bottom > 425:
-                p.rect.bottom = 425
+            if p.rect.bottom > self.FLOOR_BOTTOM_Y:
+                p.rect.bottom = self.FLOOR_BOTTOM_Y
                 p.pos.y = float(p.rect.y)
                 p.velocity.y = 0
                 p.on_ground = True
@@ -321,9 +344,9 @@ class BossScene(Scene):
             self.droplets.append(WaterDroplet(drop_x, y=0.0, color=drop_col))
 
         for d in self.droplets[:]:
-            if not d.update(dt, floor_y=425.0):
+            if not d.update(dt, floor_y=float(self.FLOOR_BOTTOM_Y)):
                 self.droplets.remove(d)
-                self.ripples.append(WaterRipple(d.x, y=425.0, color=d.color))
+                self.ripples.append(WaterRipple(d.x, y=float(self.FLOOR_BOTTOM_Y), color=d.color))
 
         self.ripples = [r for r in self.ripples if r.update(dt)]
         self.falling_debris = [p for p in self.falling_debris if p.update(dt)]
@@ -346,14 +369,15 @@ class BossScene(Scene):
         while self.boss.minions_to_spawn:
             m_type, mx = self.boss.minions_to_spawn.pop(0)
             spawn_x = max(120, min(self.map_width - 150, mx))
+            spawn_y = self.FLOOR_BOTTOM_Y - 45
             if m_type == "mage":
-                self.enemies.append(MageSkeleton(spawn_x, 320))
+                self.enemies.append(MageSkeleton(spawn_x, spawn_y))
             elif m_type in ("spearman", "boar"):
-                self.enemies.append(SkeletonSpearman(spawn_x, 320))
+                self.enemies.append(SkeletonSpearman(spawn_x, spawn_y))
             elif m_type == "archer":
-                self.enemies.append(SkeletonArcher(spawn_x, 320))
+                self.enemies.append(SkeletonArcher(spawn_x, spawn_y))
             else:
-                self.enemies.append(SkeletonWarrior(spawn_x, 320))
+                self.enemies.append(SkeletonWarrior(spawn_x, spawn_y))
         
         # Check Victory
         is_anim_done = self.boss.anim_manager.is_finished("dead") or self.boss.anim_manager.is_finished("death") or getattr(self.boss, "state", "") == "DEATH"
@@ -377,20 +401,20 @@ class BossScene(Scene):
 
             if e == self.boss:
                 e.update(dt, solid_rects, target, self.camera)
-                # Enforce Boss arena screen boundary lock
-                if e.rect.left < 25:
-                    e.rect.left = 25
+                # Enforce Boss arena bounds across full combat arena
+                if e.rect.left < 35:
+                    e.rect.left = 35
                     if hasattr(e, "pos"):
                         e.pos.x = float(e.rect.x)
                     e.velocity.x = 0
-                elif e.rect.right > 615:
-                    e.rect.right = 615
+                elif e.rect.right > self.map_width - 35:
+                    e.rect.right = self.map_width - 35
                     if hasattr(e, "pos"):
                         e.pos.x = float(e.rect.x)
                     e.velocity.x = 0
                 if not getattr(e, "is_floating", False):
-                    if e.rect.bottom > 425:
-                        e.rect.bottom = 425
+                    if e.rect.bottom > self.FLOOR_BOTTOM_Y:
+                        e.rect.bottom = self.FLOOR_BOTTOM_Y
                         if hasattr(e, "pos"):
                             e.pos.y = float(e.rect.y)
                         e.velocity.y = 0
@@ -413,6 +437,9 @@ class BossScene(Scene):
                         if touch_dmg > 0:
                             cur_p.take_damage(touch_dmg)
                 
+        # Prune fully despawned minions after death sequence (fade-out + bone particles) completes
+        self.enemies = [e for e in self.enemies if e == self.boss or not getattr(e, "is_death_complete", False)]
+
         # Players attacking enemies
         for cur_p in active_players:
             p_hitbox = cur_p.get_attack_hitbox()
@@ -496,6 +523,37 @@ class BossScene(Scene):
         else:
             self.camera.update(self.player.rect, dt)
         
+        # Boss Defeat / Victory logic
+        if getattr(self.boss, "is_dead", False):
+            self.victory_timer += dt
+            if self.victory_timer >= 2.5 and not self.victory:
+                self.victory = True
+                from engine.save_manager import SAVE
+                SAVE.complete_stage(f"boss_{self.boss_type}")
+                if self.boss_type == "demon_slime":
+                    SAVE.unlock_world("sanguis")
+                    SAVE.unlock_stage("sanguis_1")
+                elif self.boss_type == "skeleton_king":
+                    SAVE.unlock_world("glacies")
+                    SAVE.unlock_stage("glacies_1")
+                elif self.boss_type == "monster_creature":
+                    SAVE.unlock_world("aetheria")
+                    SAVE.unlock_stage("aetheria_1")
+                elif self.boss_type == "samurai":
+                    SAVE.unlock_world("umbra")
+                    SAVE.unlock_stage("umbra_1")
+                
+                from scenes.story_select_scene import StorySelectScene
+                from scenes.loading_scene import LoadingScene
+                loading = LoadingScene(
+                    self.scene_manager,
+                    StorySelectScene(self.scene_manager),
+                    title="GUARDIÃO DERROTADO!",
+                    tip="O caminho foi aberto para o próximo reino das Ruínas!"
+                )
+                self.scene_manager.change_scene(loading)
+                return
+
         # Death logic
         all_dead = self.player.is_dead and (self.player2 is None or self.player2.is_dead)
         if all_dead:
@@ -503,7 +561,7 @@ class BossScene(Scene):
                 self.death_screen.start()
             death_action = self.death_screen.update(dt)
             if death_action == "retry":
-                self.scene_manager.change_scene(BossScene(self.scene_manager))
+                self.scene_manager.change_scene(BossScene(self.scene_manager, boss_type=self.boss_type))
                 return
             elif death_action == "menu":
                 from scenes.main_menu import MainMenuScene
@@ -515,16 +573,16 @@ class BossScene(Scene):
         for idx, px in enumerate(self.pillar_x_coords):
             screen_px = px - cam_x
             if -80 <= screen_px <= self.arena_w + 80:
-                top_y = 130 - cam_y
-                banner_h = 135
-                banner_w = 26
+                top_y = 48 - cam_y
+                banner_h = 115
+                banner_w = 22
                 # Sinusoidal cloth physics
-                sway = math.sin(self.scene_time * 2.2 + idx * 1.3) * 6.0
+                sway = math.sin(self.scene_time * 2.2 + idx * 1.3) * 5.0
                 pts = [
                     (screen_px - banner_w // 2, top_y),
                     (screen_px + banner_w // 2, top_y),
                     (screen_px + banner_w // 2 + sway, top_y + banner_h),
-                    (screen_px + sway, top_y + banner_h - 15),
+                    (screen_px + sway, top_y + banner_h - 12),
                     (screen_px - banner_w // 2 + sway, top_y + banner_h)
                 ]
                 col_banner = (30, 20, 45) if self.active_arena_phase == 3 else ((120, 25, 25) if self.active_arena_phase >= 4 else (25, 55, 110))
@@ -554,9 +612,9 @@ class BossScene(Scene):
         for r in self.ripples:
             r.draw(self.arena_surf, cam_x, cam_y)
 
-        # 4. Y-Sort entities (Players, Boss, Minions)
-        drawables = [p for p in [self.player, self.player2] if p] + self.props + [e for e in self.enemies if not (e.is_dead and e.anim_manager.is_finished("dead"))]
-        drawables.sort(key=lambda x: getattr(x, "ground_y", x.rect.bottom))
+        # 4. Y-Sort entities (Players, Boss, Minions, Environmental Rocks & Props)
+        drawables = [p for p in [self.player, self.player2] if p] + self.props + getattr(self, "environmental_rocks", []) + [e for e in self.enemies if not getattr(e, "is_death_complete", False)]
+        drawables.sort(key=lambda x: getattr(x, "y_sort_pivot", getattr(x, "ground_y", x.rect.bottom)))
         
         vl, vr = cam_x - 32, cam_x + self.arena_w + 32
         vt, vb = cam_y - 32, cam_y + self.arena_h + 32
@@ -595,7 +653,7 @@ class BossScene(Scene):
         torch_color = (135, 195, 245) if boss_phase == 1 else ((255, 180, 80) if boss_phase == 2 else ((190, 100, 245) if boss_phase == 3 else (255, 80, 40)))
         for px in self.pillar_x_coords:
             flicker = math.sin(self.scene_time * 5.5 + px) * 4.0
-            lights.append(LightSource(px, 215, 74 + int(flicker), torch_color, 0.70, True))
+            lights.append(LightSource(px, 120, 74 + int(flicker), torch_color, 0.70, True))
 
         for p in self.projectiles:
             if getattr(p, "is_enemy", False):
@@ -618,10 +676,10 @@ class BossScene(Scene):
         # Pillars cast deep architectural shadows
         for px in self.pillar_x_coords:
             occluders.extend([
-                (px - 14, 130, px + 14, 130),
-                (px + 14, 425, px - 14, 425),
-                (px - 14, 425, px - 14, 130),
-                (px + 14, 130, px + 14, 425)
+                (px - 14, 90, px + 14, 90),
+                (px + 14, self.FLOOR_BOTTOM_Y, px - 14, self.FLOOR_BOTTOM_Y),
+                (px - 14, self.FLOOR_BOTTOM_Y, px - 14, 90),
+                (px + 14, 90, px + 14, self.FLOOR_BOTTOM_Y)
             ])
             
         # Entities cast dynamic shadows
@@ -639,6 +697,8 @@ class BossScene(Scene):
         if occluders and lights:
             self.lighting.draw_shadows(self.arena_surf, lights, occluders, self.camera.offset)
         self.lighting.draw_point_lights(self.arena_surf, lights, self.camera.offset)
+
+
         self.lighting.draw_ambient_particles(self.arena_surf, self.camera.offset)
         
         # Color Grading

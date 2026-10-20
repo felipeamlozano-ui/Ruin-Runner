@@ -37,11 +37,11 @@ class TestBossAndNeuralEvolution(unittest.TestCase):
         self.assertEqual(len(boss.anim_manager.animations["special"].frames), 5)
         self.assertEqual(len(boss.anim_manager.animations["jump"].frames), 5)
         
-        # Verify foot grounding anchor baseline (scaled 1.20x: 180 in 230x192 frame)
-        self.assertEqual(boss.scale, 1.20)
-        self.assertEqual(boss.anchor_y, 180)
-        self.assertEqual(boss.anchor_x_right, 90)
-        self.assertEqual(boss.anchor_x_left, 139)
+        # Verify foot grounding anchor baseline (native 1.0x: 150 in 192x160 frame)
+        self.assertEqual(boss.scale, 1.0)
+        self.assertEqual(boss.anchor_y, 150)
+        self.assertEqual(boss.anchor_x_right, 75)
+        self.assertEqual(boss.anchor_x_left, 116)
         
         # Render frame without error
         surf = pygame.Surface((640, 480))

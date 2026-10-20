@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "slot_id": 3,
+  "created_at": "2026-10-19T16:08:00.548163",
+  "updated_at": "2026-10-19T22:00:45.586576",
+  "character_id": "shaia",
+  "chapter": 1,
+  "current_world": "terrae",
+  "current_stage": "terrae_1",
+  "unlocked_worlds": [
+    "terrae"
+  ],
+  "unlocked_stages": [
+    "terrae_1",
+    "terrae_2",
+    "terrae_3"
+  ],
+  "completed_stages": [
+    "terrae_1",
+    "terrae_2"
+  ],
+  "completed_worlds": [],
+  "checkpoints": {},
+  "narrative_flags": {},
+  "completed_events": [
+    "terrae_1_intro",
+    "terrae_2_intro"
+  ],
+  "orbs": 76,
+  "playtime_sec": 0.0,
+  "skills": {
+    "blade_sharpness": 1,
+    "combo_finisher": 0,
+    "arcane_mastery": 2,
+    "aoe_resonance": 0,
+    "shadow_step": 0,
+    "ultimate_wrath": 0,
+    "alchemist_elixir": 0,
+    "titan_heart": 0,
+    "cosmic_mana": 0
+  },
+  "tutorial_completed": true,
+  "high_scores": {}
+}

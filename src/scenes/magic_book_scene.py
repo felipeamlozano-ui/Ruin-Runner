@@ -327,13 +327,6 @@ class MagicBookScene(Scene):
         btn.blit(bl, (0, h - 8))
         btn.blit(br, (w - 8, h - 8))
 
-        # Add decorative ribbon marker from bookmarks.png on left edge
-        if self.bookmarks:
-            ribbon_col = 0 if style == "golden" else (16 if style == "weathered" else 32)
-            ribbon_col = min(ribbon_col, self.bookmarks.get_width() - 16)
-            ribbon = self.bookmarks.subsurface((ribbon_col, 0, 12, 22))
-            btn.blit(ribbon, (4, (h - 22) // 2))
-
         return btn
 
     def handle_events(self, events: list[pygame.event.Event]):
@@ -364,6 +357,10 @@ class MagicBookScene(Scene):
         self.skill_index = 0
         self.state = "FLIP_RIGHT" if delta > 0 else "FLIP_LEFT"
         self.anim_timer = 0.0
+
+    def _change_page(self, delta: int):
+        """Alias for _trigger_page_flip for backward compatibility."""
+        self._trigger_page_flip(delta)
 
     def _change_skill(self, delta: int):
         page = SKILL_TREE_DATA[self.page_index]
@@ -581,7 +578,7 @@ class MagicBookScene(Scene):
             surface.blit(btn_surf, btn_pos)
             
             btn_lbl = self.font_btn.render("[ESPAÇO] APRIMORAR", True, (40, 25, 10) if can_afford else (90, 80, 70))
-            surface.blit(btn_lbl, btn_lbl.get_rect(center=(btn_pos[0] + btn_surf.get_width() // 2 + 6, btn_pos[1] + btn_surf.get_height() // 2)))
+            surface.blit(btn_lbl, btn_lbl.get_rect(center=(btn_pos[0] + btn_surf.get_width() // 2, btn_pos[1] + btn_surf.get_height() // 2)))
         else:
             desc_y += 20
             max_pos = (right_page_x + (right_page_w - self.btn_max_surf.get_width()) // 2, desc_y)

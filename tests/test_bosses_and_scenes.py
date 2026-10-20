@@ -66,7 +66,6 @@ class TestBossesAndScenes(unittest.TestCase):
             "skeleton_king": SkeletonBoss,
             "demon_slime": DemonSlimeBoss,
             "samurai": SamuraiBoss,
-            "impaler": ImpalerBoss,
             "monster_creature": MonsterCreatureBoss,
         }
         for b_type, b_class in boss_map.items():
@@ -87,7 +86,7 @@ class TestBossesAndScenes(unittest.TestCase):
         """Test that stages properly route to their boss types."""
         expected_bosses = {
             "terrae_3": "demon_slime",
-            "sanguis_3": "impaler",
+            "sanguis_3": "skeleton_king",
             "glacies_3": "monster_creature",
             "aetheria_3": "samurai",
         }

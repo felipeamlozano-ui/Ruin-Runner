@@ -1,0 +1,1400 @@
+{
+  "assets/sprites/characters/coop/master_atlas_4heroes.json": {
+    "mtime": 1790724176.706221,
+    "seen": 1791161045.6049554,
+    "ast_hash": "593629a1fed5d86b79752873fe78d572",
+    "semantic_hash": "593629a1fed5d86b79752873fe78d572"
+  },
+  "build_native.sh": {
+    "mtime": 1790648093.1241593,
+    "seen": 1791161045.604961,
+    "ast_hash": "51541d50908d72c2c49aa8db618ab919",
+    "semantic_hash": "51541d50908d72c2c49aa8db618ab919"
+  },
+  "config/colors.py": {
+    "mtime": 1788444872.7889397,
+    "seen": 1791161045.6049633,
+    "ast_hash": "cf8fe5bcadd1c333028a26fc72ed3fee",
+    "semantic_hash": "cf8fe5bcadd1c333028a26fc72ed3fee"
+  },
+  "config/constants.py": {
+    "mtime": 1790707854.7587602,
+    "seen": 1791161045.6049645,
+    "ast_hash": "bebb366139993d21d1575ea392b829ad",
+    "semantic_hash": "bebb366139993d21d1575ea392b829ad"
+  },
+  "config/controls.py": {
+    "mtime": 1790645894.665846,
+    "seen": 1791161045.604966,
+    "ast_hash": "88fbf154a27998dc82d670ae57a0efa8",
+    "semantic_hash": "88fbf154a27998dc82d670ae57a0efa8"
+  },
+  "config/settings.py": {
+    "mtime": 1791216023.388451,
+    "seen": 1791245818.7639046,
+    "ast_hash": "244ff7e3ae8ae8823aa294f63cfee4f3",
+    "semantic_hash": "244ff7e3ae8ae8823aa294f63cfee4f3"
+  },
+  "generate_assets.py": {
+    "mtime": 1788194170.6622024,
+    "seen": 1791161045.6049688,
+    "ast_hash": "a30adba298ef9e7bca5b2ce9698f8f1d",
+    "semantic_hash": "a30adba298ef9e7bca5b2ce9698f8f1d"
+  },
+  "generate_coop_characters.py": {
+    "mtime": 1790646041.7014978,
+    "seen": 1791161045.60497,
+    "ast_hash": "f62714045ba369f6c94c6e577a7c865b",
+    "semantic_hash": "f62714045ba369f6c94c6e577a7c865b"
+  },
+  "main.py": {
+    "mtime": 1788194003.5818734,
+    "seen": 1791161045.6049712,
+    "ast_hash": "a5ad309f449751579adcee27eed140d0",
+    "semantic_hash": "a5ad309f449751579adcee27eed140d0"
+  },
+  "performance_baseline.json": {
+    "mtime": 1791204041.418742,
+    "seen": 1791245818.764419,
+    "ast_hash": "9459e572f70f16daafefdf81327c7a54",
+    "semantic_hash": "9459e572f70f16daafefdf81327c7a54"
+  },
+  "scratch/analyze_segments.py": {
+    "mtime": 1790680381.3186705,
+    "seen": 1791161045.6049736,
+    "ast_hash": "b25ac7f101a8511973c31f8820977e6d",
+    "semantic_hash": "b25ac7f101a8511973c31f8820977e6d"
+  },
+  "scratch/build_boss_masterpiece.py": {
+    "mtime": 1790719635.3573549,
+    "seen": 1791161045.604975,
+    "ast_hash": "5fafeb090c7c16eb08f3e13778ae802f",
+    "semantic_hash": "5fafeb090c7c16eb08f3e13778ae802f"
+  },
+  "scratch/build_character_sprites.py": {
+    "mtime": 1790680556.4229014,
+    "seen": 1791161045.6049762,
+    "ast_hash": "ac4f9c73d2844b76bffadfcd80de26d7",
+    "semantic_hash": "ac4f9c73d2844b76bffadfcd80de26d7"
+  },
+  "scratch/build_master_sprite_atlas.py": {
+    "mtime": 1790724146.0828254,
+    "seen": 1791161045.6049774,
+    "ast_hash": "0020a79b984ff31bba9879405690e9d8",
+    "semantic_hash": "0020a79b984ff31bba9879405690e9d8"
+  },
+  "scratch/build_masterpiece_sprites.py": {
+    "mtime": 1790705297.9523385,
+    "seen": 1791161045.6049788,
+    "ast_hash": "1a45de6c0b5273b0d93e16833b0bb060",
+    "semantic_hash": "1a45de6c0b5273b0d93e16833b0bb060"
+  },
+  "scratch/build_perfect_engine_sprites.py": {
+    "mtime": 1790719463.4334455,
+    "seen": 1791161045.6049798,
+    "ast_hash": "3684a8933537bc63d85d4ea700ba6250",
+    "semantic_hash": "3684a8933537bc63d85d4ea700ba6250"
+  },
+  "scratch/build_perfect_sprites.py": {
+    "mtime": 1790692340.156248,
+    "seen": 1791161045.604981,
+    "ast_hash": "d16c47dda153eb3d8e183f0704d9d90f",
+    "semantic_hash": "d16c47dda153eb3d8e183f0704d9d90f"
+  },
+  "scratch/compose_perfect_image5.py": {
+    "mtime": 1790725006.7626874,
+    "seen": 1791161045.6049824,
+    "ast_hash": "d2af8cffe4ad5a7164cd4c196cfada1e",
+    "semantic_hash": "d2af8cffe4ad5a7164cd4c196cfada1e"
+  },
+  "scratch/fix_mage_animations.py": {
+    "mtime": 1790719519.3438873,
+    "seen": 1791161045.6049836,
+    "ast_hash": "95b8dfa3ca881e4cf24299b8346a7f47",
+    "semantic_hash": "95b8dfa3ca881e4cf24299b8346a7f47"
+  },
+  "scratch/inspect_sheets.py": {
+    "mtime": 1790680304.1532447,
+    "seen": 1791161045.6049848,
+    "ast_hash": "ba4849fabb5016e69fefe24bdfc0a2cb",
+    "semantic_hash": "ba4849fabb5016e69fefe24bdfc0a2cb"
+  },
+  "scratch/patch_enemy_ai.py": {
+    "mtime": 1790720562.0670762,
+    "seen": 1791161045.6049862,
+    "ast_hash": "51ac2410fd7c1554c704289eea9c3d61",
+    "semantic_hash": "51ac2410fd7c1554c704289eea9c3d61"
+  },
+  "scratch/profile_coop_bottleneck.py": {
+    "mtime": 1790682199.4887338,
+    "seen": 1791161045.6049874,
+    "ast_hash": "39f7b6e1c66b0f58fecfd2534f0505a2",
+    "semantic_hash": "39f7b6e1c66b0f58fecfd2534f0505a2"
+  },
+  "scratch/robust_sprite_processor.py": {
+    "mtime": 1790684939.761333,
+    "seen": 1791161045.6049888,
+    "ast_hash": "709148e4711204ecf5366420a9cf7802",
+    "semantic_hash": "709148e4711204ecf5366420a9cf7802"
+  },
+  "scratch/smoke_test_game.py": {
+    "mtime": 1790681420.93732,
+    "seen": 1791161045.6049902,
+    "ast_hash": "0007673c95711d591d186c5d74696f94",
+    "semantic_hash": "0007673c95711d591d186c5d74696f94"
+  },
+  "scratch/sprite_pipeline_core.py": {
+    "mtime": 1790723640.8874133,
+    "seen": 1791161045.6049914,
+    "ast_hash": "38fc298155ae9a8084ef7e2e0de3c3ef",
+    "semantic_hash": "38fc298155ae9a8084ef7e2e0de3c3ef"
+  },
+  "scratch/sprite_utils.py": {
+    "mtime": 1790680529.0066123,
+    "seen": 1791161045.6049926,
+    "ast_hash": "b115e3ce5f307507ad969d43f7becb51",
+    "semantic_hash": "b115e3ce5f307507ad969d43f7becb51"
+  },
+  "scratch/test_character_select_and_coop.py": {
+    "mtime": 1790681247.1798613,
+    "seen": 1791161045.6049936,
+    "ast_hash": "773e6b65a5d17d847f91aa08ea91a761",
+    "semantic_hash": "773e6b65a5d17d847f91aa08ea91a761"
+  },
+  "scratch/test_extraction.py": {
+    "mtime": 1790680478.726215,
+    "seen": 1791161045.6049948,
+    "ast_hash": "b72eb539544d809d8a4e16657dbc290a",
+    "semantic_hash": "b72eb539544d809d8a4e16657dbc290a"
+  },
+  "scratch/test_skills_and_characters.py": {
+    "mtime": 1790684018.4820323,
+    "seen": 1791161045.6049962,
+    "ast_hash": "d5e55a37e9b69395c1da581e3ed9003f",
+    "semantic_hash": "d5e55a37e9b69395c1da581e3ed9003f"
+  },
+  "scratch/test_sprite_cleaner.py": {
+    "mtime": 1790723529.451666,
+    "seen": 1791161045.6049972,
+    "ast_hash": "c7c08795f0963aef3a515aa0ea0a0b31",
+    "semantic_hash": "c7c08795f0963aef3a515aa0ea0a0b31"
+  },
+  "scratch/write_boss_file.py": {
+    "mtime": 1790720234.6518445,
+    "seen": 1791161045.6049984,
+    "ast_hash": "ce945e7d68468b20e84fbbb4ee6be641",
+    "semantic_hash": "ce945e7d68468b20e84fbbb4ee6be641"
+  },
+  "scratch/write_boss_scene.py": {
+    "mtime": 1790720449.2664523,
+    "seen": 1791161045.6049995,
+    "ast_hash": "65f8ccb96de93f2fb11f1ccd2e1e9a30",
+    "semantic_hash": "65f8ccb96de93f2fb11f1ccd2e1e9a30"
+  },
+  "src/engine/animation.py": {
+    "mtime": 1791220990.2719603,
+    "seen": 1791245818.768123,
+    "ast_hash": "5eb22f05d58b3da09a30be9804b3090a",
+    "semantic_hash": "5eb22f05d58b3da09a30be9804b3090a"
+  },
+  "src/engine/camera.py": {
+    "mtime": 1790646302.8725026,
+    "seen": 1791161045.6050017,
+    "ast_hash": "74626e239a401583fd0ba3c1baed9e22",
+    "semantic_hash": "74626e239a401583fd0ba3c1baed9e22"
+  },
+  "src/engine/collision.py": {
+    "mtime": 1788194272.3899758,
+    "seen": 1791161045.605003,
+    "ast_hash": "74f43291d767d97c858a7aad39df4c56",
+    "semantic_hash": "74f43291d767d97c858a7aad39df4c56"
+  },
+  "src/engine/event_bus.py": {
+    "mtime": 1788193990.2644386,
+    "seen": 1791161045.6050043,
+    "ast_hash": "a83914d1f08e0e82dba8a703590d784f",
+    "semantic_hash": "a83914d1f08e0e82dba8a703590d784f"
+  },
+  "src/engine/game.py": {
+    "mtime": 1791205925.0900407,
+    "seen": 1791245818.7686229,
+    "ast_hash": "e3e0fd4d3c35f29ef5596dc07a0495f5",
+    "semantic_hash": "e3e0fd4d3c35f29ef5596dc07a0495f5"
+  },
+  "src/engine/game_state.py": {
+    "mtime": 1788194017.4698846,
+    "seen": 1791161045.6050067,
+    "ast_hash": "bd019e9c2f299d0375174c4b87e83285",
+    "semantic_hash": "bd019e9c2f299d0375174c4b87e83285"
+  },
+  "src/engine/input_manager.py": {
+    "mtime": 1790645908.6045902,
+    "seen": 1791161045.6050076,
+    "ast_hash": "e4dd4e6e206dda62cc9a8a22b9dff7b9",
+    "semantic_hash": "e4dd4e6e206dda62cc9a8a22b9dff7b9"
+  },
+  "src/engine/lighting.py": {
+    "mtime": 1791207736.8714461,
+    "seen": 1791245818.7689533,
+    "ast_hash": "130ec02d9ef59001b5be41591623cfbd",
+    "semantic_hash": "130ec02d9ef59001b5be41591623cfbd"
+  },
+  "src/engine/resource_manager.py": {
+    "mtime": 1791213200.1154659,
+    "seen": 1791245818.7689555,
+    "ast_hash": "1887409458fbe4513b73a6b4bf043706",
+    "semantic_hash": "1887409458fbe4513b73a6b4bf043706"
+  },
+  "src/engine/scene_manager.py": {
+    "mtime": 1791213231.9317284,
+    "seen": 1791245818.768959,
+    "ast_hash": "fba42f79e692ec91a4f8e9f60baa9c45",
+    "semantic_hash": "fba42f79e692ec91a4f8e9f60baa9c45"
+  },
+  "src/engine/timer.py": {
+    "mtime": 1788193995.271384,
+    "seen": 1791161045.6050122,
+    "ast_hash": "205d995f221cef33b083de4283df579f",
+    "semantic_hash": "205d995f221cef33b083de4283df579f"
+  },
+  "src/engine/v3/ai/neural_ai.py": {
+    "mtime": 1790719848.276058,
+    "seen": 1791161045.6050146,
+    "ast_hash": "1d1763e7546a7a39202db96933b0e47d",
+    "semantic_hash": "1d1763e7546a7a39202db96933b0e47d"
+  },
+  "src/engine/v3/camera/camera_v3.py": {
+    "mtime": 1790648236.494821,
+    "seen": 1791161045.6050153,
+    "ast_hash": "b658e8d72dbc1328c3953f8362373326",
+    "semantic_hash": "b658e8d72dbc1328c3953f8362373326"
+  },
+  "src/engine/v3/core/adaptive_quality.py": {
+    "mtime": 1790620312.198411,
+    "seen": 1791161045.6050165,
+    "ast_hash": "409a1b8ac3c40ea7a326e62c6dd30a1a",
+    "semantic_hash": "409a1b8ac3c40ea7a326e62c6dd30a1a"
+  },
+  "src/engine/v3/core/jit_backend.py": {
+    "mtime": 1790620269.3048613,
+    "seen": 1791161045.6050177,
+    "ast_hash": "59c16222616451b92f8cdc52de55b00c",
+    "semantic_hash": "59c16222616451b92f8cdc52de55b00c"
+  },
+  "src/engine/v3/core/memory_manager.py": {
+    "mtime": 1790621964.93203,
+    "seen": 1791161045.6050186,
+    "ast_hash": "6d783d515511f2563043c87f68380c74",
+    "semantic_hash": "6d783d515511f2563043c87f68380c74"
+  },
+  "src/engine/v3/core/pipeline.py": {
+    "mtime": 1790707916.4935873,
+    "seen": 1791161045.6050198,
+    "ast_hash": "cb8f21512e10d033704c57cfe42326a2",
+    "semantic_hash": "cb8f21512e10d033704c57cfe42326a2"
+  },
+  "src/engine/v3/core/profiler.py": {
+    "mtime": 1790682957.6081839,
+    "seen": 1791161045.605021,
+    "ast_hash": "cd05febe034df37ea37396d2c8e130e4",
+    "semantic_hash": "cd05febe034df37ea37396d2c8e130e4"
+  },
+  "src/engine/v3/core/surface_pool.py": {
+    "mtime": 1790620277.1509213,
+    "seen": 1791161045.6050222,
+    "ast_hash": "a5408fd14ee57a8597873e96fb601a93",
+    "semantic_hash": "a5408fd14ee57a8597873e96fb601a93"
+  },
+  "src/engine/v3/core/threading_worker.py": {
+    "mtime": 1790620319.568511,
+    "seen": 1791161045.6050231,
+    "ast_hash": "474e457330fbe4611785c7e4522f1513",
+    "semantic_hash": "474e457330fbe4611785c7e4522f1513"
+  },
+  "src/engine/v3/ecs/components.py": {
+    "mtime": 1790620332.7998717,
+    "seen": 1791161045.6050246,
+    "ast_hash": "7dfa5f7a7a1bd011f27d069401326dc1",
+    "semantic_hash": "7dfa5f7a7a1bd011f27d069401326dc1"
+  },
+  "src/engine/v3/ecs/systems.py": {
+    "mtime": 1790620360.3206031,
+    "seen": 1791161045.6050255,
+    "ast_hash": "24017392108f629338cd2d588cd12bd2",
+    "semantic_hash": "24017392108f629338cd2d588cd12bd2"
+  },
+  "src/engine/v3/ecs/world.py": {
+    "mtime": 1790620343.221683,
+    "seen": 1791161045.6050265,
+    "ast_hash": "8a9863dd60ff77f97f33b82d1c55d5fd",
+    "semantic_hash": "8a9863dd60ff77f97f33b82d1c55d5fd"
+  },
+  "src/engine/v3/geometry/marching_squares.py": {
+    "mtime": 1790620517.615858,
+    "seen": 1791161045.6050277,
+    "ast_hash": "23ffe17c663dd5d6c44809347f6376f1",
+    "semantic_hash": "23ffe17c663dd5d6c44809347f6376f1"
+  },
+  "src/engine/v3/geometry/procedural_fx.py": {
+    "mtime": 1790620541.1529224,
+    "seen": 1791161045.6050289,
+    "ast_hash": "1899fac8cb4e84f1db3925b561f50741",
+    "semantic_hash": "1899fac8cb4e84f1db3925b561f50741"
+  },
+  "src/engine/v3/geometry/sdf_2d.py": {
+    "mtime": 1790620506.2723908,
+    "seen": 1791161045.6050298,
+    "ast_hash": "610db244938431bbb47b36574c7b486c",
+    "semantic_hash": "610db244938431bbb47b36574c7b486c"
+  },
+  "src/engine/v3/geometry/spline_renderer.py": {
+    "mtime": 1790620528.5482495,
+    "seen": 1791161045.6050313,
+    "ast_hash": "be0ac1c3a4e7d004f71c6aac35a1f82f",
+    "semantic_hash": "be0ac1c3a4e7d004f71c6aac35a1f82f"
+  },
+  "src/engine/v3/lighting/ambient_occlusion.py": {
+    "mtime": 1790620464.3806908,
+    "seen": 1791161045.6050322,
+    "ast_hash": "85fdefb71f050787f7269c303b272443",
+    "semantic_hash": "85fdefb71f050787f7269c303b272443"
+  },
+  "src/engine/v3/lighting/fake_rtx.py": {
+    "mtime": 1790620497.8541782,
+    "seen": 1791161045.6050334,
+    "ast_hash": "afe71505787ab8c833d43f8849dee48b",
+    "semantic_hash": "afe71505787ab8c833d43f8849dee48b"
+  },
+  "src/engine/v3/lighting/materials.py": {
+    "mtime": 1790647570.5677066,
+    "seen": 1791161045.6050346,
+    "ast_hash": "ec55337bc18c42f020e5cf41a8acc72d",
+    "semantic_hash": "ec55337bc18c42f020e5cf41a8acc72d"
+  },
+  "src/engine/v3/lighting/normal_maps.py": {
+    "mtime": 1790620476.4195423,
+    "seen": 1791161045.6050355,
+    "ast_hash": "f4ead637ae92067795a6137207b880ff",
+    "semantic_hash": "f4ead637ae92067795a6137207b880ff"
+  },
+  "src/engine/v3/lighting/radiance_cache.py": {
+    "mtime": 1790620485.192796,
+    "seen": 1791161045.6050367,
+    "ast_hash": "48db04b801690eb63657d7995d5ddc7c",
+    "semantic_hash": "48db04b801690eb63657d7995d5ddc7c"
+  },
+  "src/engine/v3/lighting/raycasting2d.py": {
+    "mtime": 1790646435.8381152,
+    "seen": 1791161045.6050513,
+    "ast_hash": "df7210a15a440fd4ad5adb85e6986de7",
+    "semantic_hash": "df7210a15a440fd4ad5adb85e6986de7"
+  },
+  "src/engine/v3/lighting/shadows.py": {
+    "mtime": 1791197881.4883077,
+    "seen": 1791245818.7730117,
+    "ast_hash": "24e03c06da14791ca7bd10d01a99756a",
+    "semantic_hash": "24e03c06da14791ca7bd10d01a99756a"
+  },
+  "src/engine/v3/lighting/volumetric.py": {
+    "mtime": 1790624520.384436,
+    "seen": 1791161045.6050537,
+    "ast_hash": "20f62f143a605949b95c2948c1d0a4cf",
+    "semantic_hash": "20f62f143a605949b95c2948c1d0a4cf"
+  },
+  "src/engine/v3/native/native_bridge.py": {
+    "mtime": 1791203447.2462854,
+    "seen": 1791245818.7732112,
+    "ast_hash": "2a20aa81cacbfb27cc588f910d74f1ba",
+    "semantic_hash": "2a20aa81cacbfb27cc588f910d74f1ba"
+  },
+  "src/engine/v3/native/ruin_native.c": {
+    "mtime": 1791203364.4536307,
+    "seen": 1791245818.773214,
+    "ast_hash": "cd2ef7977e7287ae3d51d9e2dbd38b07",
+    "semantic_hash": "cd2ef7977e7287ae3d51d9e2dbd38b07"
+  },
+  "src/engine/v3/particles/hit_effects.py": {
+    "mtime": 1790620582.9084287,
+    "seen": 1791161045.6050572,
+    "ast_hash": "9f32f5e9c8bfe7987fa2fbb7cddc46ba",
+    "semantic_hash": "9f32f5e9c8bfe7987fa2fbb7cddc46ba"
+  },
+  "src/engine/v3/particles/particle_engine.py": {
+    "mtime": 1791203490.828892,
+    "seen": 1791245818.773401,
+    "ast_hash": "0c2fc42d10f49df66b08f823b3a1380b",
+    "semantic_hash": "0c2fc42d10f49df66b08f823b3a1380b"
+  },
+  "src/engine/v3/particles/trail_renderer.py": {
+    "mtime": 1790620570.176347,
+    "seen": 1791161045.6050596,
+    "ast_hash": "7f69621d21895a6445e9d0958a1983b2",
+    "semantic_hash": "7f69621d21895a6445e9d0958a1983b2"
+  },
+  "src/engine/v3/particles/vfx_profile.py": {
+    "mtime": 1790647617.1692078,
+    "seen": 1791161045.6050608,
+    "ast_hash": "a744062013b142b3dc17a54128cf8c4d",
+    "semantic_hash": "a744062013b142b3dc17a54128cf8c4d"
+  },
+  "src/engine/v3/postfx/bloom.py": {
+    "mtime": 1791207793.0375216,
+    "seen": 1791245818.773835,
+    "ast_hash": "f270b6ee9848960d8d422343d2f1fa8f",
+    "semantic_hash": "f270b6ee9848960d8d422343d2f1fa8f"
+  },
+  "src/engine/v3/postfx/color_grading.py": {
+    "mtime": 1791207752.6430304,
+    "seen": 1791245818.7738369,
+    "ast_hash": "b09d8ffbaeb8c860448aacf31aa5a161",
+    "semantic_hash": "b09d8ffbaeb8c860448aacf31aa5a161"
+  },
+  "src/engine/v3/postfx/post_processor.py": {
+    "mtime": 1790620619.0052822,
+    "seen": 1791161045.6050649,
+    "ast_hash": "0281dcd936b16e958736835eba31aa98",
+    "semantic_hash": "0281dcd936b16e958736835eba31aa98"
+  },
+  "src/engine/v3/postfx/screen_effects.py": {
+    "mtime": 1790724320.9710617,
+    "seen": 1791161045.6050663,
+    "ast_hash": "105cbcc3195023940adb553716b08065",
+    "semantic_hash": "105cbcc3195023940adb553716b08065"
+  },
+  "src/engine/v3/spatial/chunk_renderer.py": {
+    "mtime": 1790620412.818045,
+    "seen": 1791161045.6050677,
+    "ast_hash": "66d06cd4548911012cad20870f2fbcda",
+    "semantic_hash": "66d06cd4548911012cad20870f2fbcda"
+  },
+  "src/engine/v3/spatial/quadtree.py": {
+    "mtime": 1790620401.4381733,
+    "seen": 1791161045.6050694,
+    "ast_hash": "87d1c923f38dfd1e807bdaa213de6d84",
+    "semantic_hash": "87d1c923f38dfd1e807bdaa213de6d84"
+  },
+  "src/engine/v3/upscaling/antialiasing.py": {
+    "mtime": 1790720628.1781917,
+    "seen": 1791161045.6050708,
+    "ast_hash": "fd57a79b1e1596f7b6bad02cb97f6062",
+    "semantic_hash": "fd57a79b1e1596f7b6bad02cb97f6062"
+  },
+  "src/engine/v3/upscaling/fsr2d.py": {
+    "mtime": 1790645866.4646196,
+    "seen": 1791161045.605072,
+    "ast_hash": "040dc5582edfca58e3ee37e3107b3c99",
+    "semantic_hash": "040dc5582edfca58e3ee37e3107b3c99"
+  },
+  "src/engine/v3/upscaling/ruin_upscaler.py": {
+    "mtime": 1790720673.1094441,
+    "seen": 1791161045.6050735,
+    "ast_hash": "a6dae2f01cf0f8dc8e45e1201146cc91",
+    "semantic_hash": "a6dae2f01cf0f8dc8e45e1201146cc91"
+  },
+  "src/engine/v3/upscaling/tsr.py": {
+    "mtime": 1790620643.0222888,
+    "seen": 1791161045.605075,
+    "ast_hash": "60fc94c474cb203c9043b1976c763810",
+    "semantic_hash": "60fc94c474cb203c9043b1976c763810"
+  },
+  "src/engine/v3/weather/weather_engine.py": {
+    "mtime": 1790620667.143532,
+    "seen": 1791161045.6050766,
+    "ast_hash": "90c450cdd7295f538987f8d01c51b337",
+    "semantic_hash": "90c450cdd7295f538987f8d01c51b337"
+  },
+  "src/entities/boss.py": {
+    "mtime": 1791226210.0450647,
+    "seen": 1791245818.7754774,
+    "ast_hash": "bac73980baf20d25f0b85f5d2d765437",
+    "semantic_hash": "bac73980baf20d25f0b85f5d2d765437"
+  },
+  "src/entities/character_data.py": {
+    "mtime": 1791199054.3494005,
+    "seen": 1791245818.775481,
+    "ast_hash": "83f04ddc6e31c1edec86d6d3ccfb3f04",
+    "semantic_hash": "83f04ddc6e31c1edec86d6d3ccfb3f04"
+  },
+  "src/entities/collectible.py": {
+    "mtime": 1791243403.259969,
+    "seen": 1791245818.7754834,
+    "ast_hash": "9234e73e5db3df851ebf5fc7a8259fbb",
+    "semantic_hash": "9234e73e5db3df851ebf5fc7a8259fbb"
+  },
+  "src/entities/coop_synergy.py": {
+    "mtime": 1790648071.7128456,
+    "seen": 1791161045.605082,
+    "ast_hash": "386e59bfc88b5904bb5f1d65cfad77ff",
+    "semantic_hash": "386e59bfc88b5904bb5f1d65cfad77ff"
+  },
+  "src/entities/enemy.py": {
+    "mtime": 1791243495.2335234,
+    "seen": 1791245818.775782,
+    "ast_hash": "6c991d77bab811e4bbd8a8a438ddee0e",
+    "semantic_hash": "6c991d77bab811e4bbd8a8a438ddee0e"
+  },
+  "src/entities/player.py": {
+    "mtime": 1791243446.788681,
+    "seen": 1791245818.7757845,
+    "ast_hash": "2b32ff9244d636b61caaf62375abf327",
+    "semantic_hash": "2b32ff9244d636b61caaf62375abf327"
+  },
+  "src/entities/portal.py": {
+    "mtime": 1788201596.1227708,
+    "seen": 1791161045.6050866,
+    "ast_hash": "54db3ee8717ccc6a6231d49dc42ed604",
+    "semantic_hash": "54db3ee8717ccc6a6231d49dc42ed604"
+  },
+  "src/entities/projectile.py": {
+    "mtime": 1791196245.493669,
+    "seen": 1791245818.776029,
+    "ast_hash": "70880f776b0d7d7c7ebfaa5aeb37d621",
+    "semantic_hash": "70880f776b0d7d7c7ebfaa5aeb37d621"
+  },
+  "src/entities/prop.py": {
+    "mtime": 1791243231.4641802,
+    "seen": 1791245818.7760313,
+    "ast_hash": "e052b5bd563a846681f4524366234b6f",
+    "semantic_hash": "e052b5bd563a846681f4524366234b6f"
+  },
+  "src/entities/traps.py": {
+    "mtime": 1791245438.2621238,
+    "seen": 1791245818.776036,
+    "ast_hash": "9344e090b3bc2c4761b944000393e009",
+    "semantic_hash": "9344e090b3bc2c4761b944000393e009"
+  },
+  "src/entities/ultimate_aoe_vfx.py": {
+    "mtime": 1791207938.275072,
+    "seen": 1791245818.7760384,
+    "ast_hash": "573ba47da82347064d382e02a7501b23",
+    "semantic_hash": "573ba47da82347064d382e02a7501b23"
+  },
+  "src/entities/ultimate_system.py": {
+    "mtime": 1791207888.1850338,
+    "seen": 1791245818.77604,
+    "ast_hash": "e4d817ceecb4ecf5e207f682d0a32f0c",
+    "semantic_hash": "e4d817ceecb4ecf5e207f682d0a32f0c"
+  },
+  "src/scenes/boss_scene.py": {
+    "mtime": 1791226819.424839,
+    "seen": 1791245818.7760596,
+    "ast_hash": "e261061dfa1f9743ede88d3caf22b179",
+    "semantic_hash": "e261061dfa1f9743ede88d3caf22b179"
+  },
+  "src/scenes/character_select_scene.py": {
+    "mtime": 1790683737.4938767,
+    "seen": 1791161045.605095,
+    "ast_hash": "a94ef8c2bf83c7860c40c6db5ce53eb0",
+    "semantic_hash": "a94ef8c2bf83c7860c40c6db5ce53eb0"
+  },
+  "src/scenes/level_scene.py": {
+    "mtime": 1791243361.804495,
+    "seen": 1791245818.7762992,
+    "ast_hash": "e411d742468e1405b2b24d9b1d0aad9d",
+    "semantic_hash": "e411d742468e1405b2b24d9b1d0aad9d"
+  },
+  "src/scenes/loading_scene.py": {
+    "mtime": 1788301989.0849507,
+    "seen": 1791161045.6050973,
+    "ast_hash": "6678fe10a2f0cca8648cbbeb819a999a",
+    "semantic_hash": "6678fe10a2f0cca8648cbbeb819a999a"
+  },
+  "src/scenes/main_menu.py": {
+    "mtime": 1791223348.5392647,
+    "seen": 1791245818.7764845,
+    "ast_hash": "f40c567dc07765f1f825e0ffcde5ba1c",
+    "semantic_hash": "f40c567dc07765f1f825e0ffcde5ba1c"
+  },
+  "src/scenes/settings_menu.py": {
+    "mtime": 1791221254.8554823,
+    "seen": 1791245818.7764864,
+    "ast_hash": "54bdcbcaa6327ee5d6061f1545375451",
+    "semantic_hash": "54bdcbcaa6327ee5d6061f1545375451"
+  },
+  "src/ui/death_screen.py": {
+    "mtime": 1788436172.253754,
+    "seen": 1791161045.6051009,
+    "ast_hash": "aec20bd383850d98ffdd3e6f7209a487",
+    "semantic_hash": "aec20bd383850d98ffdd3e6f7209a487"
+  },
+  "src/ui/hud.py": {
+    "mtime": 1791226589.2629104,
+    "seen": 1791245818.7766724,
+    "ast_hash": "adfe60ea58772840afbd87be2124fc6e",
+    "semantic_hash": "adfe60ea58772840afbd87be2124fc6e"
+  },
+  "src/ui/menu.py": {
+    "mtime": 1791223226.1867616,
+    "seen": 1791245818.7766767,
+    "ast_hash": "aa10a223eb10b74bc417d55be76cd22d",
+    "semantic_hash": "aa10a223eb10b74bc417d55be76cd22d"
+  },
+  "src/ui/pause.py": {
+    "mtime": 1788435838.9302945,
+    "seen": 1791161045.6051042,
+    "ast_hash": "d6601d77f846087ebd4efac0ae45fff3",
+    "semantic_hash": "d6601d77f846087ebd4efac0ae45fff3"
+  },
+  "src/utils/math_utils.py": {
+    "mtime": 1788194001.5122404,
+    "seen": 1791161045.6051054,
+    "ast_hash": "b4987dec70537e7047877014772af0d9",
+    "semantic_hash": "b4987dec70537e7047877014772af0d9"
+  },
+  "src/world/checkpoint.py": {
+    "mtime": 1788196725.4833903,
+    "seen": 1791161045.6051064,
+    "ast_hash": "2504df786fea0d16098ae16bc88ccdbb",
+    "semantic_hash": "2504df786fea0d16098ae16bc88ccdbb"
+  },
+  "src/world/tilemap.py": {
+    "mtime": 1788194441.397077,
+    "seen": 1791161045.6051078,
+    "ast_hash": "47b22d4c9775dfc043a8dd4b7e9d5a2c",
+    "semantic_hash": "47b22d4c9775dfc043a8dd4b7e9d5a2c"
+  },
+  "tests/benchmark_ruin_engine_v3.py": {
+    "mtime": 1790621310.1371353,
+    "seen": 1791161045.6051087,
+    "ast_hash": "57c2071e810ae03f9c39908975e7ba51",
+    "semantic_hash": "57c2071e810ae03f9c39908975e7ba51"
+  },
+  "tests/benchmark_suite.py": {
+    "mtime": 1790648281.1172576,
+    "seen": 1791161045.6051097,
+    "ast_hash": "bffb2593674a01208d1bbc4414c14ea6",
+    "semantic_hash": "bffb2593674a01208d1bbc4414c14ea6"
+  },
+  "tests/test_character_select.py": {
+    "mtime": 1791164741.507345,
+    "seen": 1791245818.7777488,
+    "ast_hash": "f7cf7e1113ba1e3f82624fa9f765d54a",
+    "semantic_hash": "f7cf7e1113ba1e3f82624fa9f765d54a"
+  },
+  "tests/test_coop_and_new_features.py": {
+    "mtime": 1791164979.8711193,
+    "seen": 1791245818.7777507,
+    "ast_hash": "a9bc319ca4c063701553fa582b228be1",
+    "semantic_hash": "a9bc319ca4c063701553fa582b228be1"
+  },
+  "tests/test_dev_mode.py": {
+    "mtime": 1788544199.650691,
+    "seen": 1791161045.605113,
+    "ast_hash": "482f52139b468d1ce15b686215ee8c89",
+    "semantic_hash": "482f52139b468d1ce15b686215ee8c89"
+  },
+  "tests/test_full_game_diagnostics.py": {
+    "mtime": 1790671194.52613,
+    "seen": 1791161045.6051145,
+    "ast_hash": "cd419ad5a212007d22c29ad6b3df1b3d",
+    "semantic_hash": "cd419ad5a212007d22c29ad6b3df1b3d"
+  },
+  "tests/test_game_launch.py": {
+    "mtime": 1788538084.384858,
+    "seen": 1791161045.6051154,
+    "ast_hash": "feb1cf838aa337ccfe6a93a89c2e9ce6",
+    "semantic_hash": "feb1cf838aa337ccfe6a93a89c2e9ce6"
+  },
+  "tests/test_new_features.py": {
+    "mtime": 1791197698.7395258,
+    "seen": 1791245818.7782686,
+    "ast_hash": "09962576fce26a8bcf5c2b81e6c5aa7e",
+    "semantic_hash": "09962576fce26a8bcf5c2b81e6c5aa7e"
+  },
+  "tests/test_ruin_engine_v3.py": {
+    "mtime": 1790621164.8332152,
+    "seen": 1791161045.6051178,
+    "ast_hash": "de3a08c7d69597670d294dd5721be6d2",
+    "semantic_hash": "de3a08c7d69597670d294dd5721be6d2"
+  },
+  "tests/test_skill_damage.py": {
+    "mtime": 1788544257.543435,
+    "seen": 1791161045.605119,
+    "ast_hash": "a60560823892c24ae54fc38cff85dfd4",
+    "semantic_hash": "a60560823892c24ae54fc38cff85dfd4"
+  },
+  "tests/test_tactical_balance.py": {
+    "mtime": 1791198316.9485261,
+    "seen": 1791245818.7786014,
+    "ast_hash": "dd92a683c8e300a1b0f53e39d026a704",
+    "semantic_hash": "dd92a683c8e300a1b0f53e39d026a704"
+  },
+  "tests/test_ultimate_aoe_vfx.py": {
+    "mtime": 1790620158.254484,
+    "seen": 1791161045.6051214,
+    "ast_hash": "89e8c87953377ab390f82106d2c6dfcd",
+    "semantic_hash": "89e8c87953377ab390f82106d2c6dfcd"
+  },
+  "tests/test_v3_boss_and_neural_ai.py": {
+    "mtime": 1791206006.8152947,
+    "seen": 1791245818.7787998,
+    "ast_hash": "07954562b8a91d54dc61c38fccc91330",
+    "semantic_hash": "07954562b8a91d54dc61c38fccc91330"
+  },
+  "assets/audio/dragon-studio-sword-slice-393847.mp3": {
+    "mtime": 1788303311.6153057,
+    "seen": 1791161045.6051235,
+    "ast_hash": "672003ed1818024609a401b7b8160085",
+    "semantic_hash": "672003ed1818024609a401b7b8160085"
+  },
+  "assets/audio/freesound_community-sfx_jump_07-80241.mp3": {
+    "mtime": 1788303979.5028834,
+    "seen": 1791161045.6051247,
+    "ast_hash": "cd8abeac021373924bcf601cd7685919",
+    "semantic_hash": "cd8abeac021373924bcf601cd7685919"
+  },
+  "assets/audio/universfield-sword-blade-slicing-flesh-352708.mp3": {
+    "mtime": 1788304154.6044908,
+    "seen": 1791161045.605126,
+    "ast_hash": "78c35e68013852ec3b0916a5b3deab8d",
+    "semantic_hash": "78c35e68013852ec3b0916a5b3deab8d"
+  },
+  "rust_core/Cargo.toml": {
+    "mtime": 1791203290.6957645,
+    "seen": 1791245818.764422,
+    "ast_hash": "f3a735d6cc2e222bdec3663116788e85",
+    "semantic_hash": "f3a735d6cc2e222bdec3663116788e85"
+  },
+  "rust_core/src/lib.rs": {
+    "mtime": 1791203309.9338472,
+    "seen": 1791245818.7644236,
+    "ast_hash": "d5642c8cc31c9362ce7b62df1493029f",
+    "semantic_hash": "d5642c8cc31c9362ce7b62df1493029f"
+  },
+  "save_data.json": {
+    "mtime": 1791243894.412703,
+    "seen": 1791245818.7644253,
+    "ast_hash": "88adde96ecbd3beee2c2b473880b7173",
+    "semantic_hash": "88adde96ecbd3beee2c2b473880b7173"
+  },
+  "src/engine/save_manager.py": {
+    "mtime": 1791213363.8930357,
+    "seen": 1791245818.7689571,
+    "ast_hash": "4cb48d659ee7548c19b2c821c10638fe",
+    "semantic_hash": "4cb48d659ee7548c19b2c821c10638fe"
+  },
+  "src/engine/score_system.py": {
+    "mtime": 1791213666.5709722,
+    "seen": 1791245818.7689605,
+    "ast_hash": "21adb7ac43af606c2ce77675ae2a1743",
+    "semantic_hash": "21adb7ac43af606c2ce77675ae2a1743"
+  },
+  "src/engine/stage_manager.py": {
+    "mtime": 1791228240.3989613,
+    "seen": 1791245818.7689626,
+    "ast_hash": "ae0f41112326610fa7c98b5ec37a9efb",
+    "semantic_hash": "ae0f41112326610fa7c98b5ec37a9efb"
+  },
+  "src/engine/v3/planets/planet_renderer.py": {
+    "mtime": 1791213742.3604782,
+    "seen": 1791245818.7738318,
+    "ast_hash": "fa51d45a2a697fccea11c9446b71fe82",
+    "semantic_hash": "fa51d45a2a697fccea11c9446b71fe82"
+  },
+  "src/engine/v3/weather/clouds.py": {
+    "mtime": 1791243274.5110786,
+    "seen": 1791245818.7753003,
+    "ast_hash": "55c227d094b9394bb1f8d3f39009cb56",
+    "semantic_hash": "55c227d094b9394bb1f8d3f39009cb56"
+  },
+  "src/engine/vulkan_backend.py": {
+    "mtime": 1791207957.3449035,
+    "seen": 1791245818.7754753,
+    "ast_hash": "cf94f662f58ced70b9ba84b94db4ace4",
+    "semantic_hash": "cf94f662f58ced70b9ba84b94db4ace4"
+  },
+  "src/entities/bosses_pack.py": {
+    "mtime": 1791226185.9157002,
+    "seen": 1791245818.7754793,
+    "ast_hash": "fed0d3c442d1460be822e953f7dee6cb",
+    "semantic_hash": "fed0d3c442d1460be822e953f7dee6cb"
+  },
+  "src/entities/rock_obstacle.py": {
+    "mtime": 1791213293.251952,
+    "seen": 1791245818.7760339,
+    "ast_hash": "4ac17104b540c30575c37e727c0f9d2d",
+    "semantic_hash": "4ac17104b540c30575c37e727c0f9d2d"
+  },
+  "src/scenes/boss_select_scene.py": {
+    "mtime": 1791224760.8456042,
+    "seen": 1791245818.7760637,
+    "ast_hash": "1c332a51d3d08db1defaffc6ccb87ddf",
+    "semantic_hash": "1c332a51d3d08db1defaffc6ccb87ddf"
+  },
+  "src/scenes/magic_book_scene.py": {
+    "mtime": 1791221572.222558,
+    "seen": 1791245818.776482,
+    "ast_hash": "85f08d427fb070c4da33684be017a0c9",
+    "semantic_hash": "85f08d427fb070c4da33684be017a0c9"
+  },
+  "src/scenes/story_select_scene.py": {
+    "mtime": 1791224254.3132646,
+    "seen": 1791245818.7764878,
+    "ast_hash": "7b623e00d8e0ffd18f6dfb97060e6039",
+    "semantic_hash": "7b623e00d8e0ffd18f6dfb97060e6039"
+  },
+  "src/scenes/tutorial_scene.py": {
+    "mtime": 1791226598.3934934,
+    "seen": 1791245818.7764902,
+    "ast_hash": "56f57b9f0a452124bcfc0cf4247dd90b",
+    "semantic_hash": "56f57b9f0a452124bcfc0cf4247dd90b"
+  },
+  "src/ui/dialogue_box.py": {
+    "mtime": 1791224486.5031064,
+    "seen": 1791245818.77667,
+    "ast_hash": "a809d92ca4e8ff1ff691e53af979fd3c",
+    "semantic_hash": "a809d92ca4e8ff1ff691e53af979fd3c"
+  },
+  "src/ui/keyboard_overlay.py": {
+    "mtime": 1791226512.9515047,
+    "seen": 1791245818.7766743,
+    "ast_hash": "098dcb93ab60f17ef9e0ae476931655b",
+    "semantic_hash": "098dcb93ab60f17ef9e0ae476931655b"
+  },
+  "tests/test_bosses_and_scenes.py": {
+    "mtime": 1791224902.942327,
+    "seen": 1791245818.7777462,
+    "ast_hash": "cb5300611d2b6376829fcfe551be7a32",
+    "semantic_hash": "cb5300611d2b6376829fcfe551be7a32"
+  },
+  "tests/test_new_char_animations.py": {
+    "mtime": 1791199075.1451235,
+    "seen": 1791245818.7782662,
+    "ast_hash": "49794890ce377c0785834c529a79cc73",
+    "semantic_hash": "49794890ce377c0785834c529a79cc73"
+  },
+  "tests/test_story_mode_and_systems.py": {
+    "mtime": 1791214202.7913501,
+    "seen": 1791245818.7785995,
+    "ast_hash": "903f608611a9f49e0d269ab6d5b02087",
+    "semantic_hash": "903f608611a9f49e0d269ab6d5b02087"
+  },
+  "PERFORMANCE_REPORT.md": {
+    "mtime": 1790648345.403652,
+    "seen": 1791245818.7788017,
+    "ast_hash": "4c8a618f6b5013febf3c65325e519816",
+    "semantic_hash": "4c8a618f6b5013febf3c65325e519816"
+  },
+  "README.md": {
+    "mtime": 1788540774.3021934,
+    "seen": 1791245818.7788043,
+    "ast_hash": "5e676de66cc6e0629b77731fa6817d8b",
+    "semantic_hash": "5e676de66cc6e0629b77731fa6817d8b"
+  },
+  "requirements.txt": {
+    "mtime": 1788194069.476502,
+    "seen": 1791245818.7788057,
+    "ast_hash": "9f05799f73f14ac50840d604305dff4f",
+    "semantic_hash": "9f05799f73f14ac50840d604305dff4f"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_front02.png": {
+    "mtime": 1770489088.0,
+    "seen": 1791245818.7788079,
+    "ast_hash": "6bd9842921d7c7149ad3a078efdd158c",
+    "semantic_hash": "6bd9842921d7c7149ad3a078efdd158c"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_front03.png": {
+    "mtime": 1770489088.0,
+    "seen": 1791245818.778809,
+    "ast_hash": "173e16eaf1bd034dc4948650a1ef6ab1",
+    "semantic_hash": "173e16eaf1bd034dc4948650a1ef6ab1"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_front04.png": {
+    "mtime": 1770489088.0,
+    "seen": 1791245818.7788112,
+    "ast_hash": "a7ef4899c1510349237f4276cf366b78",
+    "semantic_hash": "a7ef4899c1510349237f4276cf366b78"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_front05.png": {
+    "mtime": 1770489088.0,
+    "seen": 1791245818.7788126,
+    "ast_hash": "e89b8d3ddd670dfca90c69731e9666b0",
+    "semantic_hash": "e89b8d3ddd670dfca90c69731e9666b0"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_front06.png": {
+    "mtime": 1770489088.0,
+    "seen": 1791245818.7788153,
+    "ast_hash": "324fb08cf3443bc0bbe2588f96c4f5ce",
+    "semantic_hash": "324fb08cf3443bc0bbe2588f96c4f5ce"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_front07.png": {
+    "mtime": 1770489088.0,
+    "seen": 1791245818.7788172,
+    "ast_hash": "f017e1dddb683b2ccc1f81bf54c5f01e",
+    "semantic_hash": "f017e1dddb683b2ccc1f81bf54c5f01e"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_front08.png": {
+    "mtime": 1770489088.0,
+    "seen": 1791245818.7788188,
+    "ast_hash": "66d3e1d0e8f2cd13fbaaf23695fc78b5",
+    "semantic_hash": "66d3e1d0e8f2cd13fbaaf23695fc78b5"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_front09.png": {
+    "mtime": 1770489088.0,
+    "seen": 1791245818.7788203,
+    "ast_hash": "23aa98d3f5a21260e4768b701b34f412",
+    "semantic_hash": "23aa98d3f5a21260e4768b701b34f412"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_front10.png": {
+    "mtime": 1770489088.0,
+    "seen": 1791245818.7788222,
+    "ast_hash": "7accb648ac15a130414582d233f3308a",
+    "semantic_hash": "7accb648ac15a130414582d233f3308a"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side01.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.7788236,
+    "ast_hash": "d3dab88fe08e9451a82ea5102fe9f9e2",
+    "semantic_hash": "d3dab88fe08e9451a82ea5102fe9f9e2"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side02.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.7788253,
+    "ast_hash": "4999e5dd03aa2db4c5b97f5f61a6fafc",
+    "semantic_hash": "4999e5dd03aa2db4c5b97f5f61a6fafc"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side03.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.778827,
+    "ast_hash": "802864dcd234192dd3fff2046f3b3e1c",
+    "semantic_hash": "802864dcd234192dd3fff2046f3b3e1c"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side04.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.7788284,
+    "ast_hash": "507e85e26a9602d3ffb033c0d25e0675",
+    "semantic_hash": "507e85e26a9602d3ffb033c0d25e0675"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side05.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.77883,
+    "ast_hash": "9eda0dfee6d453eed7dc60eeaaf529a2",
+    "semantic_hash": "9eda0dfee6d453eed7dc60eeaaf529a2"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side06.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.7788317,
+    "ast_hash": "6aad83c1a466d8929e2a6ff8f618e760",
+    "semantic_hash": "6aad83c1a466d8929e2a6ff8f618e760"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side07.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.7788334,
+    "ast_hash": "718377186bfe14472ef821fb78b25527",
+    "semantic_hash": "718377186bfe14472ef821fb78b25527"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side08.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.7788343,
+    "ast_hash": "cff23d52c9e8a9f22444605590553b35",
+    "semantic_hash": "cff23d52c9e8a9f22444605590553b35"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side09.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.7788363,
+    "ast_hash": "46182d4f18df5c76225b04e314af7037",
+    "semantic_hash": "46182d4f18df5c76225b04e314af7037"
+  },
+  "assets/sprites/background/sprites_dungeon/fence_side10.png": {
+    "mtime": 1770489046.0,
+    "seen": 1791245818.7788374,
+    "ast_hash": "00ac31645b57a31d9d98314738bd4505",
+    "semantic_hash": "00ac31645b57a31d9d98314738bd4505"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/gifs/03_d_cleave.gif": {
+    "mtime": 1791214828.7742784,
+    "seen": 1791245818.778839,
+    "ast_hash": "19733a4b4c71bd822bd03a261d9dc683",
+    "semantic_hash": "19733a4b4c71bd822bd03a261d9dc683"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/gifs/04_d_take_hit.gif": {
+    "mtime": 1791214828.7772558,
+    "seen": 1791245818.7788403,
+    "ast_hash": "c0b4f28af4049ab8b10e00a6427eeb92",
+    "semantic_hash": "c0b4f28af4049ab8b10e00a6427eeb92"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/gifs/05_d_death.gif": {
+    "mtime": 1791214828.7792563,
+    "seen": 1791245818.7788422,
+    "ast_hash": "751464f520c8a0da4b3f11d67c19dbd8",
+    "semantic_hash": "751464f520c8a0da4b3f11d67c19dbd8"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/01_demon_idle/demon_idle_1.png": {
+    "mtime": 1791214828.783968,
+    "seen": 1791245818.7788436,
+    "ast_hash": "86637e8227657ad95ccf12e402e2cefc",
+    "semantic_hash": "86637e8227657ad95ccf12e402e2cefc"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/01_demon_idle/demon_idle_2.png": {
+    "mtime": 1791214828.7859702,
+    "seen": 1791245818.7788503,
+    "ast_hash": "013be79afe0c1d2ce52ab25d0c01addc",
+    "semantic_hash": "013be79afe0c1d2ce52ab25d0c01addc"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/01_demon_idle/demon_idle_3.png": {
+    "mtime": 1791214828.786969,
+    "seen": 1791245818.7788515,
+    "ast_hash": "ec8961c150c6e9a5c411c3bc646a5caa",
+    "semantic_hash": "ec8961c150c6e9a5c411c3bc646a5caa"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/01_demon_idle/demon_idle_4.png": {
+    "mtime": 1791214828.7889793,
+    "seen": 1791245818.7788534,
+    "ast_hash": "b97f96010231a8ce658a7d5652fb3724",
+    "semantic_hash": "b97f96010231a8ce658a7d5652fb3724"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/01_demon_idle/demon_idle_5.png": {
+    "mtime": 1791214828.7899914,
+    "seen": 1791245818.7788548,
+    "ast_hash": "877ed17477e252a7e4c3ee26783ea587",
+    "semantic_hash": "877ed17477e252a7e4c3ee26783ea587"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/01_demon_idle/demon_idle_6.png": {
+    "mtime": 1791214828.791,
+    "seen": 1791245818.7788563,
+    "ast_hash": "7a0f1f21b874deef28e5a899528912dc",
+    "semantic_hash": "7a0f1f21b874deef28e5a899528912dc"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_1.png": {
+    "mtime": 1791214828.7939887,
+    "seen": 1791245818.7788575,
+    "ast_hash": "0307cb612457ad676b3c8c2462183515",
+    "semantic_hash": "0307cb612457ad676b3c8c2462183515"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_10.png": {
+    "mtime": 1791214828.8057163,
+    "seen": 1791245818.778859,
+    "ast_hash": "b97c264a293af9660fc66a56928c0e49",
+    "semantic_hash": "b97c264a293af9660fc66a56928c0e49"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_11.png": {
+    "mtime": 1791214828.8076932,
+    "seen": 1791245818.7788603,
+    "ast_hash": "29530a9e54514e33e18ac2e9e92eb54b",
+    "semantic_hash": "29530a9e54514e33e18ac2e9e92eb54b"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_12.png": {
+    "mtime": 1791214828.8086946,
+    "seen": 1791245818.778862,
+    "ast_hash": "e3bc7774aa44e574f94ace2c23cddba1",
+    "semantic_hash": "e3bc7774aa44e574f94ace2c23cddba1"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_2.png": {
+    "mtime": 1791214828.795,
+    "seen": 1791245818.7788634,
+    "ast_hash": "c08e56ad9b61170d8f1c75bd4cdd7bdd",
+    "semantic_hash": "c08e56ad9b61170d8f1c75bd4cdd7bdd"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_3.png": {
+    "mtime": 1791214828.7969708,
+    "seen": 1791245818.7788649,
+    "ast_hash": "21a5434b80cdd033a4a15a2bd1e10072",
+    "semantic_hash": "21a5434b80cdd033a4a15a2bd1e10072"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_4.png": {
+    "mtime": 1791214828.7975235,
+    "seen": 1791245818.7788665,
+    "ast_hash": "7ad5ebd9010b60c43017fe2b94c2a254",
+    "semantic_hash": "7ad5ebd9010b60c43017fe2b94c2a254"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_5.png": {
+    "mtime": 1791214828.799714,
+    "seen": 1791245818.778868,
+    "ast_hash": "7c627f83d9e33665e05ef36f321e88a1",
+    "semantic_hash": "7c627f83d9e33665e05ef36f321e88a1"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_6.png": {
+    "mtime": 1791214828.8007255,
+    "seen": 1791245818.7788699,
+    "ast_hash": "b3d6ab9af1eee49014d7b1165983f4f8",
+    "semantic_hash": "b3d6ab9af1eee49014d7b1165983f4f8"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_7.png": {
+    "mtime": 1791214828.801723,
+    "seen": 1791245818.7788713,
+    "ast_hash": "408364ca9a09fcb298c7078ab12cffda",
+    "semantic_hash": "408364ca9a09fcb298c7078ab12cffda"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/02_demon_walk/demon_walk_8.png": {
+    "mtime": 1791214828.8037171,
+    "seen": 1791245818.7788727,
+    "ast_hash": "ccec368a632f5e563de9bf8148cc454f",
+    "semantic_hash": "ccec368a632f5e563de9bf8148cc454f"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/05_demon_death/demon_death_7.png": {
+    "mtime": 1791214828.8515265,
+    "seen": 1791245818.7788744,
+    "ast_hash": "86974f17c6c9fe96679aca70332664c5",
+    "semantic_hash": "86974f17c6c9fe96679aca70332664c5"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/05_demon_death/demon_death_8.png": {
+    "mtime": 1791214828.8535428,
+    "seen": 1791245818.7788758,
+    "ast_hash": "e1d5d21a1159f3bd8e9b8110d986b398",
+    "semantic_hash": "e1d5d21a1159f3bd8e9b8110d986b398"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/individual sprites/05_demon_death/demon_death_9.png": {
+    "mtime": 1791214828.8555593,
+    "seen": 1791245818.7788777,
+    "ast_hash": "3be87362f4775189a85d925794a88051",
+    "semantic_hash": "3be87362f4775189a85d925794a88051"
+  },
+  "assets/sprites/bosses/demon_slime/boss_demon_slime_FREE_v1.0/spritesheets/demon_slime_FREE_v1.0_288x160_spritesheet.png": {
+    "mtime": 1791214828.8773625,
+    "seen": 1791245818.7788792,
+    "ast_hash": "cbd83ebca9ca41e8f8ef4ce7dfeaab51",
+    "semantic_hash": "cbd83ebca9ca41e8f8ef4ce7dfeaab51"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk1.png": {
+    "mtime": 1791214828.8974676,
+    "seen": 1791245818.7788808,
+    "ast_hash": "86a15930cc0b45e3d378d23484eb2de6",
+    "semantic_hash": "86a15930cc0b45e3d378d23484eb2de6"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk10.png": {
+    "mtime": 1791214828.8994813,
+    "seen": 1791245818.7788823,
+    "ast_hash": "1acd1933f1affc548958221d45ffa101",
+    "semantic_hash": "1acd1933f1affc548958221d45ffa101"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk11.png": {
+    "mtime": 1791214828.9014957,
+    "seen": 1791245818.7788837,
+    "ast_hash": "a560fa266ed980311137cfa12146a12f",
+    "semantic_hash": "a560fa266ed980311137cfa12146a12f"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk12.png": {
+    "mtime": 1791214828.9035106,
+    "seen": 1791245818.7788851,
+    "ast_hash": "229f8d5db98fbe1cb01bf480da528300",
+    "semantic_hash": "229f8d5db98fbe1cb01bf480da528300"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk13.png": {
+    "mtime": 1791214828.9055254,
+    "seen": 1791245818.7788866,
+    "ast_hash": "e879a3256aa0289a4f2eb23933fcc5c6",
+    "semantic_hash": "e879a3256aa0289a4f2eb23933fcc5c6"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk14.png": {
+    "mtime": 1791214828.90754,
+    "seen": 1791245818.778888,
+    "ast_hash": "67199ef4ce1a1bc6265af223e577d612",
+    "semantic_hash": "67199ef4ce1a1bc6265af223e577d612"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk15.png": {
+    "mtime": 1791214828.9092953,
+    "seen": 1791245818.7788894,
+    "ast_hash": "abee322f5b5457293ebcc114f21bedf9",
+    "semantic_hash": "abee322f5b5457293ebcc114f21bedf9"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk16.png": {
+    "mtime": 1791214828.9092953,
+    "seen": 1791245818.778891,
+    "ast_hash": "199750e290dc6178697d10a311952e86",
+    "semantic_hash": "199750e290dc6178697d10a311952e86"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk17.png": {
+    "mtime": 1791214828.9092953,
+    "seen": 1791245818.7788923,
+    "ast_hash": "139b9abc10691d563c89dbd7a87ed856",
+    "semantic_hash": "139b9abc10691d563c89dbd7a87ed856"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk18.png": {
+    "mtime": 1791214828.9092953,
+    "seen": 1791245818.7788932,
+    "ast_hash": "89d26e9ad7aa067ec7af39e64bc960c5",
+    "semantic_hash": "89d26e9ad7aa067ec7af39e64bc960c5"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk19.png": {
+    "mtime": 1791214828.9092953,
+    "seen": 1791245818.778895,
+    "ast_hash": "c645918ba16e56d67bebe46ae30926de",
+    "semantic_hash": "c645918ba16e56d67bebe46ae30926de"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk2.png": {
+    "mtime": 1791214828.9092953,
+    "seen": 1791245818.778896,
+    "ast_hash": "a7db78c76ea3e8f2977b542442c29085",
+    "semantic_hash": "a7db78c76ea3e8f2977b542442c29085"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk20.png": {
+    "mtime": 1791214828.9092953,
+    "seen": 1791245818.7788975,
+    "ast_hash": "002086e9e4d35ca57002e8a714e388c8",
+    "semantic_hash": "002086e9e4d35ca57002e8a714e388c8"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk21.png": {
+    "mtime": 1791214828.9092953,
+    "seen": 1791245818.7788987,
+    "ast_hash": "c9dc0c195b284fbb4151f68afca2c090",
+    "semantic_hash": "c9dc0c195b284fbb4151f68afca2c090"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk22.png": {
+    "mtime": 1791214828.9253876,
+    "seen": 1791245818.7789,
+    "ast_hash": "42d63186d2087b347c50789b9713b72e",
+    "semantic_hash": "42d63186d2087b347c50789b9713b72e"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack1/atk23.png": {
+    "mtime": 1791214828.9253876,
+    "seen": 1791245818.7789016,
+    "ast_hash": "91f618b4e7e50614f90d58cfe5070c22",
+    "semantic_hash": "91f618b4e7e50614f90d58cfe5070c22"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack4/atk6.png": {
+    "mtime": 1791214829.047493,
+    "seen": 1791245818.7789028,
+    "ast_hash": "74e1ab25add966f727ec10bace137000",
+    "semantic_hash": "74e1ab25add966f727ec10bace137000"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack4/atk7.png": {
+    "mtime": 1791214829.0500076,
+    "seen": 1791245818.7789044,
+    "ast_hash": "8844cb109e1a98b2d83b1673b34f5273",
+    "semantic_hash": "8844cb109e1a98b2d83b1673b34f5273"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack4/atk8.png": {
+    "mtime": 1791214829.0520246,
+    "seen": 1791245818.7789059,
+    "ast_hash": "103824cde8eccb3b696310189bc9c578",
+    "semantic_hash": "103824cde8eccb3b696310189bc9c578"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack4/atk9.png": {
+    "mtime": 1791214829.0540435,
+    "seen": 1791245818.778907,
+    "ast_hash": "0c6b7e87cfb6264b4110fc2b7bfb7cf6",
+    "semantic_hash": "0c6b7e87cfb6264b4110fc2b7bfb7cf6"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk1.png": {
+    "mtime": 1791214829.0580735,
+    "seen": 1791245818.7789087,
+    "ast_hash": "7e991c395f6f72246984e9b08d055c2b",
+    "semantic_hash": "7e991c395f6f72246984e9b08d055c2b"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk10.png": {
+    "mtime": 1791214829.0600877,
+    "seen": 1791245818.77891,
+    "ast_hash": "e764bc58c91f43337cba425d35db255b",
+    "semantic_hash": "e764bc58c91f43337cba425d35db255b"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk11.png": {
+    "mtime": 1791214829.0600877,
+    "seen": 1791245818.7789116,
+    "ast_hash": "e764bc58c91f43337cba425d35db255b",
+    "semantic_hash": "e764bc58c91f43337cba425d35db255b"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk12.png": {
+    "mtime": 1791214829.0621035,
+    "seen": 1791245818.7789125,
+    "ast_hash": "e764bc58c91f43337cba425d35db255b",
+    "semantic_hash": "e764bc58c91f43337cba425d35db255b"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk13.png": {
+    "mtime": 1791214829.064119,
+    "seen": 1791245818.778914,
+    "ast_hash": "4e2ee642e0ae5cb74d28fd2dd60626f4",
+    "semantic_hash": "4e2ee642e0ae5cb74d28fd2dd60626f4"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk14.png": {
+    "mtime": 1791214829.0661328,
+    "seen": 1791245818.7789156,
+    "ast_hash": "b3835db7620e3ac9c264dc9dbe95b567",
+    "semantic_hash": "b3835db7620e3ac9c264dc9dbe95b567"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk15.png": {
+    "mtime": 1791214829.0678904,
+    "seen": 1791245818.7789168,
+    "ast_hash": "750a6495528bae104a82ec928ff47289",
+    "semantic_hash": "750a6495528bae104a82ec928ff47289"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk16.png": {
+    "mtime": 1791214829.0678904,
+    "seen": 1791245818.778918,
+    "ast_hash": "750a6495528bae104a82ec928ff47289",
+    "semantic_hash": "750a6495528bae104a82ec928ff47289"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk17.png": {
+    "mtime": 1791214829.0678904,
+    "seen": 1791245818.7789197,
+    "ast_hash": "647a8037773cf56193b76dbb405a4cb5",
+    "semantic_hash": "647a8037773cf56193b76dbb405a4cb5"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk18.png": {
+    "mtime": 1791214829.0678904,
+    "seen": 1791245818.778921,
+    "ast_hash": "7ac66d0c06b8576f8a66aeda096e584b",
+    "semantic_hash": "7ac66d0c06b8576f8a66aeda096e584b"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk19.png": {
+    "mtime": 1791214829.0678904,
+    "seen": 1791245818.7789226,
+    "ast_hash": "4607456eb21e8f42669bd792c39ac773",
+    "semantic_hash": "4607456eb21e8f42669bd792c39ac773"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk2.png": {
+    "mtime": 1791214829.0678904,
+    "seen": 1791245818.7789242,
+    "ast_hash": "f4f4393e64a3d9437bbd311185417bf5",
+    "semantic_hash": "f4f4393e64a3d9437bbd311185417bf5"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk20.png": {
+    "mtime": 1791214829.0678904,
+    "seen": 1791245818.778926,
+    "ast_hash": "a8b9635f9aaa34cb84abe19e841b09e8",
+    "semantic_hash": "a8b9635f9aaa34cb84abe19e841b09e8"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk21.png": {
+    "mtime": 1791214829.0836787,
+    "seen": 1791245818.778927,
+    "ast_hash": "3c9003b5efc2f01cca541fc56e11a8af",
+    "semantic_hash": "3c9003b5efc2f01cca541fc56e11a8af"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk22.png": {
+    "mtime": 1791214829.0836787,
+    "seen": 1791245818.7789283,
+    "ast_hash": "3c9003b5efc2f01cca541fc56e11a8af",
+    "semantic_hash": "3c9003b5efc2f01cca541fc56e11a8af"
+  },
+  "assets/sprites/bosses/impaler/Impaler Boss/attack5/atk23.png": {
+    "mtime": 1791214829.0836787,
+    "seen": 1791245818.77893,
+    "ast_hash": "f065f04e5c935a99cacf549de70c52a3",
+    "semantic_hash": "f065f04e5c935a99cacf549de70c52a3"
+  },
+  "assets/sprites/characters/coop/master_atlas_4heroes.png": {
+    "mtime": 1790724176.7037697,
+    "seen": 1791245818.7789314,
+    "ast_hash": "a9beb57d357b9428d9cb08f416673098",
+    "semantic_hash": "a9beb57d357b9428d9cb08f416673098"
+  },
+  "assets/sprites/diagnostic_validation_guide.png": {
+    "mtime": 1790725036.4187813,
+    "seen": 1791245818.7789328,
+    "ast_hash": "90377182cf3e7f52cb60dfd65059e9db",
+    "semantic_hash": "90377182cf3e7f52cb60dfd65059e9db"
+  },
+  "screenshot_settings_menu.png": {
+    "mtime": 1788438298.5486162,
+    "seen": 1791245818.778934,
+    "ast_hash": "7ce0eaa0cee72ba03d3c100fa8d61f06",
+    "semantic_hash": "7ce0eaa0cee72ba03d3c100fa8d61f06"
+  },
+  "screenshot_settings_menu_legacy.png": {
+    "mtime": 1790724624.9091706,
+    "seen": 1791245818.7789357,
+    "ast_hash": "de7be2822cf98ded40bfa365ca88adf6",
+    "semantic_hash": "de7be2822cf98ded40bfa365ca88adf6"
+  },
+  "screenshot_stage2_forest.png": {
+    "mtime": 1788438298.5076406,
+    "seen": 1791245818.7789373,
+    "ast_hash": "d0349d178a9ebeea078e10f2f3560526",
+    "semantic_hash": "d0349d178a9ebeea078e10f2f3560526"
+  },
+  "screenshot_stage2_ultimate.png": {
+    "mtime": 1788438298.521662,
+    "seen": 1791245818.7789388,
+    "ast_hash": "d32b451318f881a5fde90698a03610cd",
+    "semantic_hash": "d32b451318f881a5fde90698a03610cd"
+  }
+}

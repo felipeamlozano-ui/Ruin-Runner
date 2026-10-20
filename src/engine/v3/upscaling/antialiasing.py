@@ -31,7 +31,9 @@ class AntiAliasingEngine:
             # Preserves 100% crisp pixel edges while smoothing subpixel camera motion
             with PROFILER.time_phase("anti_aliasing"):
                 try:
-                    rgb = np.ascontiguousarray(np.transpose(pygame.surfarray.pixels3d(surface), (1, 0, 2)))
+                    px_view = pygame.surfarray.pixels3d(surface)
+                    rgb = np.ascontiguousarray(np.transpose(px_view, (1, 0, 2)))
+                    del px_view
                     out_rgb = native_pixel_aa_sharp_bilinear(rgb, w, h)
                     return pygame.surfarray.make_surface(np.transpose(out_rgb, (1, 0, 2)))
                 except Exception:

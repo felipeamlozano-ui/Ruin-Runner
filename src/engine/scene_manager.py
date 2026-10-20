@@ -22,7 +22,7 @@ class SceneManager:
         from engine.input_manager import INPUT
         INPUT.clear()
         self.current_scene = scene
-        gc.collect()
+        gc.collect(2)
         
     def handle_events(self, events: list[pygame.event.Event]):
         if self.current_scene:

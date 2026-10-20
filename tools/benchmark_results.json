@@ -1,0 +1,68 @@
+{
+  "winner": {
+    "id": "vulkan",
+    "name": "Vulkan (GPU Native)",
+    "total_frames": 6000,
+    "total_wall_sec": 21.59,
+    "avg_fps": 277.9,
+    "low_1pct_fps": 166.4,
+    "avg_frame_time_ms": 3.59,
+    "cpu_percent": 105.6,
+    "efficiency_score": 367.9,
+    "status": "SUCCESS",
+    "fallback": "direct3d11",
+    "secondary_fallback": "opengl"
+  },
+  "results": [
+    {
+      "id": "vulkan",
+      "name": "Vulkan (GPU Native)",
+      "total_frames": 6000,
+      "total_wall_sec": 21.59,
+      "avg_fps": 277.9,
+      "low_1pct_fps": 166.4,
+      "avg_frame_time_ms": 3.59,
+      "cpu_percent": 105.6,
+      "efficiency_score": 367.9,
+      "status": "SUCCESS"
+    },
+    {
+      "id": "direct3d11",
+      "name": "DirectX 11 (D3D11)",
+      "total_frames": 6000,
+      "total_wall_sec": 22.38,
+      "avg_fps": 268.0,
+      "low_1pct_fps": 156.3,
+      "avg_frame_time_ms": 3.73,
+      "cpu_percent": 105.7,
+      "efficiency_score": 348.6,
+      "status": "SUCCESS"
+    },
+    {
+      "id": "opengl",
+      "name": "OpenGL (Hardware)",
+      "total_frames": 6000,
+      "total_wall_sec": 20.47,
+      "avg_fps": 293.1,
+      "low_1pct_fps": 155.7,
+      "avg_frame_time_ms": 3.41,
+      "cpu_percent": 191.7,
+      "efficiency_score": 198.3,
+      "status": "SUCCESS"
+    },
+    {
+      "id": "direct3d12",
+      "name": "DirectX 12 (D3D12)",
+      "total_frames": 6000,
+      "total_wall_sec": 51.54,
+      "avg_fps": 116.4,
+      "low_1pct_fps": 42.6,
+      "avg_frame_time_ms": 8.58,
+      "cpu_percent": 54.0,
+      "efficiency_score": 226.1,
+      "status": "SUCCESS"
+    }
+  ],
+  "timestamp": 1792458600.0,
+  "frames_tested": 6000
+}

@@ -164,7 +164,9 @@ class NormalMapLighting:
             alpha = pygame.surfarray.array_alpha(sprite)
             alpha_surf = pygame.surfarray.make_surface(alpha)
             shaded_surf = shaded_surf.convert_alpha()
-            pygame.surfarray.pixels_alpha(shaded_surf)[:] = alpha
+            pa_view = pygame.surfarray.pixels_alpha(shaded_surf)
+            pa_view[:] = alpha
+            del pa_view
 
         PROFILER.record_draw_calls(1)
         return shaded_surf

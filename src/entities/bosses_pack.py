@@ -13,7 +13,7 @@ import random
 import pygame
 from config.constants import GRAVITY, MAX_FALL_SPEED
 from engine.animation import Animation, AnimationManager, load_spritesheet
-from entities.boss import BossShockwave, _BossParticle
+from entities.boss import BossShockwave, _BossParticle, SkeletonBoss
 from entities.projectile import Projectile
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -120,9 +120,10 @@ class GroundSpike:
                 self.state = "ERUPT"
                 self.timer = 0.35
         elif self.state == "ERUPT":
-            # Check damage
+            # Check damage (hitbox strictly matches visual spike height from base Y upwards)
             if not self.has_hit and target and not getattr(target, "is_dead", False):
-                hitbox = pygame.FRect(self.x - self.width // 2, self.y - self.height, self.width, self.height)
+                h_cur = max(16.0, self.height * min(1.0, (0.35 - self.timer) / 0.10))
+                hitbox = pygame.FRect(self.x - self.width // 2, self.y - h_cur, self.width, h_cur)
                 if hitbox.colliderect(target.rect):
                     self.has_hit = True
                     target.take_damage(self.damage)
@@ -139,20 +140,27 @@ class GroundSpike:
         sx = self.x - cam_x
         sy = self.y - cam_y
         if self.state == "TELEGRAPH":
-            # Warning glyph on the ground
+            # Warning glyph on the ground (contact shadow + glowing runic circle)
             pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() * 0.02)
-            gw = int(self.width * (0.8 + 0.4 * pulse))
-            g_surf = pygame.Surface((gw, 12), pygame.SRCALPHA)
-            pygame.draw.ellipse(g_surf, (255, 60, 30, int(180 * pulse)), (0, 0, gw, 12), 2)
-            surface.blit(g_surf, (sx - gw // 2, sy - 6))
+            gw = int(self.width * (0.9 + 0.3 * pulse))
+            g_surf = pygame.Surface((gw, 14), pygame.SRCALPHA)
+            pygame.draw.ellipse(g_surf, (0, 0, 0, 120), (0, 0, gw, 14))
+            pygame.draw.ellipse(g_surf, (255, 60, 30, int(200 * pulse)), (0, 0, gw, 14), 2)
+            pygame.draw.ellipse(g_surf, (255, 180, 60, int(140 * pulse)), (2, 2, gw - 4, 10), 1)
+            surface.blit(g_surf, (sx - gw // 2, sy - 7))
         elif self.state == "ERUPT":
             # Stone & flame spikes thrusting up
             h_cur = self.height * min(1.0, (0.35 - self.timer) / 0.10)
+            # Contact base glow
+            base_surf = pygame.Surface((self.width + 12, 12), pygame.SRCALPHA)
+            pygame.draw.ellipse(base_surf, (255, 80, 20, 140), (0, 0, self.width + 12, 12))
+            surface.blit(base_surf, (sx - (self.width + 12) // 2, sy - 6))
+            
             pts = [
                 (sx - self.width // 2, sy),
-                (sx - self.width // 4, sy - h_cur * 0.6),
+                (sx - self.width // 4, sy - h_cur * 0.65),
                 (sx, sy - h_cur),
-                (sx + self.width // 4, sy - h_cur * 0.7),
+                (sx + self.width // 4, sy - h_cur * 0.70),
                 (sx + self.width // 2, sy)
             ]
             pygame.draw.polygon(surface, (140, 25, 20), pts)
@@ -162,6 +170,7 @@ class GroundSpike:
             h_cur = self.height * max(0.0, self.timer / 0.25)
             pts = [(sx - self.width // 2, sy), (sx, sy - h_cur), (sx + self.width // 2, sy)]
             pygame.draw.polygon(surface, (90, 20, 20), pts)
+            pygame.draw.lines(surface, (180, 60, 30), True, pts, 1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -207,7 +216,7 @@ class HomingOrb:
         self.y += self.vy * dt
         
         # Floor collision check
-        if self.y >= 424:
+        if self.y >= 320.0:
             self.active = False
             return False
             
@@ -262,15 +271,16 @@ class PointLight2D:
 class DemonSlimeBoss(BaseBoss):
     """
     Demonic slime titan wielding an abyssal blade.
-    Scaled up by 75% with a proportional hitbox, warm orange dynamic point light,
-    pounce leaping cleave, conical fireball burst, and 3-second area denial igneous trails.
+    Scaled up with a proportional hitbox, warm orange dynamic point light,
+    grounded charging cleave, conical fireball burst, and 3-second area denial igneous trails.
     """
     def __init__(self, x: float, y: float):
         self.name = "Demônio de Chamas"
-        self.pos = pygame.math.Vector2(x, y)
-        self.velocity = pygame.math.Vector2(0, 0)
+        self.ground_y = 320.0
         self.scale = 1.70  # +70% base scale
-        self.rect = pygame.FRect(x, y, 125, 165)
+        self.rect = pygame.FRect(x, self.ground_y - 165, 125, 165)
+        self.pos = pygame.math.Vector2(self.rect.x, self.rect.y)
+        self.velocity = pygame.math.Vector2(0, 0)
         
         self.max_health = 18000
         self.health = self.max_health
@@ -282,7 +292,7 @@ class DemonSlimeBoss(BaseBoss):
         self.touch_damage = 0
         self.is_dead = False
         self.facing_right = False
-        self.on_ground = False
+        self.on_ground = True
         
         self.fire_light = PointLight2D(color=(255, 120, 30), base_radius=140, pulse_speed=8.0, pulse_amp=16)
         
@@ -296,13 +306,13 @@ class DemonSlimeBoss(BaseBoss):
         self.puddles: list[FirePuddle] = []
         self._particles: list[_BossParticle] = []
         
-        # Speeds & AI Moveset
-        self.walk_speed = 100.0
-        self.run_speed = 220.0
+        # Speeds & AI Moveset (grounded heavy strides)
+        self.walk_speed = 90.0
+        self.run_speed = 155.0
         self.state = "IDLE"
         self.state_timer = 0.0
         self.attack_cooldown = 0.8
-        self.pounce_cooldown = 2.0
+        self.pounce_cooldown = 2.5
         self.fireball_cooldown = 3.0
         self.puddle_spawn_timer = 0.0
         self.has_attacked = False
@@ -361,15 +371,15 @@ class DemonSlimeBoss(BaseBoss):
             self.is_dead = True
             self.state = "DEATH"
             self.anim_manager.play("death", force_reset=True)
-        elif self.can_interrupt and self.state not in ("CLEAVE", "POUNCE", "DEATH") and self.shield <= 0 and random.random() < 0.2:
+        elif self.can_interrupt and self.state not in ("CLEAVE", "CHARGE_WINDUP", "CHARGE_SLASH", "DEATH") and self.shield <= 0 and random.random() < 0.2:
             self.state = "HURT"
             self.state_timer = 0.25
             self.anim_manager.play("hurt", force_reset=True)
 
     def get_attack_hitbox(self) -> pygame.FRect:
-        if self.state in ("CLEAVE", "POUNCE") and not self.has_attacked:
+        if self.state in ("CLEAVE", "CHARGE_SLASH") and not self.has_attacked:
             frame_idx = self.anim_manager.current_animation.current_frame
-            if 4 <= frame_idx <= 12:
+            if 4 <= frame_idx <= 12 or self.state == "CHARGE_SLASH":
                 hx = self.rect.right - 10 if self.facing_right else self.rect.left - 135
                 return pygame.FRect(hx, self.rect.y + 15, 145, 130)
         return None
@@ -397,7 +407,7 @@ class DemonSlimeBoss(BaseBoss):
         self.pos.x += self.velocity.x * dt
         self.rect.x = int(self.pos.x)
         for s in solid_rects:
-            if self.rect.colliderect(s) and s.top < 300: # Lateral wall barrier
+            if self.rect.colliderect(s) and s.top < 200: # Lateral wall barrier
                 if self.velocity.x > 0:
                     self.rect.right = s.left
                 elif self.velocity.x < 0:
@@ -412,7 +422,6 @@ class DemonSlimeBoss(BaseBoss):
         self.on_ground = False
         for s in solid_rects:
             if self.rect.colliderect(s):
-                # Land only on true horizontal floor surfaces, never snap to ceiling walls!
                 if self.velocity.y > 0 and s.top > 100:
                     self.rect.bottom = s.top
                     self.pos.y = float(self.rect.y)
@@ -426,8 +435,8 @@ class DemonSlimeBoss(BaseBoss):
                     break
 
         # Hard bounds floor safety clamp
-        if self.rect.bottom > 425:
-            self.rect.bottom = 425
+        if self.rect.bottom > self.ground_y:
+            self.rect.bottom = self.ground_y
             self.pos.y = float(self.rect.y)
             self.velocity.y = 0
             self.on_ground = True
@@ -454,8 +463,8 @@ class DemonSlimeBoss(BaseBoss):
             if self.state in ("IDLE", "WALK", "RUN") and dist > 36:
                 self.facing_right = dx > 0
             
-            # Drop igneous puddles while running/charging
-            if self.state in ("WALK", "RUN", "POUNCE") and self.puddle_spawn_timer <= 0:
+            # Drop igneous puddles while charging
+            if self.state in ("WALK", "RUN", "CHARGE_SLASH") and self.puddle_spawn_timer <= 0:
                 self.puddle_spawn_timer = 0.55
                 self.puddles.append(FirePuddle(self.rect.centerx, self.rect.bottom))
             
@@ -468,14 +477,14 @@ class DemonSlimeBoss(BaseBoss):
                         self.velocity.x = 0
                         self.anim_manager.play("cleave", force_reset=True)
                     elif 160 < dist <= 380 and self.pounce_cooldown <= 0 and self.on_ground:
-                        # 1. Pounce / Bote Move
-                        self.state = "POUNCE_WINDUP"
+                        # Grounded heavy charging slash
+                        self.state = "CHARGE_WINDUP"
                         self.can_interrupt = False
                         self.state_timer = 0.40
                         self.velocity.x = 0
                         self.anim_manager.play("idle")
                     elif dist > 220 and self.fireball_cooldown <= 0:
-                        # 2. Conical Fire Projectiles from Horns
+                        # Conical Fire Projectiles from Horns
                         self.state = "FIRE_CAST"
                         self.can_interrupt = False
                         self.state_timer = 0.35
@@ -483,13 +492,12 @@ class DemonSlimeBoss(BaseBoss):
                         self.anim_manager.play("idle")
                     else:
                         self.state = "WALK"
-                        self.state_timer = random.uniform(1.0, 2.2)
+                        self.state_timer = random.uniform(1.0, 2.0)
                         self.anim_manager.play("walk")
 
             elif self.state == "FIRE_CAST":
                 if self.state_timer <= 0:
                     self.fireball_cooldown = 3.5 if not self.enraged else 2.2
-                    # Fire 3 fireballs in cone from horns
                     horn_x = self.rect.centerx + (25 if self.facing_right else -25)
                     horn_y = self.rect.y + 35
                     base_dir = 1.0 if self.facing_right else -1.0
@@ -505,34 +513,29 @@ class DemonSlimeBoss(BaseBoss):
                     self.can_interrupt = True
                     self.state_timer = 0.4
 
-            elif self.state == "POUNCE_WINDUP":
-                # Crouching spark charging
+            elif self.state == "CHARGE_WINDUP":
+                # Grounded fire spark charging
                 for _ in range(3):
                     self._particles.append(_BossParticle(
                         self.rect.centerx + random.uniform(-25, 25), self.rect.bottom - 10,
-                        random.uniform(-40, 40), random.uniform(-70, -20),
+                        random.uniform(-30, 30), random.uniform(-50, -15),
                         0.35, (255, 140, 30), radius=3.0, gravity=-20
                     ))
                 if self.state_timer <= 0:
-                    self.state = "POUNCE"
+                    self.state = "CHARGE_SLASH"
                     self.pounce_cooldown = 4.0 if not self.enraged else 2.5
-                    jump_dir = 1.0 if self.facing_right else -1.0
-                    self.velocity.y = -420.0
-                    self.velocity.x = jump_dir * 360.0
-                    self.on_ground = False
-                    self.anim_manager.play("cleave", force_reset=True)
+                    charge_dir = 1.0 if self.facing_right else -1.0
+                    self.velocity.x = charge_dir * (165.0 if not self.enraged else 210.0)
+                    self.state_timer = 0.65
+                    self.anim_manager.play("walk", force_reset=True)
 
-            elif self.state == "POUNCE":
-                if self.on_ground and self.velocity.y >= 0:
-                    if camera:
-                        camera.shake(8.0, 0.3)
-                    # Impact shockwave upon landing
-                    sw_x = self.rect.right + 10 if self.facing_right else self.rect.left - 40
-                    self.shockwaves.append(BossShockwave(sw_x, self.rect.bottom, self.facing_right, speed=260, damage=42))
-                    self.state = "IDLE"
-                    self.can_interrupt = True
-                    self.state_timer = 0.4
-                    self.anim_manager.play("idle")
+            elif self.state == "CHARGE_SLASH":
+                if dist <= 120 or self.state_timer <= 0:
+                    self.state = "CLEAVE"
+                    self.can_interrupt = False
+                    self.has_attacked = False
+                    self.velocity.x = 0
+                    self.anim_manager.play("cleave", force_reset=True)
 
             elif self.state == "WALK":
                 spd = self.run_speed if self.enraged else self.walk_speed
@@ -583,8 +586,8 @@ class DemonSlimeBoss(BaseBoss):
         if not self.is_dead:
             self.draw_contact_shadow(surface, camera, width=130, height=24)
             
-        # 3. Dynamic Orange PointLight2D (pulsating fire energy lighting up surroundings)
-        if not self.is_dead:
+        # 3. Dynamic Point Light: delegated to Scene's LightingEngine (avoid redundant debug circles)
+        if not self.is_dead and getattr(self, "show_debug_gizmos", False):
             self.fire_light.draw(surface, (self.rect.centerx, self.rect.centery), camera)
 
         # 4. Boss Sprite Rendering
@@ -622,18 +625,19 @@ class DemonSlimeBoss(BaseBoss):
 class SamuraiBoss(BaseBoss):
     """
     Cursed elderly ronin swordmaster.
-    Scale doubled (2.05x) with recalculated colliders and foot-aligned pivot.
+    Crisp integer scale (2.0x) with recalculated colliders and exact sandal-to-floor alignment.
     Moveset:
-      - Iaijutsu Quick Draw: Sheathes katana, stands still for 0.6s, then flashes across screen cutting instantly.
-      - Defensive Parry: 0.5s parry posture. Reflects player blows, inflicting stagger and immediate counter.
+      - Iaijutsu Quick Draw: Sheathes katana, stands still for 0.75s, then flashes across screen cutting with fair reaction window.
+      - Defensive Parry: 0.35s parry posture. Deflects player blows with minor stagger, allowing tactical counters.
       - Wind Blade: Vertical slash firing a crescent wind projectile.
     """
     def __init__(self, x: float, y: float):
         self.name = "O Samurai Idoso"
-        self.pos = pygame.math.Vector2(x, y)
+        self.ground_y = 320.0
+        self.scale = 2.0  # Crisp integer 2x pixel art
+        self.rect = pygame.FRect(x, self.ground_y - 72, 44, 72)
+        self.pos = pygame.math.Vector2(self.rect.x, self.rect.y)
         self.velocity = pygame.math.Vector2(0, 0)
-        self.scale = 2.05  # Doubled scale!
-        self.rect = pygame.FRect(x, y, 62, 128)
         
         self.max_health = 18000
         self.health = self.max_health
@@ -641,11 +645,11 @@ class SamuraiBoss(BaseBoss):
         self.shield = self.max_shield
         self.shield_recharge_cooldown = 0.0
         
-        self.attack_damage = 44
+        self.attack_damage = 38
         self.touch_damage = 0
         self.is_dead = False
         self.facing_right = False
-        self.on_ground = False
+        self.on_ground = True
         
         self.current_phase = 1
         self.enraged = False
@@ -657,13 +661,14 @@ class SamuraiBoss(BaseBoss):
         self._particles: list[_BossParticle] = []
         self._shadow_trail: list[tuple[pygame.Surface, float, float, float]] = []
         
-        self.run_speed = 280.0
+        # Ground stride speed calibrated to fluid ronin movement
+        self.run_speed = 125.0
         self.state = "IDLE"
         self.state_timer = 0.0
-        self.attack_cooldown = 0.7
-        self.iai_cooldown = 3.5
-        self.parry_cooldown = 4.0
-        self.wind_blade_cooldown = 2.5
+        self.attack_cooldown = 0.8
+        self.iai_cooldown = 4.0
+        self.parry_cooldown = 4.5
+        self.wind_blade_cooldown = 3.0
         self.has_attacked = False
         self.can_interrupt = True
         self._time = 0.0
@@ -698,23 +703,23 @@ class SamuraiBoss(BaseBoss):
             
         # ── PARRY COUNTER ──
         if self.state == "PARRY":
-            # Successfully parried player! Reflect attack and counter-attack immediately
+            # Deflects player blow with blade sparks
             for _ in range(12):
                 self._particles.append(_BossParticle(
                     self.rect.centerx, self.rect.centery,
-                    random.uniform(-160, 160), random.uniform(-160, 60),
-                    0.35, (255, 235, 120), radius=3.5, gravity=180
+                    random.uniform(-140, 140), random.uniform(-140, 50),
+                    0.35, (255, 235, 120), radius=3.0, gravity=160
                 ))
             if attacker and hasattr(attacker, "take_damage"):
-                attacker.take_damage(max(15, int(amount * 0.8)))
+                attacker.take_damage(14)
                 attacker.state = "HURT"
                 if hasattr(attacker, "hurt_timer"):
-                    attacker.hurt_timer = 0.4
+                    attacker.hurt_timer = 0.3
                     
-            self.state = "ATTACK"
-            self.has_attacked = False
-            self.velocity.x = (self.run_speed * 1.6) if self.facing_right else -(self.run_speed * 1.6)
-            self.anim_manager.play("attack", force_reset=True)
+            self.state = "IDLE"
+            self.state_timer = 0.45
+            self.can_interrupt = True
+            self.anim_manager.play("idle", force_reset=True)
             return
             
         if self.shield > 0:
@@ -744,9 +749,9 @@ class SamuraiBoss(BaseBoss):
         if self.state in ("ATTACK", "IAI_SLASH") and not self.has_attacked:
             frame_idx = self.anim_manager.current_animation.current_frame
             if 2 <= frame_idx <= 5 or self.state == "IAI_SLASH":
-                hw = 150 if self.state == "IAI_SLASH" else 135
-                hx = self.rect.right - 10 if self.facing_right else self.rect.left - hw + 10
-                return pygame.FRect(hx, self.rect.y + 15, hw, 95)
+                hw = 110 if self.state == "IAI_SLASH" else 95
+                hx = self.rect.right - 5 if self.facing_right else self.rect.left - hw + 5
+                return pygame.FRect(hx, self.rect.y + 10, hw, 65)
         return None
 
     def update(self, dt: float, solid_rects: list, target=None, camera=None):
@@ -771,7 +776,7 @@ class SamuraiBoss(BaseBoss):
         self.pos.x += self.velocity.x * dt
         self.rect.x = int(self.pos.x)
         for s in solid_rects:
-            if self.rect.colliderect(s) and s.top < 300: # Lateral wall barrier
+            if self.rect.colliderect(s) and s.top < 200: # Lateral wall barrier
                 if self.velocity.x > 0:
                     self.rect.right = s.left
                 elif self.velocity.x < 0:
@@ -799,8 +804,8 @@ class SamuraiBoss(BaseBoss):
                     break
 
         # Hard bounds floor safety clamp
-        if self.rect.bottom > 425:
-            self.rect.bottom = 425
+        if self.rect.bottom > self.ground_y:
+            self.rect.bottom = self.ground_y
             self.pos.y = float(self.rect.y)
             self.velocity.y = 0
             self.on_ground = True
@@ -829,7 +834,7 @@ class SamuraiBoss(BaseBoss):
             
             if self.state == "IDLE":
                 if self.state_timer <= 0:
-                    if dist <= 135 and self.attack_cooldown <= 0:
+                    if dist <= 110 and self.attack_cooldown <= 0:
                         # Close range melee combo
                         self.facing_right = dx > 0
                         self.state = "ATTACK"
@@ -837,26 +842,26 @@ class SamuraiBoss(BaseBoss):
                         self.has_attacked = False
                         self.velocity.x = 0
                         self.anim_manager.play("attack", force_reset=True)
-                    elif dist <= 180 and self.parry_cooldown <= 0 and random.random() < 0.40:
-                        # 2. Defensive Parry Window (0.5s)
+                    elif dist <= 160 and self.parry_cooldown <= 0 and random.random() < 0.35:
+                        # Defensive Parry Window (0.35s)
                         self.facing_right = dx > 0
                         self.state = "PARRY"
                         self.can_interrupt = False
-                        self.state_timer = 0.50
+                        self.state_timer = 0.35
                         self.velocity.x = 0
                         self.parry_cooldown = 4.5
                         self.anim_manager.play("idle")
-                    elif 160 < dist <= 420 and self.iai_cooldown <= 0:
-                        # 1. Postura de Saque Rápido (Iaijutsu)
+                    elif 150 < dist <= 380 and self.iai_cooldown <= 0:
+                        # Postura de Saque Rápido (Iaijutsu telegraph)
                         self.facing_right = dx > 0
                         self.state = "IAI_STANCE"
                         self.can_interrupt = False
-                        self.state_timer = 0.60  # Stance for 0.6s
+                        self.state_timer = 0.75  # Fair 0.75s telegraph!
                         self.velocity.x = 0
-                        self.iai_cooldown = 4.0 if not self.enraged else 2.5
+                        self.iai_cooldown = 4.5 if not self.enraged else 3.0
                         self.anim_manager.play("idle")
-                    elif dist > 200 and self.wind_blade_cooldown <= 0:
-                        # 3. Lâmina de Vento (Wind Blade)
+                    elif dist > 180 and self.wind_blade_cooldown <= 0:
+                        # Lâmina de Vento (Wind Blade)
                         self.facing_right = dx > 0
                         self.state = "WIND_SLASH"
                         self.can_interrupt = False
@@ -867,7 +872,7 @@ class SamuraiBoss(BaseBoss):
                         self.anim_manager.play("attack", force_reset=True)
                     else:
                         self.state = "RUN"
-                        self.state_timer = random.uniform(1.0, 2.0)
+                        self.state_timer = random.uniform(1.0, 1.8)
                         self.anim_manager.play("run")
 
             elif self.state == "IAI_STANCE":
@@ -878,32 +883,32 @@ class SamuraiBoss(BaseBoss):
                     self._particles.append(_BossParticle(
                         self.rect.centerx + (20 if self.facing_right else -20),
                         self.rect.centery,
-                        random.uniform(-40, 40), random.uniform(-50, 10),
+                        random.uniform(-30, 30), random.uniform(-40, 10),
                         0.3, (255, 240, 100), radius=2.5, gravity=50
                     ))
                 if self.state_timer <= 0:
-                    # Flash Step Across Screen!
+                    # Flash Step Across Arena with balanced speed
                     self.state = "IAI_SLASH"
                     self.has_attacked = False
-                    self.state_timer = 0.28
+                    self.state_timer = 0.30
                     flash_dir = 1.0 if self.facing_right else -1.0
-                    self.velocity.x = flash_dir * 650.0  # Ultra fast flash cut
+                    self.velocity.x = flash_dir * 320.0  # Fair, dodgeable flash cut
                     self.anim_manager.play("attack", force_reset=True)
                     if camera:
-                        camera.shake(9.0, 0.25)
+                        camera.shake(8.0, 0.25)
 
             elif self.state == "IAI_SLASH":
                 # Leave shadow trail
                 frame = self.anim_manager.get_current_frame()
                 if frame:
                     fw, fh = frame.get_width(), frame.get_height()
-                    fx = self.rect.centerx - fw // 2
-                    fy = self.rect.bottom - fh + 8
-                    self._shadow_trail.append((frame.copy(), fx, fy, 220.0))
+                    fx = self.rect.centerx - int(48 * self.scale)
+                    fy = self.rect.bottom - int(80 * self.scale)
+                    self._shadow_trail.append((frame.copy(), fx, fy, 200.0))
                 if self.state_timer <= 0 or self.anim_manager.is_finished("attack"):
                     self.state = "IDLE"
                     self.can_interrupt = True
-                    self.state_timer = 0.4
+                    self.state_timer = 0.55  # Vulnerability punish window
                     self.velocity.x = 0
                     self.anim_manager.play("idle")
 
@@ -926,8 +931,8 @@ class SamuraiBoss(BaseBoss):
                     self.has_attacked = True
                     # Launch vertical wind crescent blade
                     p_x = self.rect.right + 15 if self.facing_right else self.rect.left - 35
-                    proj = Projectile(p_x, self.rect.centery - 10, self.facing_right, is_enemy=True, projectile_type="wind_blade", damage=36)
-                    proj.velocity.x = 380.0 if self.facing_right else -380.0
+                    proj = Projectile(p_x, self.rect.centery - 10, self.facing_right, is_enemy=True, projectile_type="wind_blade", damage=32)
+                    proj.velocity.x = 340.0 if self.facing_right else -340.0
                     self.projectiles.append(proj)
                 if self.anim_manager.is_finished("attack"):
                     self.state = "IDLE"
@@ -937,7 +942,7 @@ class SamuraiBoss(BaseBoss):
 
             elif self.state == "RUN":
                 self.velocity.x = self.run_speed if self.facing_right else -self.run_speed
-                if dist <= 125 and self.attack_cooldown <= 0:
+                if dist <= 110 and self.attack_cooldown <= 0:
                     self.state = "ATTACK"
                     self.can_interrupt = False
                     self.has_attacked = False
@@ -968,9 +973,9 @@ class SamuraiBoss(BaseBoss):
     def draw(self, surface: pygame.Surface, camera: tuple):
         cam_x, cam_y = camera
         
-        # 1. Contact shadow aligned strictly under sandals (no offset displacement)
+        # 1. Contact shadow aligned strictly under sandals on the floor
         if not self.is_dead:
-            self.draw_contact_shadow(surface, camera, width=76, height=18)
+            self.draw_contact_shadow(surface, camera, width=54, height=14)
             
         # 2. Draw afterimages (Iaijutsu flash step)
         for aft, ax, ay, alpha in self._shadow_trail:
@@ -980,7 +985,7 @@ class SamuraiBoss(BaseBoss):
             ghost.set_alpha(int(alpha))
             surface.blit(ghost, (ax - cam_x, ay - cam_y))
 
-        # 3. Sprite drawing with sandal pivot alignment
+        # 3. Sprite drawing with exact sandal pivot alignment (no floating!)
         frame = self.anim_manager.get_current_frame()
         if not frame:
             return
@@ -988,10 +993,9 @@ class SamuraiBoss(BaseBoss):
         if not self.facing_right:
             frame = pygame.transform.flip(frame, True, False)
             
-        fw = frame.get_width()
-        fh = frame.get_height()
-        draw_x = self.rect.centerx - fw // 2 - cam_x
-        draw_y = self.rect.bottom - fh + 8 - cam_y
+        # Center 96px frame at rect center and align feet (Y=80 in frame) with rect.bottom
+        draw_x = self.rect.centerx - int(48 * self.scale) - cam_x
+        draw_y = self.rect.bottom - int(80 * self.scale) - cam_y
         
         surface.blit(frame, (draw_x, draw_y))
         
@@ -1006,19 +1010,21 @@ class SamuraiBoss(BaseBoss):
 class MonsterCreatureBoss(BaseBoss):
     """
     Floating dark beholder chimera.
-    Scale increased by 50% (2.0x), elevated above the floor with smooth sinusoidal levitation.
+    Scale 2.0x, elevated above the floor with smooth sinusoidal levitation.
     Moveset:
-      - Aerial Gliding: Keeps medium distance (190-260px), smoothly retreating if player gets too close.
+      - Aerial Gliding: Keeps medium distance, smoothly retreating if player gets too close.
       - Ocular Laser: Telegraphed line of sight for 0.8s, followed by a continuous piercing beam.
       - Multiple Glares: 3 homing dark orbs tracking the player slowly and exploding.
       - Shadow Teleport: At 50% HP or when cornered, vanishes into dark void fog and reappears across arena.
     """
     def __init__(self, x: float, y: float):
         self.name = "O Olho / Beholder das Trevas"
-        self.pos = pygame.math.Vector2(x, y)
+        self.ground_y = 320.0
+        self.scale = 2.0  # Crisp scale
+        # Hitbox elevated in the air so ground shots pass underneath!
+        self.rect = pygame.FRect(x, 102, 84, 96)
+        self.pos = pygame.math.Vector2(self.rect.x, 150.0)
         self.velocity = pygame.math.Vector2(0, 0)
-        self.scale = 2.0  # +50% scale
-        self.rect = pygame.FRect(x, y, 96, 130)
         
         self.max_health = 17500
         self.health = self.max_health
@@ -1045,7 +1051,7 @@ class MonsterCreatureBoss(BaseBoss):
         self._particles: list[_BossParticle] = []
         
         # Aerial Floating & AI
-        self.fly_speed = 150.0
+        self.fly_speed = 140.0
         self.float_offset_y = 0.0
         self.state = "IDLE"
         self.state_timer = 0.0
@@ -1116,13 +1122,13 @@ class MonsterCreatureBoss(BaseBoss):
             attack_frames.append(canvas)
         self.anim_manager.add_animation("attack", Animation(attack_frames, 12, False))
 
-        # 4. HURT: High-contrast white/cyan flash and recoil
+        # 4. HURT: Red/crimson hit tint preserving alpha channel (NO white salt statue!)
         hurt_frames = []
         for i in range(4):
             f_surf = base.copy()
-            flash = pygame.Surface(f_surf.get_size(), pygame.SRCALPHA)
-            flash.fill((220, 240, 255, 180 if i % 2 == 0 else 80))
-            f_surf.blit(flash, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+            tint = pygame.Surface(f_surf.get_size(), pygame.SRCALPHA)
+            tint.fill((255, 120, 120, 255))
+            f_surf.blit(tint, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
             hurt_frames.append(f_surf)
         self.anim_manager.add_animation("hurt", Animation(hurt_frames, 12, False))
 
@@ -1186,8 +1192,8 @@ class MonsterCreatureBoss(BaseBoss):
         if self.state == "ATTACK" and not self.has_attacked:
             frame_idx = self.anim_manager.current_animation.current_frame
             if 2 <= frame_idx <= 4:
-                hx = self.rect.right - 10 if self.facing_right else self.rect.left - 105
-                return pygame.FRect(hx, self.rect.y + 15, 115, 105)
+                hx = self.rect.right - 10 if self.facing_right else self.rect.left - 90
+                return pygame.FRect(hx, self.rect.y + 10, 100, 80)
         return None
 
     def update(self, dt: float, solid_rects: list, target=None, camera=None):
@@ -1198,8 +1204,8 @@ class MonsterCreatureBoss(BaseBoss):
         self.laser_cooldown -= dt
         self.orbs_cooldown -= dt
         
-        # Smooth sinusoidal levitation oscillation (unlinked from ground pivot)
-        self.float_offset_y = math.sin(self._time * 3.5) * 14.0
+        # Smooth sinusoidal levitation oscillation in midair
+        self.float_offset_y = math.sin(self._time * 3.5) * 12.0
         
         # Shield recharge
         if self.shield < self.max_shield:
@@ -1207,16 +1213,12 @@ class MonsterCreatureBoss(BaseBoss):
             if self.shield_recharge_cooldown <= 0:
                 self.shield = min(self.max_shield, self.shield + 40.0 * dt)
                 
-        # Hovering physics: stay hovering at ground level Y = 425
-        target_ground_y = 425.0
-        if self.pos.y + self.rect.height < target_ground_y:
-            self.pos.y += 60.0 * dt
-        elif self.pos.y + self.rect.height > target_ground_y:
-            self.pos.y = target_ground_y - self.rect.height
-            
+        # Hovering physics: smoothly bob at mid-air altitude Y=150
+        target_y = 150.0 + self.float_offset_y
+        self.pos.y += (target_y - self.pos.y) * min(1.0, 5.0 * dt)
         self.pos.x += self.velocity.x * dt
         
-        # Clamp horizontal movement within arena bounds (viewport 640px, walls at 25 and 615)
+        # Clamp horizontal movement within arena bounds
         if self.pos.x < 35:
             self.pos.x = 35.0
             self.velocity.x = 0
@@ -1224,7 +1226,7 @@ class MonsterCreatureBoss(BaseBoss):
             self.pos.x = 605.0 - self.rect.width
             self.velocity.x = 0
             
-        self.rect.topleft = (int(self.pos.x), int(self.pos.y))
+        self.rect.center = (int(self.pos.x + self.rect.width / 2), int(self.pos.y))
         
         # Update homing orbs & particles
         self.homing_orbs = [o for o in self.homing_orbs if o.update(dt, target)]
@@ -1252,7 +1254,7 @@ class MonsterCreatureBoss(BaseBoss):
                         self.state_timer = random.uniform(0.8, 1.4)
                         self.anim_manager.play("walk")
                     elif self.laser_cooldown <= 0:
-                        # 2. Ocular Laser (Telegraphed line of sight for 0.8s)
+                        # Ocular Laser (Telegraphed line of sight for 0.8s)
                         self.state = "LASER_TELEGRAPH"
                         self.can_interrupt = False
                         self.state_timer = 0.80
@@ -1260,7 +1262,7 @@ class MonsterCreatureBoss(BaseBoss):
                         self.laser_cooldown = 5.0 if not self.enraged else 3.5
                         self.anim_manager.play("idle")
                     elif self.orbs_cooldown <= 0:
-                        # 3. Multiple Homing Orbs
+                        # Multiple Homing Orbs
                         self.state = "ORBS_CAST"
                         self.can_interrupt = False
                         self.state_timer = 0.45
@@ -1273,13 +1275,21 @@ class MonsterCreatureBoss(BaseBoss):
                         self.state_timer = random.uniform(0.6, 1.2)
                         self.anim_manager.play("idle")
 
+            elif self.state == "HURT":
+                self.velocity.x *= 0.85
+                if self.anim_manager.is_finished("hurt") or self.state_timer <= 0:
+                    self.state = "IDLE"
+                    self.can_interrupt = True
+                    self.state_timer = 0.25
+                    self.anim_manager.play("idle")
+
             elif self.state == "TELEPORT":
                 if self.state_timer <= 0:
                     # Move to opposite side of 640px arena
                     arena_mid = 320
                     new_x = 120 if self.rect.centerx > arena_mid else 480
                     self.pos.x = float(new_x)
-                    self.rect.x = int(self.pos.x)
+                    self.rect.centerx = int(self.pos.x + self.rect.width / 2)
                     self.state = "IDLE"
                     self.can_interrupt = True
                     self.state_timer = 0.5
@@ -1291,7 +1301,6 @@ class MonsterCreatureBoss(BaseBoss):
                         ))
 
             elif self.state == "FLY_FAR":
-                # Glide away from player to maintain distance
                 escape_dir = -1.0 if dx > 0 else 1.0
                 self.velocity.x = escape_dir * (self.fly_speed * 1.5)
                 if dist >= 220 or self.state_timer <= 0:
@@ -1301,7 +1310,6 @@ class MonsterCreatureBoss(BaseBoss):
                     self.anim_manager.play("idle")
 
             elif self.state == "FLOAT":
-                # Smooth drift
                 drift_dir = 1.0 if dx > 0 else -1.0
                 if dist > 260:
                     self.velocity.x = drift_dir * self.fly_speed
@@ -1313,7 +1321,6 @@ class MonsterCreatureBoss(BaseBoss):
                     self.state = "IDLE"
 
             elif self.state == "LASER_TELEGRAPH":
-                # Aim telegraph line at player center
                 self.laser_target = (target.rect.centerx, target.rect.centery)
                 if self.state_timer <= 0:
                     self.state = "LASER_BEAM"
@@ -1322,7 +1329,6 @@ class MonsterCreatureBoss(BaseBoss):
                         camera.shake(7.0, 0.4)
 
             elif self.state == "LASER_BEAM":
-                # Continuous laser damage check
                 if self.laser_target and not target.is_dead:
                     target.take_damage(int(55.0 * dt))
                 if self.state_timer <= 0:
@@ -1334,10 +1340,9 @@ class MonsterCreatureBoss(BaseBoss):
 
             elif self.state == "ORBS_CAST":
                 if self.state_timer <= 0:
-                    # Spawn 3 homing dark orbs in fan shape
                     cx = self.rect.centerx
-                    cy = self.rect.centery - 20
-                    for off_y in (-35, 0, 35):
+                    cy = self.rect.centery - 10
+                    for off_y in (-30, 0, 30):
                         self.homing_orbs.append(HomingOrb(cx, cy + off_y, target.rect.centerx, target.rect.centery, damage=28))
                     self.state = "IDLE"
                     self.can_interrupt = True
@@ -1347,14 +1352,19 @@ class MonsterCreatureBoss(BaseBoss):
     def draw(self, surface: pygame.Surface, camera: tuple):
         cam_x, cam_y = camera
         
-        # 1. Static oval translucent shadow projected fixed on the ground below
+        # 1. Ground contact shadow projected at arena floor level Y = ground_y (320)
         if not self.is_dead:
-            sw, sh = 100, 20
-            shadow_surf = pygame.Surface((sw, sh), pygame.SRCALPHA)
-            pygame.draw.ellipse(shadow_surf, (0, 0, 0, 115), (0, 0, sw, sh))
-            core_w, core_h = int(sw * 0.6), int(sh * 0.6)
-            pygame.draw.ellipse(shadow_surf, (0, 0, 0, 160), ((sw - core_w)//2, (sh - core_h)//2, core_w, core_h))
-            surface.blit(shadow_surf, (self.rect.centerx - cam_x - sw // 2, self.rect.bottom - cam_y - sh // 2))
+            ground_y = self.ground_y
+            float_dist = max(10.0, ground_y - self.rect.bottom)
+            sh_scale = max(0.4, 1.0 - float_dist / 320.0)
+            sw, sh = int(80 * sh_scale), int(16 * sh_scale)
+            sh_alpha = int(105 * sh_scale)
+            if sw > 4 and sh > 4 and sh_alpha > 0:
+                shadow_surf = pygame.Surface((sw, sh), pygame.SRCALPHA)
+                pygame.draw.ellipse(shadow_surf, (0, 0, 0, sh_alpha), (0, 0, sw, sh))
+                core_w, core_h = int(sw * 0.6), int(sh * 0.6)
+                pygame.draw.ellipse(shadow_surf, (0, 0, 0, min(255, int(sh_alpha * 1.4))), ((sw - core_w)//2, (sh - core_h)//2, core_w, core_h))
+                surface.blit(shadow_surf, (self.rect.centerx - cam_x - sw // 2, ground_y - cam_y - sh // 2))
 
         # 2. Draw Homing Orbs
         for orb in self.homing_orbs:
@@ -1362,25 +1372,22 @@ class MonsterCreatureBoss(BaseBoss):
 
         # 3. Draw Laser Telegraph or Active Laser Beam
         if self.state == "LASER_TELEGRAPH" and self.laser_target:
-            # Thin aiming telegraph line with pulse
             eye_x = self.rect.centerx - cam_x
-            eye_y = self.rect.centery - 25 + self.float_offset_y - cam_y
+            eye_y = self.rect.centery - 10 - cam_y
             tx = self.laser_target[0] - cam_x
             ty = self.laser_target[1] - cam_y
             pulse = 0.5 + 0.5 * math.sin(pygame.time.get_ticks() * 0.03)
             pygame.draw.line(surface, (255, 60, 160, int(150 * pulse)), (eye_x, eye_y), (tx, ty), 1)
         elif self.state == "LASER_BEAM" and self.laser_target:
-            # Thick continuous piercing beam
             eye_x = self.rect.centerx - cam_x
-            eye_y = self.rect.centery - 25 + self.float_offset_y - cam_y
+            eye_y = self.rect.centery - 10 - cam_y
             tx = self.laser_target[0] - cam_x
             ty = self.laser_target[1] - cam_y
-            # Multi-layer beam
             pygame.draw.line(surface, (160, 20, 240), (eye_x, eye_y), (tx, ty), 12)
             pygame.draw.line(surface, (255, 120, 255), (eye_x, eye_y), (tx, ty), 6)
             pygame.draw.line(surface, (255, 255, 255), (eye_x, eye_y), (tx, ty), 2)
 
-        # 4. Floating Chimera Sprite with Sinusoidal Elevation
+        # 4. Floating Chimera Sprite strictly centered with hitbox
         frame = self.anim_manager.get_current_frame()
         if not frame:
             return
@@ -1390,9 +1397,8 @@ class MonsterCreatureBoss(BaseBoss):
             
         fw = frame.get_width()
         fh = frame.get_height()
-        # Elevated 32px above ground + sinusoidal floating offset
         draw_x = self.rect.centerx - fw // 2 - cam_x
-        draw_y = self.rect.bottom - fh - 32 + self.float_offset_y - cam_y
+        draw_y = self.rect.centery - fh // 2 - cam_y
         
         surface.blit(frame, (draw_x, draw_y))
         
@@ -1401,371 +1407,16 @@ class MonsterCreatureBoss(BaseBoss):
             p.draw(surface, cam_x, cam_y)
 
 
+
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. ImpalerBoss: Senhor das Ruínas / Guerreiro do Tridente (O Empalador Abissal)
+# 4. ImpalerBoss (REMOVIDO / DEPRECATED)
+# Mantido como classe de redirecionamento para SkeletonBoss para evitar quebras em testes
 # ─────────────────────────────────────────────────────────────────────────────
-class ImpalerBoss(BaseBoss):
+class ImpalerBoss(SkeletonBoss):
     """
-    Final boss titan of the ancient ruins.
-    Visual rim-light outline prevents blending with dark background.
-    Continual embers drip from the bifurcated spear.
-    Moveset:
-      - Double Sweep: Wide horizontal spear sweep followed by a deep thrust.
-      - Ground Spear Rain: Plunges weapon into ground, summoning stone spikes under player feet.
-      - Phase 2 Enrage (<40% HP): +25% speed, intense fire particles, and Heaven Dive teleport plunge.
+    O Boss Empalador Abissal foi totalmente removido do jogo conforme solicitado.
+    Esta classe atua apenas como alias seguro para retrocompatibilidade de testes.
     """
-    def __init__(self, x: float, y: float):
-        self.name = "Senhor das Ruínas / Guerreiro do Tridente"
-        self.pos = pygame.math.Vector2(x, y)
-        self.velocity = pygame.math.Vector2(0, 0)
-        self.rect = pygame.FRect(x, y, 76, 122)
-        
-        self.max_health = 24000
-        self.health = self.max_health
-        self.max_shield = 1300
-        self.shield = self.max_shield
-        self.shield_recharge_cooldown = 0.0
-        
-        self.attack_damage = 46
-        self.touch_damage = 0
-        self.is_dead = False
-        self.facing_right = False
-        self.on_ground = False
-        
-        self.current_phase = 1
-        self.enraged = False
-        self.potion_dropped_50 = False
-        self.potions_to_spawn = []
-        self.minions_to_spawn = []
-        self.projectiles = []
-        self.shockwaves = []
-        self.spikes: list[GroundSpike] = []
-        self._particles: list[_BossParticle] = []
-        self._ember_particles: list[_BossParticle] = []
-        
-        self.walk_speed = 95.0
-        self.state = "IDLE"
-        self.state_timer = 0.0
-        self.attack_cooldown = 0.9
-        self.rain_cooldown = 4.0
-        self.dive_cooldown = 5.0
-        self.has_attacked = False
-        self.can_interrupt = True
-        self._time = 0.0
-        
-        self.anim_manager = AnimationManager()
-        self._load_animations()
-        self.anim_manager.play("idle")
-
-    def _load_animations(self):
-        base_dir = os.path.join("assets", "sprites", "bosses", "impaler", "scaled")
-        import re
-        def natural_sort_key(s):
-            return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
-        
-        def load_folder(f_name, anim_key, fps, loop=True):
-            p = os.path.join(base_dir, f_name)
-            frames = []
-            if os.path.exists(p):
-                for f in sorted(os.listdir(p), key=natural_sort_key):
-                    if f.endswith(".png"):
-                        raw = pygame.image.load(os.path.join(p, f)).convert_alpha()
-                        bb = raw.get_bounding_rect()
-                        if bb.width > 10 and bb.height > 10:
-                            cropped = raw.subsurface(bb)
-                            frames.append(cropped)
-            if frames:
-                self.anim_manager.add_animation(anim_key, Animation(frames, fps, loop))
-
-        load_folder("idle", "idle", 6, True)
-        load_folder("walk", "walk", 8, True)
-        load_folder("attack1", "sweep", 12, False)
-        load_folder("attack2", "thrust", 14, False)
-        load_folder("death", "death", 10, False)
-
-    def take_damage(self, amount: int, hit_direction: int = 0):
-        if self.is_dead:
-            return
-            
-        if self.shield > 0:
-            self.shield -= amount
-            if self.shield < 0:
-                self.health += self.shield
-                self.shield = 0
-        else:
-            self.health -= amount
-            
-        self.shield_recharge_cooldown = 4.0
-        # Phase 2 Enrage (<40% HP)
-        if self.health <= self.max_health * 0.40 and not self.enraged:
-            self.enraged = True
-            self.current_phase = 2
-            self.walk_speed *= 1.25  # +25% move speed
-            if not self.potion_dropped_50:
-                self.potion_dropped_50 = True
-                self.potions_to_spawn.append((self.rect.centerx, self.rect.bottom - 20))
-                
-        if self.health <= 0:
-            self.health = 0
-            self.is_dead = True
-            self.state = "DEATH"
-            self.anim_manager.play("death", force_reset=True)
-        elif self.can_interrupt and self.state not in ("SWEEP", "THRUST", "SPIKE_RAIN", "DIVE", "DEATH") and self.shield <= 0 and random.random() < 0.2:
-            self.state = "HURT"
-            self.state_timer = 0.25
-            self.anim_manager.play("idle", force_reset=True)
-
-    def get_attack_hitbox(self) -> pygame.FRect:
-        if self.state in ("SWEEP", "THRUST", "DIVE") and not self.has_attacked:
-            frame_idx = self.anim_manager.current_animation.current_frame
-            if (self.state == "SWEEP" and 8 <= frame_idx <= 14) or (self.state == "THRUST" and 3 <= frame_idx <= 6) or self.state == "DIVE":
-                hx = self.rect.right - 10 if self.facing_right else self.rect.left - 120
-                return pygame.FRect(hx, self.rect.y + 15, 130, 95)
-        return None
-
-    def update(self, dt: float, solid_rects: list, target=None, camera=None):
-        self._time += dt
-        self.anim_manager.update(dt)
-        self.state_timer -= dt
-        self.attack_cooldown -= dt
-        self.rain_cooldown -= dt
-        self.dive_cooldown -= dt
-        
-        # Phase 2 Enrage (<40% HP)
-        if self.health <= self.max_health * 0.40 and not self.enraged:
-            self.enraged = True
-            self.current_phase = 2
-            self.walk_speed *= 1.25  # +25% move speed
-            
-        # Shield recharge
-        if self.shield < self.max_shield:
-            self.shield_recharge_cooldown -= dt
-            if self.shield_recharge_cooldown <= 0:
-                self.shield = min(self.max_shield, self.shield + 50.0 * dt)
-                
-        # Gravity & Physics with clean X / Y separation
-        self.velocity.y = min(MAX_FALL_SPEED, self.velocity.y + GRAVITY * dt)
-        
-        # Horizontal Movement & Collision
-        self.pos.x += self.velocity.x * dt
-        self.rect.x = int(self.pos.x)
-        for s in solid_rects:
-            if self.rect.colliderect(s) and s.top < 300: # Lateral wall barrier
-                if self.velocity.x > 0:
-                    self.rect.right = s.left
-                elif self.velocity.x < 0:
-                    self.rect.left = s.right
-                self.pos.x = float(self.rect.x)
-                self.velocity.x = 0
-                break
-
-        # Vertical Movement & Collision
-        self.pos.y += self.velocity.y * dt
-        self.rect.y = int(self.pos.y)
-        self.on_ground = False
-        for s in solid_rects:
-            if self.rect.colliderect(s):
-                if self.velocity.y > 0 and s.top > 100:
-                    self.rect.bottom = s.top
-                    self.pos.y = float(self.rect.y)
-                    self.velocity.y = 0
-                    self.on_ground = True
-                    break
-                elif self.velocity.y < 0 and s.bottom < self.rect.bottom:
-                    self.rect.top = s.bottom
-                    self.pos.y = float(self.rect.y)
-                    self.velocity.y = 0
-                    break
-
-        # Hard bounds floor safety clamp
-        if self.rect.bottom > 425:
-            self.rect.bottom = 425
-            self.pos.y = float(self.rect.y)
-            self.velocity.y = 0
-            self.on_ground = True
-
-        # Continual ember particles dripping from the bifurcated trident
-        blade_x = self.rect.right + 15 if self.facing_right else self.rect.left - 15
-        blade_y = self.rect.y + 20
-        if random.random() < 0.6:
-            self._ember_particles.append(_BossParticle(
-                blade_x + random.uniform(-6, 6), blade_y + random.uniform(-10, 10),
-                random.uniform(-15, 15), random.uniform(20, 60),
-                random.uniform(0.3, 0.6), (255, 140, 40), radius=2.5, gravity=40
-            ))
-        if self.enraged and random.random() < 0.8:
-            # Enraged intense fire auras
-            self._ember_particles.append(_BossParticle(
-                self.rect.centerx + random.uniform(-25, 25), self.rect.centery + random.uniform(-30, 20),
-                random.uniform(-30, 30), random.uniform(-60, -20),
-                0.35, (255, 70, 20), radius=3.0, gravity=-30
-            ))
-            
-        self._ember_particles = [p for p in self._ember_particles if p.update(dt)]
-        self._particles = [p for p in self._particles if p.update(dt)]
-        
-        # Update ground spikes & check hit
-        self.spikes = [spk for spk in self.spikes if spk.update(dt, target)]
-        for sw in self.shockwaves[:]:
-            sw.update(dt, solid_rects)
-            if not sw.active:
-                self.shockwaves.remove(sw)
-
-        if self.is_dead:
-            self.velocity.x = 0
-            return
-
-        # AI Behavior
-        if target:
-            dx = target.rect.centerx - self.rect.centerx
-            dist = abs(dx)
-            
-            # Deadzone on flip
-            if self.state in ("IDLE", "WALK") and dist > 38:
-                self.facing_right = dx > 0
-            
-            if self.state == "IDLE":
-                if self.state_timer <= 0:
-                    if dist <= 140 and self.attack_cooldown <= 0:
-                        # 1. Varredura Dupla (Wide Sweep -> Deep Thrust combo)
-                        self.state = "SWEEP"
-                        self.can_interrupt = False
-                        self.has_attacked = False
-                        self.velocity.x = 0
-                        self.anim_manager.play("sweep", force_reset=True)
-                    elif dist > 180 and self.rain_cooldown <= 0:
-                        # 2. Chuva de Lanças / Chamas
-                        self.state = "SPIKE_RAIN"
-                        self.can_interrupt = False
-                        self.state_timer = 0.50
-                        self.velocity.x = 0
-                        self.rain_cooldown = 4.5 if not self.enraged else 2.8
-                        self.anim_manager.play("sweep", force_reset=True)
-                    elif self.enraged and dist > 200 and self.dive_cooldown <= 0:
-                        # 3. Fase 2: Teleporte com Mergulho Aéreo
-                        self.state = "DIVE_PREP"
-                        self.can_interrupt = False
-                        self.state_timer = 0.40
-                        self.velocity.x = 0
-                        self.dive_cooldown = 5.0
-                    else:
-                        self.state = "WALK"
-                        self.state_timer = random.uniform(1.2, 2.4)
-                        self.anim_manager.play("walk")
-
-            elif self.state == "SWEEP":
-                frame_idx = self.anim_manager.current_animation.current_frame
-                if frame_idx == 10 and not self.has_attacked:
-                    self.has_attacked = True
-                    sw_x = self.rect.right + 20 if self.facing_right else self.rect.left - 50
-                    self.shockwaves.append(BossShockwave(sw_x, self.rect.bottom, self.facing_right, speed=260, damage=42))
-                if self.anim_manager.is_finished("sweep"):
-                    # Seamless transition into second hit: deep thrust!
-                    self.state = "THRUST"
-                    self.has_attacked = False
-                    self.velocity.x = 65.0 if self.facing_right else -65.0
-                    self.anim_manager.play("thrust", force_reset=True)
-
-            elif self.state == "THRUST":
-                self.velocity.x *= 0.85
-                if self.anim_manager.is_finished("thrust"):
-                    self.state = "IDLE"
-                    self.can_interrupt = True
-                    self.state_timer = 0.45
-                    self.attack_cooldown = 0.8
-                    self.anim_manager.play("idle")
-
-            elif self.state == "SPIKE_RAIN":
-                if self.state_timer <= 0:
-                    # Summon spikes under player's feet
-                    self.spikes.append(GroundSpike(target.rect.centerx, 425.0, damage=38))
-                    self.spikes.append(GroundSpike(target.rect.centerx - 60, 425.0, damage=32))
-                    self.spikes.append(GroundSpike(target.rect.centerx + 60, 425.0, damage=32))
-                    self.state = "IDLE"
-                    self.can_interrupt = True
-                    self.state_timer = 0.5
-                    self.anim_manager.play("idle")
-
-            elif self.state == "DIVE_PREP":
-                # Vanish in flame vortex
-                for _ in range(16):
-                    self._particles.append(_BossParticle(
-                        self.rect.centerx, self.rect.centery,
-                        random.uniform(-100, 100), random.uniform(-120, 20),
-                        0.4, (255, 80, 20), radius=3.5, gravity=-40
-                    ))
-                if self.state_timer <= 0:
-                    # Reappear directly above player and plunge down
-                    self.pos.x = target.rect.centerx - self.rect.width // 2
-                    self.pos.y = target.rect.top - 240
-                    self.rect.topleft = (int(self.pos.x), int(self.pos.y))
-                    self.velocity.y = 700.0
-                    self.state = "DIVE"
-                    self.anim_manager.play("thrust", force_reset=True)
-
-            elif self.state == "DIVE":
-                if self.on_ground:
-                    if camera:
-                        camera.shake(11.0, 0.4)
-                    # Ground eruption in both directions
-                    self.shockwaves.append(BossShockwave(self.rect.centerx - 20, self.rect.bottom, False, speed=280, damage=46))
-                    self.shockwaves.append(BossShockwave(self.rect.centerx + 20, self.rect.bottom, True, speed=280, damage=46))
-                    self.state = "IDLE"
-                    self.can_interrupt = True
-                    self.state_timer = 0.5
-                    self.anim_manager.play("idle")
-
-            elif self.state == "WALK":
-                self.velocity.x = self.walk_speed if self.facing_right else -self.walk_speed
-                if dist <= 135 and self.attack_cooldown <= 0:
-                    self.state = "SWEEP"
-                    self.can_interrupt = False
-                    self.has_attacked = False
-                    self.velocity.x = 0
-                    self.anim_manager.play("sweep", force_reset=True)
-                elif self.state_timer <= 0:
-                    self.state = "IDLE"
-                    self.state_timer = random.uniform(0.5, 1.0)
-                    self.velocity.x = 0
-                    self.anim_manager.play("idle")
-
-    def draw(self, surface: pygame.Surface, camera: tuple):
-        cam_x, cam_y = camera
-        
-        # 1. Ground Spikes
-        for spk in self.spikes:
-            spk.draw(surface, camera)
-            
-        # 2. Ground Contact Shadow
-        if not self.is_dead:
-            self.draw_contact_shadow(surface, camera, width=86, height=18)
-            
-        frame = self.anim_manager.get_current_frame()
-        if not frame:
-            return
-            
-        if self.facing_right:
-            frame = pygame.transform.flip(frame, True, False)
-            
-        fw = frame.get_width()
-        fh = frame.get_height()
-        draw_x = self.rect.centerx - fw // 2 - cam_x
-        draw_y = self.rect.bottom - fh - cam_y
-        
-        # 3. High Contrast Rim-Light Outline (prevents blending with dark blue background)
-        if not self.is_dead:
-            # 1-pixel soft warm gold rim highlight
-            rim_col = (255, 160, 50, 120) if self.enraged else (210, 180, 110, 85)
-            rim_surf = pygame.mask.from_surface(frame).to_surface(setcolor=rim_col, unsetcolor=(0, 0, 0, 0))
-            for ox, oy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-                surface.blit(rim_surf, (draw_x + ox, draw_y + oy))
-                
-        surface.blit(frame, (draw_x, draw_y))
-        
-        # 4. Trident Embers & Shockwaves
-        for sw in self.shockwaves:
-            sw.draw(surface, pygame.math.Vector2(cam_x, cam_y))
-        for p in self._ember_particles:
-            p.draw(surface, cam_x, cam_y)
-        for p in self._particles:
-            p.draw(surface, cam_x, cam_y)
+    def __init__(self, x: float = 500, y: float = 320):
+        super().__init__(x, y)
+        self.name = "O Rei Esqueleto"

@@ -36,17 +36,17 @@ STAGE_CONFIGS = {
             ("skeleton", 2450, 200),
         ],
         "collectibles": [
-            (500, 340, "potion"),
-            (1100, 340, "orb"),
-            (1750, 340, "chicken"),
-            (2400, 340, "orb")
+            (440, 338, "potion"),
+            (1100, 338, "orb"),
+            (1750, 338, "chicken"),
+            (2400, 338, "orb")
         ],
         "props": [
-            (250, 350, "barrel", 0.65),
-            (600, 350, "rock", 0.9),
-            (1400, 350, "barrel", 0.65),
-            (1800, 350, "rock", 0.9),
-            (2200, 350, "barrel", 0.65)
+            (250, 340, "barrel", 1.0),
+            (600, 340, "rock", 0.9),
+            (1400, 340, "barrel", 1.0),
+            (1800, 340, "rock", 0.9),
+            (2200, 340, "barrel", 1.0)
         ],
         "traps": [
             (1000, 345),
@@ -71,17 +71,17 @@ STAGE_CONFIGS = {
             ("warrior", 3050, 200),
         ],
         "collectibles": [
-            (550, 340, "potion"),
-            (1300, 340, "orb"),
-            (2100, 340, "chicken"),
-            (2900, 340, "orb")
+            (380, 338, "potion"),
+            (1300, 338, "orb"),
+            (2100, 338, "chicken"),
+            (2900, 338, "orb")
         ],
         "props": [
-            (500, 350, "rock", 0.9),
-            (950, 330, "chest", 0.65),
-            (1400, 350, "rock", 0.9),
-            (2050, 330, "chest", 0.65),
-            (2550, 350, "rock", 0.9)
+            (500, 340, "rock", 0.9),
+            (950, 340, "chest", 1.0),
+            (1400, 340, "rock", 0.9),
+            (2050, 340, "chest", 1.0),
+            (2550, 340, "rock", 0.9)
         ],
         "traps": [
             (750, 345),
@@ -108,19 +108,19 @@ STAGE_CONFIGS = {
             ("mage", 3500, 200),
         ],
         "collectibles": [
-            (600, 340, "orb"),
-            (1300, 340, "potion"),
-            (2000, 340, "orb"),
-            (2700, 340, "chicken"),
-            (3400, 340, "orb")
+            (600, 338, "orb"),
+            (1300, 338, "potion"),
+            (2000, 338, "orb"),
+            (2700, 338, "chicken"),
+            (3400, 338, "orb")
         ],
         "props": [
-            (200, 350, "barrel", 0.65),
-            (900, 350, "rock", 0.9),
-            (1450, 350, "barricade", 0.65),
-            (2100, 350, "barrel", 0.65),
-            (2700, 350, "rock", 0.9),
-            (3300, 350, "barricade", 0.65)
+            (200, 340, "barrel", 1.0),
+            (900, 340, "rock", 0.9),
+            (1450, 340, "barricade", 1.0),
+            (2100, 340, "barrel", 1.0),
+            (2700, 340, "rock", 0.9),
+            (3300, 340, "barricade", 1.0)
         ],
         "traps": [
             (600, 345),
@@ -148,17 +148,17 @@ STAGE_CONFIGS = {
             ("archer", 3500, 200),
         ],
         "collectibles": [
-            (600, 340, "potion"),
-            (1400, 340, "orb"),
-            (2200, 340, "golden_potion"),
-            (3000, 340, "orb")
+            (600, 338, "potion"),
+            (1400, 338, "orb"),
+            (2200, 338, "golden_potion"),
+            (3000, 338, "orb")
         ],
         "props": [
-            (200, 350, "rock", 0.9),
-            (900, 330, "chest", 0.65),
-            (1600, 350, "rock", 0.9),
-            (2300, 330, "chest", 0.65),
-            (3000, 350, "rock", 0.9)
+            (200, 340, "rock", 0.9),
+            (900, 340, "chest", 1.0),
+            (1600, 340, "rock", 0.9),
+            (2300, 340, "chest", 1.0),
+            (3000, 340, "rock", 0.9)
         ],
         "traps": [
             (550, 345),
@@ -185,11 +185,15 @@ class LevelScene(Scene):
                 stage = arg
         self.scene_manager = scene_manager
         self.stage = stage if stage is not None else 1
-        stage = self.stage
         
-        from engine.stage_manager import ParallaxRenderer
+        from engine.stage_manager import ParallaxRenderer, STAGE_CATALOG
         from engine.v3.weather.clouds import CloudsManager
+        from engine.v3.weather.mist import MistManager
         from engine.score_system import ScoreSystem
+
+        if isinstance(self.stage, str) and self.stage in STAGE_CATALOG:
+            self.stage = STAGE_CATALOG[self.stage]
+        stage = self.stage
         
         if hasattr(stage, "stage_id"):
             self.floor_y = getattr(stage, "floor_y", 280)
@@ -211,17 +215,32 @@ class LevelScene(Scene):
                 stage.bg_folder,
                 stage.layer_files,
                 stage.layer_speeds,
-                screen_h=360
+                screen_h=360,
+                initial_offsets=getattr(stage, "layer_initial_offsets", None)
             )
-            self.clouds = CloudsManager(theme=getattr(stage, "cloud_theme", "white"), map_width=stage.map_width, cloud_count=10)
+            self.clouds = CloudsManager(
+                theme=getattr(stage, "cloud_theme", "white"),
+                map_width=stage.map_width,
+                cloud_count=getattr(stage, "cloud_count", 14),
+                screen_w=640,
+                sky_horizon_y=getattr(stage, "sky_horizon_y", 70),
+                cloud_tint=getattr(stage, "cloud_tint", None),
+                cloud_opacity_scale=getattr(stage, "cloud_opacity_scale", 1.0)
+            )
+            self.mist_manager = MistManager(screen_w=640, screen_h=360, floor_y=self.floor_y, theme=getattr(stage, "biome_theme", "road"))
             self.score_system = ScoreSystem(stage_id=stage.stage_id)
+            from engine.save_manager import SAVE
+            stage_stg_id = getattr(stage, "stage_id", None)
             dialogue_intro = getattr(stage, "dialogue_intro", [])
-            self.dialogue_box = DialogueBox(dialogue_intro) if dialogue_intro else None
+            intro_already_done = SAVE.is_event_completed(f"{stage_stg_id}_intro") if stage_stg_id else False
+            self.dialogue_box = DialogueBox(dialogue_intro) if (dialogue_intro and not intro_already_done) else None
         else:
             self.floor_y = 340
+            stage_stg_id = None
             cfg = STAGE_CONFIGS.get(stage, STAGE_CONFIGS[1])
             self.parallax_renderer = None
             self.clouds = None
+            self.mist_manager = None
             self.score_system = ScoreSystem(stage_id=f"arcade_{stage}")
             self.dialogue_box = None
             
@@ -268,6 +287,29 @@ class LevelScene(Scene):
         self.player = Player(spawn_x, spawn_y, character_id=p1_char, player_index=0, input_device=p1_dev)
         self.hud = HUD(self.player, stage_title=cfg["title"], player_index=0)
         
+        # Staged In-World Dialogue Actor (Official Interlocutor entering scene physically)
+        self.dialogue_actor = None
+        actor_id = getattr(stage, "cinematic_actor", None)
+        if actor_id and self.dialogue_box:
+            from entities.dialogue_actor import DialogueActor
+            actor_start_x = max(20.0, spawn_x - 140.0)
+            actor_target_x = spawn_x - 65.0
+            self.dialogue_actor = DialogueActor(
+                character_id=actor_id,
+                x=actor_start_x,
+                y=self.floor_y,
+                target_x=actor_target_x,
+                exit_x=max(0.0, actor_start_x - 40.0),
+                speed=115.0
+            )
+            def _on_actor_dialogue_finish():
+                if self.dialogue_actor:
+                    self.dialogue_actor.start_exit()
+                if stage_stg_id:
+                    from engine.save_manager import SAVE
+                    SAVE.set_event_completed(f"{stage_stg_id}_intro")
+            self.dialogue_box.on_complete = _on_actor_dialogue_finish
+
         # Co-op Player 2 Setup
         self.coop_enabled = getattr(SETTINGS, "COOP_ENABLED", False)
         self.player2 = None
@@ -286,36 +328,50 @@ class LevelScene(Scene):
         self.paused = False
         self.pause_menu = PauseMenu(self.scene_manager, self.unpause)
         self.death_timer = 0.0
+
+        # Freeze GC during active combat to eliminate frame drop micro-stuttering
+        from engine.system_optimizer import freeze_gc_for_gameplay
+        freeze_gc_for_gameplay("LevelScene")
         from ui.death_screen import DeathScreen
         self.death_screen = DeathScreen()
-        self.lighting = LightingEngine(theme=self.theme)
+        self.lighting = LightingEngine(
+            theme=self.theme,
+            screen_w=SETTINGS.GAME_WIDTH,
+            screen_h=SETTINGS.GAME_HEIGHT,
+            floor_y=int(self.floor_y)
+        )
+        self.lighting.configure_stage_ao(self.theme, int(self.floor_y))
         self.bloom_engine = BloomEngine(SETTINGS.GAME_WIDTH, SETTINGS.GAME_HEIGHT)
         
-        # Instantiate Enemies from Config
-        self.enemies = []
-        for e_type, ex, ey in cfg["enemies"]:
-            if e_type == "mage":
-                self.enemies.append(MageSkeleton(ex, ey))
-            elif e_type == "spearman":
-                self.enemies.append(SkeletonSpearman(ex, ey))
-            elif e_type == "archer":
-                self.enemies.append(SkeletonArcher(ex, ey))
-            elif e_type == "warrior":
-                self.enemies.append(SkeletonWarrior(ex, ey))
-            elif e_type == "boar":
-                self.enemies.append(SkeletonWarrior(ex, ey))
-            else:
-                self.enemies.append(SkeletonWarrior(ex, ey))
-                
-        # Instantiate Collectibles
-        self.collectibles = []
-        for cx, cy, c_item in cfg["collectibles"]:
-            self.collectibles.append(Collectible(cx, cy, c_item))
-            
-        # Instantiate Props
+        # Instantiate Props FIRST so collectible and enemy spatial validation has full geometry
         self.props = []
         for px, py, p_type, p_scale in cfg["props"]:
             self.props.append(Prop(px, py, p_type, p_scale))
+            
+        solid_props = [p for p in self.props if p.prop_type in ("rock", "barrel", "barricade")]
+
+        # Instantiate Enemies from Config with safe spatial validation (never spawned inside rocks)
+        self.enemies = []
+        for e_type, ex, ey in cfg["enemies"]:
+            safe_ex, safe_ey = self.find_safe_spawn_pos(ex, ey, solid_props, self.map_width)
+            if e_type == "mage":
+                self.enemies.append(MageSkeleton(safe_ex, safe_ey))
+            elif e_type == "spearman":
+                self.enemies.append(SkeletonSpearman(safe_ex, safe_ey))
+            elif e_type == "archer":
+                self.enemies.append(SkeletonArcher(safe_ex, safe_ey))
+            elif e_type == "warrior":
+                self.enemies.append(SkeletonWarrior(safe_ex, safe_ey))
+            elif e_type == "boar":
+                self.enemies.append(SkeletonWarrior(safe_ex, safe_ey))
+            else:
+                self.enemies.append(SkeletonWarrior(safe_ex, safe_ey))
+                
+        # Instantiate Collectibles with safe spatial validation (never inside rocks)
+        self.collectibles = []
+        for cx, cy, c_item in cfg["collectibles"]:
+            safe_x, safe_y = self.find_safe_spawn_pos(cx, cy, solid_props, self.map_width)
+            self.collectibles.append(Collectible(safe_x, safe_y, c_item))
             
         # Instantiate Traps
         self.traps = []
@@ -327,6 +383,44 @@ class LevelScene(Scene):
         # Portal to next scene
         self.portal = Portal(self.portal_x, self.floor_y - 64)
         self.checkpoint = Checkpoint(self.portal_x // 2, self.floor_y - 64)
+
+    @staticmethod
+    def find_safe_spawn_pos(cx: float, cy: float, obstacles: list, map_width: float, min_x: float = 220.0, max_x: float = None) -> tuple[float, float]:
+        """Validates that a collectible or item spawn is NOT inside rocks or solid obstacles."""
+        if max_x is None:
+            max_x = map_width - 80.0
+        
+        test_rect = pygame.FRect(cx - 14, cy - 24, 28, 28)
+        colliding_obstacle = None
+        for obs in obstacles:
+            obs_hitbox = getattr(obs, "hitbox", getattr(obs, "rect", None))
+            if obs_hitbox and obs_hitbox.colliderect(test_rect.inflate(14, 8)):
+                colliding_obstacle = obs_hitbox
+                break
+                
+        if not colliding_obstacle:
+            return float(cx), float(cy)
+            
+        # Obstacle detected! Shift safely outwards
+        left_candidate_x = colliding_obstacle.left - 30.0
+        right_candidate_x = colliding_obstacle.right + 30.0
+        
+        for cand_x in (left_candidate_x, right_candidate_x):
+            if min_x <= cand_x <= max_x:
+                cand_rect = pygame.FRect(cand_x - 14, cy - 24, 28, 28)
+                if not any(getattr(o, "hitbox", getattr(o, "rect", None)).colliderect(cand_rect) for o in obstacles):
+                    return float(cand_x), float(cy)
+                    
+        # Multi-step outward scan fallback
+        for offset in range(35, 220, 20):
+            for sign in (-1, 1):
+                cand_x = cx + sign * offset
+                if min_x <= cand_x <= max_x:
+                    cand_rect = pygame.FRect(cand_x - 14, cy - 24, 28, 28)
+                    if not any(getattr(o, "hitbox", getattr(o, "rect", None)).colliderect(cand_rect) for o in obstacles):
+                        return float(cand_x), float(cy)
+                        
+        return float(cx), float(cy)
         
     def unpause(self):
         self.paused = False
@@ -336,7 +430,17 @@ class LevelScene(Scene):
             self.dialogue_box.handle_events(events)
         
     def update(self, dt: float) -> None:
-        if self.dialogue_box and not self.dialogue_box.is_finished:
+        # Update Staged Dialogue Actor & Box
+        if getattr(self, "dialogue_actor", None) and self.dialogue_actor.active:
+            self.dialogue_actor.update(dt, player=self.player, player_pos=(self.player.rect.centerx, self.player.rect.bottom))
+            if self.dialogue_actor.state == "ENTER":
+                return # Interlocutor is walking in to position
+            if self.dialogue_box and not self.dialogue_box.is_finished:
+                self.dialogue_box.update(dt)
+                return # Dialogue currently speaking
+            if self.dialogue_actor.state == "EXIT":
+                return # Interlocutor gracefully walking out
+        elif self.dialogue_box and not self.dialogue_box.is_finished:
             self.dialogue_box.update(dt)
             return
 
@@ -452,6 +556,9 @@ class LevelScene(Scene):
                         if not cur_p.is_dashing and not cur_p.is_casting_ultimate and not cur_p.is_dead and e.rect.colliderect(cur_p.rect):
                             touch_dmg = getattr(e, "touch_damage", 2)
                             cur_p.take_damage(touch_dmg)
+                            
+        # Prune fully despawned enemies after death sequence (fade-out + bone particles) completes
+        self.enemies = [e for e in self.enemies if not getattr(e, "is_death_complete", False)]
                         
         # 6. Update Projectiles
         friendly_fire = getattr(SETTINGS, "FRIENDLY_FIRE", False)
@@ -541,6 +648,18 @@ class LevelScene(Scene):
             self.camera.update_coop(self.player, self.player2, dt)
         else:
             self.camera.update(self.player.rect, dt)
+
+        # 9b. Dynamic Sky Weather, Lighting & Ground Mist Updates
+        if getattr(self, "clouds", None) is not None:
+            self.clouds.update(dt)
+        if getattr(self, "mist_manager", None) is not None:
+            self.mist_manager.update(dt)
+        if getattr(self, "lighting", None) is not None:
+            self.lighting.update(dt)
+
+        # Game Feel Manager update
+        from engine.game_feel import GAME_FEEL
+        GAME_FEEL.update(dt)
         
         # 10. Portal Transition Logic
         self.portal.update(dt)
@@ -550,6 +669,15 @@ class LevelScene(Scene):
             if getattr(self, "score_system", None):
                 self.score_system.calculate_final_score()
                 
+            # Persist story mode stage completion & progression
+            from engine.save_manager import SAVE
+            current_stg_id = getattr(self.stage, "stage_id", None)
+            if current_stg_id:
+                SAVE.complete_stage(current_stg_id)
+                next_stg_cand = getattr(self.stage, "next_stage", None)
+                if next_stg_cand and next_stg_cand != "boss":
+                    SAVE.unlock_stage(next_stg_cand)
+
             next_stg = self.cfg.get("next_stage") if isinstance(self.cfg, dict) else getattr(self.cfg, "next_stage", None)
             boss_t = self.cfg.get("boss_type", "skeleton_king") if isinstance(self.cfg, dict) else getattr(self.cfg, "boss_type", "skeleton_king")
             
@@ -591,7 +719,9 @@ class LevelScene(Scene):
         from entities.collectible import Collectible
         # Handles calls with either (x, y, item_type) or (x, y)
         actual_type = item_type if isinstance(item_type, str) else (args[0] if args else "potion")
-        self.collectibles.append(Collectible(x, y, actual_type, is_dropped=True))
+        solid_props = [p for p in self.props if p.active and p.prop_type in ("rock", "barrel", "barricade")]
+        safe_x, safe_y = self.find_safe_spawn_pos(x, y, solid_props, self.map_width)
+        self.collectibles.append(Collectible(safe_x, safe_y, actual_type, is_dropped=True))
         
     def draw(self, surface: pygame.Surface) -> None:
         surface.fill(UI_BACKGROUND)
@@ -600,10 +730,47 @@ class LevelScene(Scene):
         vl, vr = cam_x - 32, cam_x + sw + 32
         vt, vb = cam_y - 32, cam_y + sh + 32
         
+        # --- SILKSONG 2D DEPTH RENDERING PIPELINE ---
+        # 1. Distant Base Sky & Mountains
         if getattr(self, "parallax_renderer", None) is not None:
-            self.parallax_renderer.draw(surface, cam_x, cam_y)
-            if getattr(self, "clouds", None) is not None:
-                self.clouds.draw(surface, (cam_x, cam_y), sw, sh)
+            if self.parallax_renderer.has_split_layers:
+                # 1. Sky Layer (Layer 0)
+                self.parallax_renderer.draw_sky_layer(surface, cam_x, cam_y)
+
+                # 2. Silksong Floating Atmospheric Particles (Background batch: behind mountains/towers)
+                self.lighting.draw_ambient_particles_background(surface, self.camera.offset)
+
+                # 3. Sky Clouds (Rendered behind fortress towers and mountains, clipped to sky_horizon_y)
+                if getattr(self, "clouds", None) is not None:
+                    horizon_y = getattr(self.clouds, "sky_horizon_y", 88)
+                    surface.set_clip(pygame.Rect(0, 0, sw, horizon_y))
+                    self.clouds.draw(surface, (cam_x, cam_y), sw, sh)
+                    surface.set_clip(None)
+
+                # 4. Distant Atmospheric Depth Fog (Between distant mountains and fortress towers)
+                if getattr(self, "mist_manager", None) is not None:
+                    self.mist_manager.draw_distant_fog(surface, cam_x, cam_y)
+
+                # 5. Midground Castle Towers & Walls (Layer 1 - In FRONT of clouds and distant fog)
+                self.parallax_renderer.draw_midground_layer(surface, cam_x, cam_y)
+
+                # 6. Foreground Bridge Walkway & Floor (Layer 2)
+                self.parallax_renderer.draw_foreground_layer(surface, cam_x, cam_y)
+
+                # 7. Dynamic Ground Mist over bridge floor at feet level (alpha 0.12-0.22, preserving shadows)
+                if getattr(self, "mist_manager", None) is not None:
+                    self.mist_manager.draw_ground_mist(surface, cam_x, cam_y)
+            else:
+                self.parallax_renderer.draw(surface, cam_x, cam_y)
+                self.lighting.draw_ambient_particles_background(surface, self.camera.offset)
+                if getattr(self, "clouds", None) is not None:
+                    horizon_y = getattr(self.clouds, "sky_horizon_y", 88)
+                    surface.set_clip(pygame.Rect(0, 0, sw, horizon_y))
+                    self.clouds.draw(surface, (cam_x, cam_y), sw, sh)
+                    surface.set_clip(None)
+                if getattr(self, "mist_manager", None) is not None:
+                    self.mist_manager.draw_distant_fog(surface, cam_x, cam_y)
+                    self.mist_manager.draw_ground_mist(surface, cam_x, cam_y)
         elif self.theme == "forest":
             # 1. Sky Gradient Layer (subtle parallax 0.15) — Culled to visible viewport
             sky_draw_x = -cam_x * 0.15
@@ -611,6 +778,8 @@ class LevelScene(Scene):
             end_sky = min((self.map_width // self.forest_sky_w) + 2, int((-sky_draw_x + sw) // self.forest_sky_w) + 1)
             for i in range(start_sky, end_sky + 1):
                 surface.blit(self.forest_sky, (sky_draw_x + i * self.forest_sky_w, 0))
+
+            self.lighting.draw_ambient_particles_background(surface, self.camera.offset)
                 
             # 2. Forest Canopy & Mountain Layer (parallax 0.45) — Culled to visible viewport
             canopy_draw_x = -cam_x * 0.45
@@ -640,6 +809,7 @@ class LevelScene(Scene):
                 surface.blit(self.bg_right, (self.map_width - 512 - cam_x, 0 - cam_y))
                 if self.right_overlay:
                     surface.blit(self.right_overlay, (self.map_width - 128 - cam_x, 0 - cam_y))
+            self.lighting.draw_ambient_particles_background(surface, self.camera.offset)
             
         # Draw Traps & Checkpoints (Culled)
         if self.checkpoint.rect.right >= vl and self.checkpoint.rect.left <= vr:
@@ -648,10 +818,16 @@ class LevelScene(Scene):
             if t.rect.right >= vl and t.rect.left <= vr:
                 t.draw(surface, self.camera.offset)
             
-        # Y-Sort entities (Players, Props, Enemies) with 2D Frustum Culling
-        living_entities = [p for p in [self.player, self.player2] if p] + self.props + [e for e in self.enemies if not (e.is_dead and e.anim_manager.is_finished("dead"))]
-        living_entities.sort(key=lambda x: getattr(x, "ground_y", x.rect.bottom))
+        # Y-Sort entities (Players, Props, Enemies, Dialogue Actor) with 2D Frustum Culling
+        living_entities = [p for p in [self.player, self.player2] if p] + self.props + [e for e in self.enemies if not getattr(e, "is_death_complete", False)]
+        if getattr(self, "dialogue_actor", None) and self.dialogue_actor.active:
+            living_entities.append(self.dialogue_actor)
+        living_entities.sort(key=lambda x: getattr(x, "y_sort_pivot", getattr(x, "ground_y", x.rect.bottom)))
 
+        # 8. Silksong Dynamic Entity Foot Contact AO (Soft ground anchoring for living entities & obstacles)
+        self.lighting.draw_entity_ao(surface, living_entities, self.camera.offset)
+
+        # 9. Living entities & props
         for d in living_entities:
             r = d.rect
             if r.right >= vl and r.left <= vr and r.bottom >= vt and r.top <= vb:
@@ -673,10 +849,32 @@ class LevelScene(Scene):
             if r.right >= vl and r.left <= vr and r.bottom >= vt and r.top <= vb:
                 p.draw(surface, self.camera.offset)
 
+        # 10. Silksong Foreground Silhouette Parallax (1.35x fast parallax dark foliage & chains)
+        if getattr(self, "parallax_renderer", None) is not None:
+            self.parallax_renderer.draw_foreground_silhouette(surface, cam_x, cam_y)
+
+        # 10b. Silksong Reactive Game Feel VFX: Movement Dust & Combat Slash Arcs
+        from engine.game_feel import GAME_FEEL
+        GAME_FEEL.draw_dust(surface, self.camera.offset)
+        GAME_FEEL.draw_slash_arcs(surface, self.camera.offset)
+
+        # 11. Silksong Foreground Floating Atmospheric Particles (Front batch in front of entities)
+        self.lighting.draw_ambient_particles_foreground(surface, self.camera.offset)
+
+        # 12. Foreground Battlement Mist (Band 2: subtle mist sliding near bottom edge)
+        if getattr(self, "mist_manager", None) is not None:
+            self.mist_manager.draw_foreground_mist(surface, cam_x, cam_y)
+
         # Dynamic Point Lights with smooth physical photon radiance (Aggressively culled)
         lights = []
+        emissives = []
         vl_light, vr_light = cam_x - 80, cam_x + sw + 80
         vt_light, vb_light = cam_y - 80, cam_y + sh + 80
+
+        # Transient point lights from attacks, spells and slash arcs
+        for tx, ty, trad, tcol, tint in GAME_FEEL.get_active_point_lights():
+            if vl_light <= tx <= vr_light and vt_light <= ty <= vb_light:
+                lights.append(LightSource(tx, ty, int(trad), tcol, tint))
         
         for p in self.projectiles:
             px, py = p.rect.centerx, p.rect.centery
@@ -685,20 +883,28 @@ class LevelScene(Scene):
                     ptype = getattr(p, "projectile_type", "")
                     if ptype == "mage_fireball":
                         lights.append(LightSource(px, py, 46, (190, 70, 255), 0.85, True))
+                        emissives.append((px, py, 22, (210, 110, 255), 0.35))
                     else:
                         lights.append(LightSource(px, py, 48, (80, 160, 255), 0.85, True))
+                        emissives.append((px, py, 24, (120, 190, 255), 0.35))
                 else:
                     pal = getattr(p, "palette", None)
                     color = getattr(pal, "inner_glow", (255, 140, 50))
                     lights.append(LightSource(px, py, 46, color, 0.85, True))
+                    emissives.append((px, py, 22, color, 0.40))
                     
-        # Portal Light
+        # Portal Light & Bloom
         if vl_light <= self.portal.rect.centerx <= vr_light:
             lights.append(LightSource(self.portal.rect.centerx, self.portal.rect.centery, 80, (110, 180, 255), 0.85, True))
+            emissives.append((self.portal.rect.centerx, self.portal.rect.centery, 38, (140, 210, 255), 0.45))
         
         for c in self.collectibles:
-            if c.item_type == "orb" and vl_light <= c.rect.centerx <= vr_light:
-                lights.append(LightSource(c.rect.centerx, c.rect.centery, 32, (100, 210, 255), 0.55, True))
+            if vl_light <= c.rect.centerx <= vr_light:
+                if c.item_type == "orb":
+                    lights.append(LightSource(c.rect.centerx, c.rect.centery, 32, (100, 210, 255), 0.55, True))
+                    emissives.append((c.rect.centerx, c.rect.centery, 16, (150, 235, 255), 0.40))
+                elif c.item_type == "potion":
+                    emissives.append((c.rect.centerx, c.rect.centery, 14, (255, 100, 120), 0.30))
                 
         # Occluder geometries for 2D Soft Shadows (Only visible props to avoid redundant CPU work!)
         occluders = []
@@ -713,12 +919,21 @@ class LevelScene(Scene):
                         (pr.right, pr.top, pr.right, pr.bottom)
                     ])
                     
-        # Render 2D Soft Shadows, Point Lights, Volumetric God Rays & Atmospheric Particles
+        # 13. Silksong Volumetric Diagonal God Rays (Slanted sunbeams / ethereal shafts with BLEND_RGB_ADD)
+        self.lighting.draw_god_rays(surface, self.camera.offset)
+
+        # 14. 2D Soft Shadows (if enabled)
         if occluders and lights:
             self.lighting.draw_shadows(surface, lights, occluders, self.camera.offset)
-        self.lighting.draw_point_lights(surface, lights, self.camera.offset)
-        self.lighting.draw_ambient_particles(surface, self.camera.offset)
-        
+
+        # 15. Silksong Multiplicative Lightmap Pass (Static Crevice AO + Anamorphic Vignette + Hero Glow + Dynamic Lights)
+        hero_pos = (self.player.rect.centerx, self.player.rect.centery) if (self.player and not self.player.is_dead) else None
+        self.lighting.draw_point_lights(surface, lights, self.camera.offset, hero_pos=hero_pos)
+
+        # 16. Silksong Additive Bloom Pass for emissive highlights (projectiles, portal, potions)
+        if emissives:
+            self.lighting.draw_additive_glows(surface, emissives, self.camera.offset)
+
         # Ruin Engine V3.0 Stage Color Grading & Vignette (Applied to world before UI)
         self.lighting.apply_color_grading(surface, self.theme)
         self.lighting.draw_vignette(surface)

@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "active_slot": 2,
+  "orbs": 75,
+  "tutorial_completed": true,
+  "skills": {
+    "blade_sharpness": 1,
+    "combo_finisher": 0,
+    "arcane_mastery": 2,
+    "aoe_resonance": 0,
+    "shadow_step": 0,
+    "ultimate_wrath": 0,
+    "alchemist_elixir": 0,
+    "titan_heart": 0,
+    "cosmic_mana": 0
+  },
+  "story_mode": {
+    "unlocked_worlds": [
+      "terrae"
+    ],
+    "current_world": "terrae",
+    "world_stars": {
+      "terrae": 0,
+      "sanguis": 0,
+      "glacies": 0,
+      "aetheria": 0
+    }
+  },
+  "high_scores": {
+    "test_stage": 10275,
+    "terrae_1": 9498,
+    "sanguis_1": 9417,
+    "glacies_1": 8995,
+    "aetheria_1": 9540,
+    "aetheria_2": 9473,
+    "terrae_2": 9277,
+    "terrae_3": 9474,
+    "arcade_1": 9641,
+    "arcade_2": 9384,
+    "arcade_3": 9580,
+    "arcade_4": 9477
+  },
+  "selected_character": "shaia",
+  "updated_at": "2026-10-20T09:01:09.767832"
+}

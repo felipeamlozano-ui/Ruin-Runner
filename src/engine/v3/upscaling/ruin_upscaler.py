@@ -290,7 +290,9 @@ class RuinTemporalUpscaler:
             # Restores razor-sharp pixel edges with zero halos or noise amplification
             if _HAS_NATIVE_RCAS and self.sharpness > 0.05:
                 try:
-                    rgb = np.ascontiguousarray(np.transpose(pygame.surfarray.pixels3d(upscaled_surf), (1, 0, 2)))
+                    px_view = pygame.surfarray.pixels3d(upscaled_surf)
+                    rgb = np.ascontiguousarray(np.transpose(px_view, (1, 0, 2)))
+                    del px_view
                     sharpened_rgb = native_rcas_sharpen(rgb, sharpness=float(self.sharpness))
                     upscaled_surf = pygame.surfarray.make_surface(np.transpose(sharpened_rgb, (1, 0, 2)))
                 except Exception:

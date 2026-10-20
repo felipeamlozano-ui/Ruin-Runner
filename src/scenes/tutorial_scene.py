@@ -22,6 +22,7 @@ class TrainingDummy:
         self.is_dead = False
         
     def take_damage(self, amount: int, knockback=(0, 0)):
+        self.hp = max(0, self.hp - amount)
         self.hit_flash = 0.22
         
     def update(self, dt: float):
@@ -98,6 +99,7 @@ class TutorialScene(Scene):
         self.transition_timer = 0.0
         self.TRANSITION_DELAY = 0.75
         
+        self.projectiles: list = []
         self.hits_landed = 0
         self.swings_count = 0
         self.has_jumped = False
@@ -209,7 +211,14 @@ class TutorialScene(Scene):
         SAVE.set_tutorial_completed(True)
         if self.scene_manager:
             from scenes.main_menu import MainMenuScene
-            self.scene_manager.change_scene(MainMenuScene(self.scene_manager))
+            from scenes.loading_scene import LoadingScene
+            loading = LoadingScene(
+                self.scene_manager,
+                MainMenuScene(self.scene_manager),
+                title="TREINAMENTO CONCLUÍDO!",
+                tip="Você dominou todas as técnicas ancestrais de combate e movimentação!"
+            )
+            self.scene_manager.change_scene(loading)
 
     def update(self, dt: float):
         self.overlay.update(dt)
@@ -229,12 +238,37 @@ class TutorialScene(Scene):
                 self.dummy.take_damage(dmg)
                 self.hits_landed += 1
 
-        # 2. Projectile Hit Detection
-        for proj in self.player.projectiles[:]:
+        # Collect projectiles fired by the player
+        while self.player.projectiles:
+            self.projectiles.append(self.player.projectiles.pop(0))
+
+        # 2. Update and check projectiles
+        for proj in self.projectiles[:]:
+            proj.update(dt, [self.floor_rect])
+            if not proj.active or proj.rect.right < -50 or proj.rect.left > self.map_width + 50:
+                self.projectiles.remove(proj)
+                continue
+            if not proj.can_deal_damage():
+                continue
             if proj.rect.colliderect(dummy_rect):
                 self.dummy.take_damage(proj.damage)
-                self.player.projectiles.remove(proj)
+                if hasattr(proj, "explode"):
+                    proj.explode()
+                else:
+                    self.projectiles.remove(proj)
                 self.hits_landed += 1
+                if self.step == 4:
+                    self._confirm_step()
+
+        # 3. AoE Nova Skill detection on dummy
+        if self.player.is_casting_aoe and not self.player.aoe_hit_done:
+            dist = pygame.math.Vector2(self.dummy.rect.center).distance_to(pygame.math.Vector2(self.player.rect.center))
+            if dist <= self.player.aoe_radius:
+                self.player.aoe_hit_done = True
+                self.dummy.take_damage(25)
+                self.hits_landed += 1
+                if self.step == 5:
+                    self._confirm_step()
 
         # 3. Transition Pacing
         if self.step_completed:
@@ -331,6 +365,14 @@ class TutorialScene(Scene):
         drawables.sort(key=lambda item: item[0])
         for _, entity in drawables:
             entity.draw(surface, self.camera.offset)
+
+        # 4b. Draw Active Projectiles
+        for p in self.projectiles:
+            p.draw(surface, self.camera.offset)
+
+        # 4c. Ultimate Screen-Space overlays
+        if self.player.is_casting_ultimate and hasattr(self.player, "ultimate_controller"):
+            self.player.ultimate_controller.draw_screen(surface)
         
         # 5. Full Hero Skill HUD (Stats panel on top-left, skill hotbar on bottom-left)
         self.hud.draw(surface)

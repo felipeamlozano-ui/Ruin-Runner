@@ -70,9 +70,9 @@ class Prop:
             clean_b1 = _clean_frame(raw_brk1)
             clean_b2 = _clean_frame(raw_brk2)
 
-            # Calibrate barrel scale relative to protagonist (target height ~38px waist-high, jumpable)
-            target_h = max(24, int(38 * scale))
-            target_w = max(20, int(target_h * (clean_intact.get_width() / clean_intact.get_height())))
+            # Calibrate barrel scale relative to protagonist (natural waist-high proportion ~48px)
+            target_h = max(42, int(48 * scale))
+            target_w = max(30, int(target_h * (clean_intact.get_width() / clean_intact.get_height())))
 
             self.img_intact = pygame.transform.scale(clean_intact, (target_w, target_h))
             self.img_damaged = pygame.transform.scale(clean_dmg, (target_w, target_h))
@@ -88,11 +88,11 @@ class Prop:
             # Debris wood VFX
             debris_path = os.path.join("assets", "sprites", "vfx", "vfx_debris_wood")
             if os.path.exists(debris_path):
-                self.debris_anim = load_animation_folder(debris_path, "vfx_debris_wood", fps=18, loop=False, scale=scale * 0.7)
+                self.debris_anim = load_animation_folder(debris_path, "vfx_debris_wood", fps=18, loop=False, scale=max(0.7, scale * 0.7))
                 
         elif prop_type == "chest":
             self.anim_manager = AnimationManager()
-            self.anim_manager.add_animation("open", load_animation_folder(prop_dir, "chest_open", 10, False, scale))
+            self.anim_manager.add_animation("open", load_animation_folder(prop_dir, "chest_open", 10, False, max(0.9, scale)))
             self.anim_manager.play("open")
             self.image = self.anim_manager.animations["open"].frames[0]
             self.opened = False
@@ -102,8 +102,8 @@ class Prop:
                 raw_bar = pygame.image.load(bar_path).convert_alpha()
                 bbox_bar = raw_bar.get_bounding_rect()
                 cropped_bar = raw_bar.subsurface(bbox_bar).copy()
-                target_h = max(24, int(42 * scale))
-                target_w = max(24, int(target_h * (bbox_bar.width / bbox_bar.height)))
+                target_h = max(38, int(48 * scale))
+                target_w = max(32, int(target_h * (bbox_bar.width / bbox_bar.height)))
                 self.image = pygame.transform.smoothscale(cropped_bar, (target_w, target_h))
             else:
                 self.image = pygame.Surface((32, 32))

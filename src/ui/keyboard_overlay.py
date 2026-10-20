@@ -65,14 +65,29 @@ class KeyboardOverlay:
             border_col = (80, 85, 105)
             text_col = (180, 185, 200)
 
-        # 3D beveled pixel button
-        pygame.draw.rect(surface, (15, 15, 20), (rect.x, rect.y + 2, rect.width, rect.height), border_radius=3)
-        pygame.draw.rect(surface, bg_col, rect, border_radius=3)
-        pygame.draw.rect(surface, border_col, rect, width=1, border_radius=3)
-        
-        # Top highlight line
-        pygame.draw.line(surface, (min(255, bg_col[0] + 40), min(255, bg_col[1] + 40), min(255, bg_col[2] + 40)),
-                         (rect.left + 2, rect.top + 1), (rect.right - 3, rect.top + 1))
+        # 3D beveled pixel button from authentic craftpix-net-726651 button sheet
+        from ui.input_prompt_icon import _BLANK_SHEET, _init_icon_assets
+        _init_icon_assets()
+        drawn_from_sheet = False
+        if _BLANK_SHEET and w <= 32:
+            try:
+                sheet_y = 16 if is_pressed else 0
+                key_sub = _BLANK_SHEET.subsurface((0, sheet_y, 16, 16))
+                scaled_key = pygame.transform.scale(key_sub, (w, h))
+                if is_active:
+                    scaled_key = scaled_key.copy()
+                    scaled_key.fill((255, 215, 80), special_flags=pygame.BLEND_RGBA_MULT)
+                surface.blit(scaled_key, (rect.x, rect.y))
+                drawn_from_sheet = True
+            except Exception:
+                pass
+
+        if not drawn_from_sheet:
+            pygame.draw.rect(surface, (15, 15, 20), (rect.x, rect.y + 2, rect.width, rect.height), border_radius=3)
+            pygame.draw.rect(surface, bg_col, rect, border_radius=3)
+            pygame.draw.rect(surface, border_col, rect, width=1, border_radius=3)
+            pygame.draw.line(surface, (min(255, bg_col[0] + 40), min(255, bg_col[1] + 40), min(255, bg_col[2] + 40)),
+                             (rect.left + 2, rect.top + 1), (rect.right - 3, rect.top + 1))
                          
         # Label render
         txt = self.font_key.render(label, True, text_col)

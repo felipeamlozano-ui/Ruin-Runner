@@ -30,6 +30,7 @@ class MainMenuScene(Scene):
         self.menu = Menu("RUIN RUNNER", [
             MenuOption("INICIAR CAMPANHA", self.open_story_mode),
             MenuOption("MODO COOPERATIVO", self.open_coop_mode),
+            MenuOption("MODO DE DUELO", self.open_duel_mode),
             MenuOption("CONFRONTO DE CHEFES", self.open_boss_battle),
             MenuOption("MODO ARCADE", self.start_game),
             MenuOption("SANTUÁRIO DO TUTORIAL", self.open_tutorial),
@@ -43,16 +44,25 @@ class MainMenuScene(Scene):
 
     def open_story_mode(self):
         SETTINGS.COOP_ENABLED = False
+        SETTINGS.DUEL_MODE = False
         from scenes.story_select_scene import StorySelectScene
         self.scene_manager.change_scene(StorySelectScene(self.scene_manager))
 
     def open_coop_mode(self):
         SETTINGS.COOP_ENABLED = True
+        SETTINGS.DUEL_MODE = False
         from scenes.character_select_scene import CharacterSelectScene
         self.scene_manager.change_scene(CharacterSelectScene(self.scene_manager, self))
 
+    def open_duel_mode(self):
+        SETTINGS.COOP_ENABLED = False
+        SETTINGS.DUEL_MODE = True
+        from scenes.duel_character_select_scene import DuelCharacterSelectScene
+        self.scene_manager.change_scene(DuelCharacterSelectScene(self.scene_manager, self))
+
     def open_boss_battle(self):
         SETTINGS.COOP_ENABLED = False
+        SETTINGS.DUEL_MODE = False
         from scenes.boss_select_scene import BossSelectScene
         self.scene_manager.change_scene(BossSelectScene(self.scene_manager, return_scene=self))
 
@@ -147,7 +157,7 @@ class MainMenuScene(Scene):
         v_surf = f_footer.render("v3.2.0 • RUIN RUNNER", True, (80, 90, 110))
         surface.blit(v_surf, (22, sh - 18))
         
-        hint_surf = f_footer.render("[↑/↓ NAVEGAR]   [ENTER/Z CONFIRMAR]", True, (95, 105, 125))
+        hint_surf = f_footer.render("[W/S ou SETAS NAVEGAR]   [ENTER/Z CONFIRMAR]", True, (95, 105, 125))
         surface.blit(hint_surf, hint_surf.get_rect(center=(cx, sh - 18)))
         
         c_surf = f_footer.render("TEAM RUIN", True, (80, 90, 110))

@@ -93,14 +93,19 @@ class HUD:
             }
         
         is_coop = (self.player_index == 1 or getattr(self.player, "companion", None) is not None)
-        slot_size = 20 if is_coop else 24
+        slot_size = 15 if is_coop else 21
         for key, (fname, hotkey) in icon_files.items():
             p = os.path.join(skills_dir, fname)
             if not os.path.exists(p):
                 p = os.path.join("assets", "sprites", "fantasy_skills", "64x64", fname)
             if os.path.exists(p):
                 img = pygame.image.load(p).convert_alpha()
-                scaled = pygame.transform.smoothscale(img, (slot_size, slot_size))
+                brect = img.get_bounding_rect()
+                if brect.width > 0 and brect.height > 0:
+                    cropped = img.subsurface(brect)
+                    scaled = pygame.transform.smoothscale(cropped, (slot_size, slot_size))
+                else:
+                    scaled = pygame.transform.smoothscale(img, (slot_size, slot_size))
                 self.skill_icons[key] = (scaled, hotkey)
             else:
                 self.skill_icons[key] = (None, hotkey)
@@ -196,7 +201,7 @@ class HUD:
         
         # Stat label (Cached zero-overhead)
         lbl_surf = _render_hud_text(self.font_stat, label, (240, 240, 240))
-        surface.blit(lbl_surf, (x - 22, y - 1))
+        surface.blit(lbl_surf, (x - 20, y - 1))
         
         # Value text (Cached zero-overhead)
         val_surf = _render_hud_text(self.font_stat, value_text, (255, 255, 255))
@@ -223,11 +228,11 @@ class HUD:
         is_coop = (self.player_index == 1 or getattr(self.player, "companion", None) is not None)
         
         # 1. Player Status Glassmorphic Panel (Top-Left for P1, Top-Right for P2)
-        panel_w, panel_h = (168, 52) if is_coop else (210, 62)
+        panel_w, panel_h = (126, 52) if is_coop else (152, 60)
         if self.player_index == 1:
-            panel_x, panel_y = surface.get_width() - panel_w - 10, 8
+            panel_x, panel_y = surface.get_width() - panel_w - 8, 8
         else:
-            panel_x, panel_y = 10, 8
+            panel_x, panel_y = 8, 8
         
         # Reusable Glassmorphic background (0 allocation per frame)
         if self._panel_bg is None or self._panel_size != (panel_w, panel_h):
@@ -241,17 +246,24 @@ class HUD:
         pygame.draw.rect(surface, border_col, (panel_x, panel_y, panel_w, panel_h), 1, border_radius=4)
         pygame.draw.rect(surface, (25, 30, 45), (panel_x + 1, panel_y + 1, panel_w - 2, panel_h - 2), 1, border_radius=3)
         
-        # Player Tag Indicator
+        # Player Tag Indicator Tab (Neat badge atop status frame, zero collision with HP)
         p_tag = "P2" if self.player_index == 1 else "P1"
-        tag_col = (120, 200, 255) if self.player_index == 1 else (255, 200, 100)
+        tag_col = (130, 210, 255) if self.player_index == 1 else (255, 205, 90)
+        tag_bg = (20, 32, 55) if self.player_index == 1 else (45, 36, 18)
+        tag_border = (80, 140, 220) if self.player_index == 1 else (175, 135, 55)
+        pill_w, pill_h = 22, 13
+        pill_x = panel_x + 6
+        pill_y = panel_y - 6
+        pygame.draw.rect(surface, tag_bg, (pill_x, pill_y, pill_w, pill_h), border_radius=3)
+        pygame.draw.rect(surface, tag_border, (pill_x, pill_y, pill_w, pill_h), 1, border_radius=3)
         tag_surf = _render_hud_text(self.font_keys, p_tag, tag_col)
-        surface.blit(tag_surf, (panel_x + 5, panel_y + 3))
+        surface.blit(tag_surf, (pill_x + 4, pill_y - 1))
         
         # Bars configuration
-        bar_w = 88 if is_coop else 120
+        bar_w = 80 if is_coop else 110
         hp_h = 10 if is_coop else 12
         res_h = 9 if is_coop else 11
-        bx = panel_x + (24 if is_coop else 28)
+        bx = panel_x + 26
         
         # Health Bar (HP) with Ghost Damage Lag
         hp_ratio = self.player.health / max(1, self.player.max_health)
@@ -324,12 +336,14 @@ class HUD:
             
             icon_surf, hotkey = self.skill_icons.get(s_key, (None, ""))
             if icon_surf:
+                ix = sx + (slot_w - icon_surf.get_width()) // 2
+                iy = sy + (slot_h - icon_surf.get_height()) // 2
                 if is_ult and not ult_ready:
                     dimmed = icon_surf.copy()
                     dimmed.set_alpha(150)
-                    surface.blit(dimmed, (sx + 1, sy + 1))
+                    surface.blit(dimmed, (ix, iy))
                 else:
-                    surface.blit(icon_surf, (sx + 1, sy + 1))
+                    surface.blit(icon_surf, (ix, iy))
                 
             # Dynamic Input Prompt Icon (Authentic animated pixel-art button with live click feedback)
             prompt_icon = self.input_icons.get(s_key)
@@ -354,7 +368,10 @@ class HUD:
             stage_surf = _render_hud_text(self.font_title, self.stage_title, (255, 215, 100))
             stg_w = stage_surf.get_width() + 16
             stg_h = stage_surf.get_height() + 8
-            stg_x = (surface.get_width() - stg_w) // 2
+            center_x = (surface.get_width() - stg_w) // 2
+            # Maintain safe visual clearance to never overlap P1 status panel or HP numbers
+            min_clearance_x = panel_x + panel_w + 14
+            stg_x = max(center_x, min_clearance_x) if not is_coop else center_x
             stg_y = 10
             
             if getattr(self, "_stage_badge_bg", None) is None or self._stage_badge_bg.get_size() != (stg_w, stg_h):
@@ -379,7 +396,7 @@ class HUD:
             bar_y = 16
             
             # Boss Frame Box
-            total_h = 44
+            total_h = 52
             boss_bg = pygame.Surface((bar_width + 20, total_h), pygame.SRCALPHA)
             boss_bg.fill((15, 10, 15, 230))
             surface.blit(boss_bg, (bar_x - 10, bar_y - 12))
@@ -399,29 +416,29 @@ class HUD:
             surface.blit(boss_name, (bar_x + (bar_width - boss_name.get_width()) // 2, bar_y - 11))
             
             # 1. HP Bar (Red)
-            pygame.draw.rect(surface, (40, 10, 10), (bar_x, bar_y + 8, bar_width, hp_h), border_radius=2)
+            pygame.draw.rect(surface, (40, 10, 10), (bar_x, bar_y + 6, bar_width, hp_h), border_radius=2)
             fill_hp = int(bar_width * max(0.0, min(1.0, boss_hp_ratio)))
             if fill_hp > 0:
                 hp_col = (240, 50, 20) if getattr(boss, "enraged", False) else (210, 25, 25)
-                pygame.draw.rect(surface, hp_col, (bar_x, bar_y + 8, fill_hp, hp_h), border_radius=2)
-                pygame.draw.line(surface, (255, 150, 120), (bar_x + 1, bar_y + 9), (bar_x + fill_hp - 1, bar_y + 9))
-            pygame.draw.rect(surface, (180, 50, 50), (bar_x, bar_y + 8, bar_width, hp_h), 1, border_radius=2)
+                pygame.draw.rect(surface, hp_col, (bar_x, bar_y + 6, fill_hp, hp_h), border_radius=2)
+                pygame.draw.line(surface, (255, 150, 120), (bar_x + 1, bar_y + 7), (bar_x + fill_hp - 1, bar_y + 7))
+            pygame.draw.rect(surface, (180, 50, 50), (bar_x, bar_y + 6, bar_width, hp_h), 1, border_radius=2)
             
             # HP numeric readout
             hp_txt = self.font_boss_val.render(f"HP: {int(boss.health):,}/{int(boss.max_health):,}".replace(",", "."), True, (255, 240, 240))
-            surface.blit(hp_txt, (bar_x + 5, bar_y + 8))
+            surface.blit(hp_txt, (bar_x + 5, bar_y + 6))
             
-            # 2. Poise Shield Bar (Gold / Cyan)
-            pygame.draw.rect(surface, (15, 25, 35), (bar_x, bar_y + 21, bar_width, shield_h), border_radius=2)
+            # Shield numeric readout (positioned cleanly ABOVE the poise shield bar)
+            sh_txt = self.font_boss_val.render(f"POSTURA: {int(boss_shield):,}/{int(boss_shield_max):,}".replace(",", "."), True, (180, 230, 255))
+            surface.blit(sh_txt, (bar_x + 5, bar_y + 19))
+            
+            # 2. Poise Shield Bar (Gold / Cyan) - drawn separated below the posture text
+            pygame.draw.rect(surface, (15, 25, 35), (bar_x, bar_y + 31, bar_width, shield_h), border_radius=2)
             fill_sh = int(bar_width * max(0.0, min(1.0, boss_shield_ratio)))
             if fill_sh > 0:
                 sh_col = (70, 210, 255)
-                pygame.draw.rect(surface, sh_col, (bar_x, bar_y + 21, fill_sh, shield_h), border_radius=2)
-                pygame.draw.line(surface, (200, 245, 255), (bar_x + 1, bar_y + 21), (bar_x + fill_sh - 1, bar_y + 21))
-            pygame.draw.rect(surface, (100, 180, 220), (bar_x, bar_y + 21, bar_width, shield_h), 1, border_radius=2)
-            
-            # Shield numeric readout
-            sh_txt = self.font_boss_val.render(f"POSTURA: {int(boss_shield):,}/{int(boss_shield_max):,}".replace(",", "."), True, (180, 230, 255))
-            surface.blit(sh_txt, (bar_x + 5, bar_y + 20))
+                pygame.draw.rect(surface, sh_col, (bar_x, bar_y + 31, fill_sh, shield_h), border_radius=2)
+                pygame.draw.line(surface, (200, 245, 255), (bar_x + 1, bar_y + 31), (bar_x + fill_sh - 1, bar_y + 31))
+            pygame.draw.rect(surface, (100, 180, 220), (bar_x, bar_y + 31, bar_width, shield_h), 1, border_radius=2)
 
 

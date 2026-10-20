@@ -22,13 +22,13 @@ BOSS_ROSTER = [
         "color": (255, 100, 40),
     },
     {
-        "id": "impaler",
-        "name": "O Empalador Abissal",
-        "title": "CARRASCO DA NOITE ETERNA",
+        "id": "skeleton_king",
+        "name": "O Rei Esqueleto",
+        "title": "SOBERANO DAS CATACUMBAS",
         "world": "Mundo 2: Sanguis",
-        "desc": "Juggernaut com armadura impenetrável de ferro negro que empunha uma lança colossal. Conjura estacas pontiagudas de pedra do chão e arremessa projéteis escuros que dilaceram a defesa.",
+        "desc": "O lendário governante das ruínas ancestrais. Protegido por um escudo de poise impenetrável, desfere combos devastadores de montante, saltos esmagadores e invoca hordas de guerreiros esqueléticos.",
         "difficulty": "Difícil (Nível II)",
-        "color": (220, 60, 90),
+        "color": (240, 220, 160),
     },
     {
         "id": "monster_creature",
@@ -47,15 +47,6 @@ BOSS_ROSTER = [
         "desc": "Guerreiro imortal que guardava o templo celestial. Utiliza a técnica suprema de corte desembainhado (Iaido), investidas fantasmas e disparos cortantes de lâminas de ar que cobrem toda a arena.",
         "difficulty": "Extremo (Nível IV)",
         "color": (255, 190, 60),
-    },
-    {
-        "id": "skeleton_king",
-        "name": "O Rei Esqueleto",
-        "title": "SOBERANO DAS CATACUMBAS",
-        "world": "Ruínas Subterrâneas",
-        "desc": "O lendário governante das ruínas ancestrais. Protegido por um escudo de poise impenetrável, desfere combos devastadores de montante, saltos esmagadores e invoca hordas de guerreiros esqueléticos.",
-        "difficulty": "Lendário (Nível V)",
-        "color": (240, 220, 160),
     },
 ]
 
@@ -106,14 +97,14 @@ class BossSelectScene(Scene):
                 # Check item clicks
                 item_y = 50
                 for idx in range(len(BOSS_ROSTER)):
-                    item_rect = pygame.Rect(20, item_y, 250, 48)
+                    item_rect = pygame.Rect(20, item_y, 250, 52)
                     if item_rect.collidepoint(mx, my):
                         if self.selected_index == idx:
                             self._start_boss_fight()
                         else:
                             self.selected_index = idx
                         return
-                    item_y += 53
+                    item_y += 62
                 # Check launch button click
                 launch_rect = pygame.Rect(290, 290, 325, 34)
                 if launch_rect.collidepoint(mx, my):
@@ -160,13 +151,13 @@ class BossSelectScene(Scene):
         HollowCrestRenderer.draw_section_divider(surface, self.width // 2, 38, width=580, alpha=200)
 
         # Roman numerals table
-        roman_nums = ["I", "II", "III", "IV", "V"]
+        roman_nums = ["I", "II", "III", "IV"]
 
         # 3. Boss List (Left Column)
         item_y = 50
         for idx, boss in enumerate(BOSS_ROSTER):
             is_selected = (idx == self.selected_index)
-            item_rect = pygame.Rect(20, item_y, 250, 48)
+            item_rect = pygame.Rect(20, item_y, 250, 52)
 
             bg_col = (25, 30, 44, 240) if is_selected else (12, 14, 20, 220)
             border_col = HollowColors.GOLD_CREST if is_selected else (50, 58, 74)
@@ -174,7 +165,7 @@ class BossSelectScene(Scene):
             HollowCrestRenderer.draw_filigree_panel(surface, item_rect, bg_color=bg_col, border_color=border_col, corner_flourish=is_selected)
 
             # Boss emblem badge with Roman numeral
-            badge_rect = pygame.Rect(item_rect.x + 8, item_rect.y + 8, 32, 32)
+            badge_rect = pygame.Rect(item_rect.x + 8, item_rect.y + 10, 32, 32)
             pygame.draw.rect(surface, (10, 12, 18), badge_rect, border_radius=2)
             pygame.draw.rect(surface, boss["color"] if is_selected else (70, 78, 98), badge_rect, 1, border_radius=2)
             
@@ -185,14 +176,14 @@ class BossSelectScene(Scene):
             # Name and World
             name_txt = self.font_item.render(boss["name"], True, HollowColors.TEXT_TITLE if is_selected else HollowColors.TEXT_NORMAL)
             world_txt = self.font_desc.render(boss["world"], True, HollowColors.TEXT_MUTED)
-            surface.blit(name_txt, (item_rect.x + 48, item_rect.y + 9))
-            surface.blit(world_txt, (item_rect.x + 48, item_rect.y + 27))
+            surface.blit(name_txt, (item_rect.x + 48, item_rect.y + 10))
+            surface.blit(world_txt, (item_rect.x + 48, item_rect.y + 29))
 
             # Left selection fleuron
             if is_selected:
                 HollowCrestRenderer.draw_selection_marker(surface, item_rect.left - 4, item_rect.centery, size=4.0)
 
-            item_y += 53
+            item_y += 62
 
         # 4. Boss Detail Card (Right Column)
         sel_boss = BOSS_ROSTER[self.selected_index]
