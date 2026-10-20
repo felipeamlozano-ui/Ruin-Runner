@@ -6,17 +6,11 @@ from config.colors import RED, BLUE, UI_BACKGROUND, WHITE
 from entities.player import Player
 from ui.input_prompt_icon import InputPromptIcon
 
-_HUD_TEXT_CACHE: dict = {}
+from engine.text_cache import get_cached_text
 
 def _render_hud_text(font: pygame.font.Font, text: str, color: tuple) -> pygame.Surface:
     """Zero-overhead text caching helper. Avoids 1200+ CPU font.render() calls per second."""
-    key = (id(font), text, color)
-    surf = _HUD_TEXT_CACHE.get(key)
-    if surf is None:
-        surf = font.render(text, True, color)
-        if len(_HUD_TEXT_CACHE) < 600:
-            _HUD_TEXT_CACHE[key] = surf
-    return surf
+    return get_cached_text(font, text, color)
 
 class HUD:
     """Heads-Up Display for player stats (Health, Mana, Stamina, Skill Hotbar, and Boss Health)."""
@@ -425,11 +419,11 @@ class HUD:
             pygame.draw.rect(surface, (180, 50, 50), (bar_x, bar_y + 6, bar_width, hp_h), 1, border_radius=2)
             
             # HP numeric readout
-            hp_txt = self.font_boss_val.render(f"HP: {int(boss.health):,}/{int(boss.max_health):,}".replace(",", "."), True, (255, 240, 240))
+            hp_txt = _render_hud_text(self.font_boss_val, f"HP: {int(boss.health):,}/{int(boss.max_health):,}".replace(",", "."), (255, 240, 240))
             surface.blit(hp_txt, (bar_x + 5, bar_y + 6))
             
             # Shield numeric readout (positioned cleanly ABOVE the poise shield bar)
-            sh_txt = self.font_boss_val.render(f"POSTURA: {int(boss_shield):,}/{int(boss_shield_max):,}".replace(",", "."), True, (180, 230, 255))
+            sh_txt = _render_hud_text(self.font_boss_val, f"POSTURA: {int(boss_shield):,}/{int(boss_shield_max):,}".replace(",", "."), (180, 230, 255))
             surface.blit(sh_txt, (bar_x + 5, bar_y + 19))
             
             # 2. Poise Shield Bar (Gold / Cyan) - drawn separated below the posture text

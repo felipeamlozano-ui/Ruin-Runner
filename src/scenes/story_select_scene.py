@@ -9,6 +9,7 @@ import math
 import random
 import pygame
 from typing import List, Dict, Any
+from config.settings import SETTINGS
 from engine.scene_manager import Scene
 from engine.save_manager import SAVE
 from engine.stage_manager import STAGE_MGR
@@ -98,6 +99,9 @@ class StorySelectScene(Scene):
         self.confirming_new_game = False
         self.status_message = ""
         self.status_timer = 0.0
+        self.coop_mode = getattr(SETTINGS, "COOP_ENABLED", False)
+        self.btn_coop_rect = pygame.Rect(32, 25, 140, 17)
+        self.coop_heroes_confirmed = False
         
         # 3D Pixel Planet Renderers (48 smooth frames, crisp integer 2x: radius 24 -> 96px diameter)
         self.renderers = {
@@ -170,20 +174,29 @@ class StorySelectScene(Scene):
             self.status_timer = 2.5
             return
 
+        if self.coop_mode and not self.coop_heroes_confirmed:
+            from scenes.character_select_scene import CharacterSelectScene
+            SETTINGS.COOP_ENABLED = True
+            self.coop_heroes_confirmed = True
+            self.scene_manager.change_scene(CharacterSelectScene(self.scene_manager, previous_scene=self, coop_target="campaign"))
+            return
+
         target_stage_id = self._get_resume_stage(world_id)
         stage_cfg = STAGE_MGR.load_stage(target_stage_id)
         
         from scenes.level_scene import LevelScene
         from scenes.loading_scene import LoadingScene
+        SETTINGS.COOP_ENABLED = self.coop_mode
         if stage_cfg:
             next_scene = LevelScene(self.scene_manager, stage=stage_cfg)
         else:
             next_scene = LevelScene(self.scene_manager, stage=1)
             
+        mode_str = " (CO-OP 2P)" if self.coop_mode else ""
         loading = LoadingScene(
             self.scene_manager,
             next_scene,
-            title=f"ENTRANDO EM {world['name']}",
+            title=f"ENTRANDO EM {world['name']}{mode_str}",
             tip="Preservando seu progresso e decisoes narrativas no save ativo."
         )
         self.scene_manager.change_scene(loading)
@@ -213,6 +226,12 @@ class StorySelectScene(Scene):
                     self._select_slot(next_s)
                 elif event.key == pygame.K_n:
                     self.confirming_new_game = not self.confirming_new_game
+                elif event.key == pygame.K_c:
+                    self.coop_mode = not self.coop_mode
+                    SETTINGS.COOP_ENABLED = self.coop_mode
+                    self.coop_heroes_confirmed = False
+                    self.status_message = f"Modo Campanha: {'2P (CO-OP LOCAL)' if self.coop_mode else '1P (SOLO)'}"
+                    self.status_timer = 2.0
                 elif event.key in (pygame.K_SPACE, pygame.K_RETURN):
                     if self.confirming_new_game:
                         SAVE.new_game(self.active_slot)
@@ -223,6 +242,15 @@ class StorySelectScene(Scene):
                         self._launch_world()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 mx, my = event.pos
+                
+                # Check Co-op toggle button
+                if self.btn_coop_rect.collidepoint(mx, my):
+                    self.coop_mode = not self.coop_mode
+                    SETTINGS.COOP_ENABLED = self.coop_mode
+                    self.coop_heroes_confirmed = False
+                    self.status_message = f"Modo Campanha: {'2P (CO-OP LOCAL)' if self.coop_mode else '1P (SOLO)'}"
+                    self.status_timer = 2.0
+                    return
                 
                 # Check slot buttons
                 slot_w = 70
@@ -326,6 +354,16 @@ class StorySelectScene(Scene):
         title_surf = self.font_title.render("CAMPANHA NARRATIVA PERSISTENTE", True, HollowColors.TEXT_TITLE)
         surface.blit(title_surf, title_surf.get_rect(center=(self.width // 2, 13)))
         
+        # 2.0 Co-op Mode toggle pill at top left
+        c_bg = (18, 48, 30) if self.coop_mode else (20, 24, 34)
+        c_border = (80, 240, 140) if self.coop_mode else (60, 70, 92)
+        c_text_col = (255, 255, 255) if self.coop_mode else HollowColors.TEXT_NORMAL
+        pygame.draw.rect(surface, c_bg, self.btn_coop_rect, border_radius=2)
+        pygame.draw.rect(surface, c_border, self.btn_coop_rect, width=1, border_radius=2)
+        c_label = "[C] 2P (CO-OP)" if self.coop_mode else "[C] 1P (SOLO)"
+        c_s = self.font_small.render(c_label, True, c_text_col)
+        surface.blit(c_s, c_s.get_rect(center=self.btn_coop_rect.center))
+
         # 2.1 Save Slots Bar at Top
         slot_w = 70
         start_sx = self.width // 2 - (slot_w * 3 + 16) // 2
@@ -616,5 +654,5 @@ class StorySelectScene(Scene):
         back_hover = back_box.collidepoint(pygame.mouse.get_pos())
         HollowCrestRenderer.draw_hollow_button(surface, back_box, "VOLTAR [ESC]", self.font_desc, is_hovered=back_hover)
         
-        esc_txt = self.font_desc.render("[A/D] Selecionar   |   [TAB / 1-3] Slots   |   [N] Novo Jogo   |   [ENTER] Confirmar", True, HollowColors.TEXT_MUTED)
+        esc_txt = self.font_desc.render("[A/D] Selecionar   |   [C] 1P/2P   |   [TAB / 1-3] Slots   |   [N] Novo Jogo   |   [ESPAÇO] Continuar", True, HollowColors.TEXT_MUTED)
         surface.blit(esc_txt, (self.width // 2 - esc_txt.get_width() // 2 + 50, 332))

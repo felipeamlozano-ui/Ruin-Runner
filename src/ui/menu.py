@@ -59,9 +59,9 @@ class Menu:
             
             # Text rendering
             col = (255, 255, 255) if is_sel else (145, 155, 175)
-            # Render subtle drop shadow
-            shadow_surf = font.render(option.text, True, (0, 0, 0))
-            opt_surf = font.render(option.text, True, col)
+            from engine.text_cache import get_cached_text
+            shadow_surf = get_cached_text(font, option.text, (0, 0, 0))
+            opt_surf = get_cached_text(font, option.text, col)
             
             opt_w = opt_surf.get_width()
             opt_x = x - opt_w // 2

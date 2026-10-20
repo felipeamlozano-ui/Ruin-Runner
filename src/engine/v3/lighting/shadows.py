@@ -11,9 +11,9 @@ from engine.v3.core.surface_pool import SURFACE_POOL
 
 class ShadowRenderer:
     """
-    Constructs hard and soft shadow polygons from solid occluder geometries.
+    Constructs physically grounded hard and soft 2D shadow polygons from solid occluder geometries.
     """
-    def __init__(self, shadow_length: float = 1200.0):
+    def __init__(self, shadow_length: float = 90.0):
         self.shadow_length = shadow_length
 
     def project_shadow_polygon(
@@ -26,21 +26,23 @@ class ShadowRenderer:
     ) -> List[Tuple[float, float]]:
         """
         Extrudes a 2D line segment away from light (lx, ly) into a 4-point shadow fin quad.
+        Grounded 2D constraint: shadows from obstacles on the ground are cast horizontally
+        and downward onto the floor plane, never backwards/skywards into the ceiling.
         """
         length = length_override or self.shadow_length
 
         dx1 = p1[0] - lx
-        dy1 = p1[1] - ly
+        dy1 = max(0.0, p1[1] - ly)
         len1 = math.hypot(dx1, dy1)
-        if len1 > 0:
+        if len1 > 1e-4:
             p1_proj = (p1[0] + (dx1 / len1) * length, p1[1] + (dy1 / len1) * length)
         else:
             p1_proj = (p1[0], p1[1] + length)
 
         dx2 = p2[0] - lx
-        dy2 = p2[1] - ly
+        dy2 = max(0.0, p2[1] - ly)
         len2 = math.hypot(dx2, dy2)
-        if len2 > 0:
+        if len2 > 1e-4:
             p2_proj = (p2[0] + (dx2 / len2) * length, p2[1] + (dy2 / len2) * length)
         else:
             p2_proj = (p2[0], p2[1] + length)
@@ -57,11 +59,11 @@ class ShadowRenderer:
         occluders: List[Tuple[float, float, float, float]],
         camera_offset: pygame.math.Vector2,
         soft_rays: int = 1,
-        shadow_alpha: int = 180,
+        shadow_alpha: int = 75,
         target_surface: Optional[pygame.Surface] = None
     ) -> pygame.Surface:
         """
-        Bakes an ambient shadow mask with optional soft penumbra.
+        Bakes an ambient shadow mask with physically bounded soft penumbra.
         If target_surface is provided, draws directly into it (for buffer accumulation).
         """
         if target_surface is not None:
@@ -76,9 +78,9 @@ class ShadowRenderer:
         else:
             # Multi-sample penumbra jittering
             offsets = [
-                (-3.0, 0.0), (3.0, 0.0),
-                (0.0, -3.0), (0.0, 3.0),
-                (-2.0, -2.0), (2.0, 2.0)
+                (-2.0, 0.0), (2.0, 0.0),
+                (0.0, -1.5), (0.0, 1.5),
+                (-1.5, -1.0), (1.5, 1.0)
             ][:soft_rays]
             pass_alpha = max(15, shadow_alpha // len(offsets))
 
@@ -89,23 +91,32 @@ class ShadowRenderer:
             sample_ly = ly + oy
 
             for x1, y1, x2, y2 in occluders:
-                # Occluder culling
-                if (max(x1, x2) < sample_lx - radius or min(x1, x2) > sample_lx + radius or
-                    max(y1, y2) < sample_ly - radius or min(y1, y2) > sample_ly + radius):
+                # 1. Occluder distance culling against light radius
+                mid_x = (x1 + x2) * 0.5
+                mid_y = (y1 + y2) * 0.5
+                to_light_x = sample_lx - mid_x
+                to_light_y = sample_ly - mid_y
+                dist_to_light = math.hypot(to_light_x, to_light_y)
+                if dist_to_light > radius or dist_to_light < 1e-3:
                     continue
 
-                # Back-face culling for edges: check normal relative to light vector
+                # 2. Orientation relative to light vector
                 edge_dx = x2 - x1
                 edge_dy = y2 - y1
                 normal_x = -edge_dy
                 normal_y = edge_dx
-                to_light_x = sample_lx - (x1 + x2) * 0.5
-                to_light_y = sample_ly - (y1 + y2) * 0.5
 
-                if normal_x * to_light_x + normal_y * to_light_y < 0:
-                    # Edge faces away from light, cast shadow
-                    quad = self.project_shadow_polygon(sample_lx, sample_ly, (x1, y1), (x2, y2))
-                    screen_quad = [(int(qx - cam_x), int(qy - cam_y)) for qx, qy in quad]
+                dot = normal_x * to_light_x + normal_y * to_light_y
+                if dot >= 0:
+                    continue
+
+                # 3. Dynamic shadow length bounded by remaining light radius
+                remaining_reach = max(4.0, radius - dist_to_light)
+                eff_length = min(self.shadow_length, remaining_reach * 1.15)
+
+                quad = self.project_shadow_polygon(sample_lx, sample_ly, (x1, y1), (x2, y2), length_override=eff_length)
+                screen_quad = [(int(qx - cam_x), int(qy - cam_y)) for qx, qy in quad]
+                if any(-40 <= sx <= surface_w + 40 and -40 <= sy <= surface_h + 40 for sx, sy in screen_quad):
                     pygame.draw.polygon(mask_surf, (0, 0, 0, pass_alpha), screen_quad)
                     PROFILER.record_shadow()
 

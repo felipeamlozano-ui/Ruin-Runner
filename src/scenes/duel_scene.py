@@ -318,7 +318,7 @@ class DuelScene(Scene):
         for tx, ty, trad, tcol, tint in GAME_FEEL.get_active_point_lights():
             lights.append(LightSource(tx, ty, int(trad), tcol, tint))
         if getattr(SETTINGS, "DYNAMIC_LIGHTS", True):
-            self.lighting.draw_point_lights(surface, lights, cam_offset, hero_pos=(self.player1.rect.centerx, self.player1.rect.centery))
+            self.lighting.draw_point_lights(surface, lights, cam_offset)
 
         # 10. Vignette
         if getattr(SETTINGS, "VIGNETTE_ENABLED", True):

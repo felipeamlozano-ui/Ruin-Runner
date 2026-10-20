@@ -1,7 +1,7 @@
 {
   "version": 2,
   "active_slot": 2,
-  "orbs": 76,
+  "orbs": 85,
   "tutorial_completed": true,
   "skills": {
     "blade_sharpness": 1,
@@ -35,11 +35,11 @@
     "aetheria_2": 9473,
     "terrae_2": 9277,
     "terrae_3": 9474,
-    "arcade_1": 9641,
-    "arcade_2": 9384,
-    "arcade_3": 9580,
+    "arcade_1": 9649,
+    "arcade_2": 9517,
+    "arcade_3": 9586,
     "arcade_4": 9477
   },
   "selected_character": "shaia",
-  "updated_at": "2026-10-20T09:01:28.528520"
+  "updated_at": "2026-10-20T16:36:51.020870"
 }

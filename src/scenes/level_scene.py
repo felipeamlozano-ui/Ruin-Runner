@@ -1,5 +1,6 @@
 import pygame
 import os
+import math
 from engine.scene_manager import Scene
 from entities.player import Player
 from engine.camera import Camera
@@ -871,6 +872,30 @@ class LevelScene(Scene):
         vl_light, vr_light = cam_x - 80, cam_x + sw + 80
         vt_light, vb_light = cam_y - 80, cam_y + sh + 80
 
+        # Catacombs Stage Wall Lanterns (Atmospheric blue/cyan pillars illumination)
+        if self.theme == "dungeon":
+            time_sec = pygame.time.get_ticks() * 0.005
+            # Module width is 512. Center corridors repeat from 512 to map_width - 512.
+            lantern_x_list = []
+            if vl_light <= 512:
+                lantern_x_list.extend([275, 505])
+            
+            cur_mod = max(512, (int(cam_x) // 512) * 512)
+            max_mod = min(self.map_width - 512, int(cam_x + sw + 512))
+            while cur_mod < max_mod:
+                lantern_x_list.extend([cur_mod + 6, cur_mod + 505])
+                cur_mod += 512
+
+            if self.map_width - 512 <= vr_light:
+                lantern_x_list.extend([self.map_width - 512 + 5, self.map_width - 512 + 235])
+
+            for ltx in lantern_x_list:
+                if vl_light <= ltx <= vr_light:
+                    flicker = math.sin(time_sec + ltx * 0.05) * 3.0
+                    rad = max(40, int(72 + flicker))
+                    lights.append(LightSource(ltx, 175, rad, (115, 185, 250), 0.75, True))
+                    emissives.append((ltx, 175, 14, (160, 225, 255), 0.35))
+
         # Transient point lights from attacks, spells and slash arcs
         for tx, ty, trad, tcol, tint in GAME_FEEL.get_active_point_lights():
             if vl_light <= tx <= vr_light and vt_light <= ty <= vb_light:
@@ -912,11 +937,11 @@ class LevelScene(Scene):
             if not getattr(prop, "destroyed", False):
                 pr = prop.rect
                 if pr.right >= vl_light and pr.left <= vr_light:
+                    # Grounded obstacles cast shadows along floor from top and side edges
                     occluders.extend([
-                        (pr.left, pr.top, pr.right, pr.top),
-                        (pr.right, pr.bottom, pr.left, pr.bottom),
-                        (pr.left, pr.bottom, pr.left, pr.top),
-                        (pr.right, pr.top, pr.right, pr.bottom)
+                        (pr.left, pr.top, pr.right, pr.top),      # Top edge (left to right)
+                        (pr.left, pr.bottom, pr.left, pr.top),     # Left edge (bottom to top)
+                        (pr.right, pr.top, pr.right, pr.bottom)    # Right edge (top to bottom)
                     ])
                     
         # 13. Silksong Volumetric Diagonal God Rays (Slanted sunbeams / ethereal shafts with BLEND_RGB_ADD)
@@ -926,9 +951,8 @@ class LevelScene(Scene):
         if occluders and lights:
             self.lighting.draw_shadows(surface, lights, occluders, self.camera.offset)
 
-        # 15. Silksong Multiplicative Lightmap Pass (Static Crevice AO + Anamorphic Vignette + Hero Glow + Dynamic Lights)
-        hero_pos = (self.player.rect.centerx, self.player.rect.centery) if (self.player and not self.player.is_dead) else None
-        self.lighting.draw_point_lights(surface, lights, self.camera.offset, hero_pos=hero_pos)
+        # 15. Silksong Multiplicative Lightmap Pass (Static Crevice AO + Anamorphic Vignette + Dynamic Lights)
+        self.lighting.draw_point_lights(surface, lights, self.camera.offset)
 
         # 16. Silksong Additive Bloom Pass for emissive highlights (projectiles, portal, potions)
         if emissives:

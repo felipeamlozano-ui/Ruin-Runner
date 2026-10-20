@@ -49,7 +49,7 @@ class ThreadWorkerPool:
     def _worker_loop(self):
         while self.running:
             try:
-                task = self.task_queue.get(timeout=0.1)
+                task = self.task_queue.get(timeout=1.0)
             except queue.Empty:
                 continue
 

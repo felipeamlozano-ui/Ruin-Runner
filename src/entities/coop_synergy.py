@@ -51,7 +51,8 @@ class SynergyCombo:
         pygame.draw.rect(bg, (*self.color, alpha), (0, 0, banner_w, banner_h), width=1, border_radius=4)
         surface.blit(bg, (bx, by))
         
-        text_surf = font.render(f"SYNERGY: {self.name}!", True, self.color)
+        from engine.text_cache import get_cached_text
+        text_surf = get_cached_text(font, f"SYNERGY: {self.name}!", self.color)
         text_r = text_surf.get_rect(center=(x, by + banner_h // 2))
         surface.blit(text_surf, text_r)
 

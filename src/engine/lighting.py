@@ -211,9 +211,10 @@ class LightingEngine:
         return surf
 
     def _prebake_god_rays(self):
-        """Pre-renders 3 diagonal light beam textures with pre-multiplied RGB for seamless BLEND_RGB_ADD."""
-        W, H = 440, 360
-        self._god_ray_surfs.clear()
+        """Pre-renders 3 diagonal light beam textures fused into a single combined surface for 1-blit BLEND_RGB_ADD."""
+        W, H = 960, 360
+        surf = pygame.Surface((W, H))
+        surf.fill((0, 0, 0))
 
         # Ray colors tuned to stage lighting
         if self.theme in ("road", "sunset", "beach"):
@@ -223,37 +224,36 @@ class LightingEngine:
         else:
             ray_color = (195, 210, 235)
 
+        x = np.arange(W)[:, None]
+        y = np.arange(H)[None, :]
+        total_mult = np.zeros((W, H), dtype=np.float32)
+
         for i in range(3):
-            surf = pygame.Surface((W, H))
-            surf.fill((0, 0, 0))
             slant_deg = 24.0 + i * 4.0
-            x = np.arange(W)[:, None]
-            y = np.arange(H)[None, :]
-            
             tan_v = np.tan(np.radians(slant_deg))
             slant_x = x - y * tan_v
-            cx = 110.0 + i * 40.0
-            shaft_w = 46.0 + i * 12.0
+            cx = 160.0 + i * 260.0
+            shaft_w = 52.0 + i * 16.0
             dist = np.abs(slant_x - cx) / float(shaft_w)
             mask = dist < 1.0
 
             horiz_fade = np.zeros((W, H), dtype=np.float32)
             horiz_fade[mask] = 0.5 + 0.5 * np.cos(np.pi * dist[mask])
-            # Soft exponential falloff from sky ceiling towards bridge floor
             vert_fade = np.power(1.0 - (y / float(H)), 0.65)
-            # Pre-multiply subtle additive brightness (maximum ~ 12% photon radiance)
             mult = horiz_fade * vert_fade * 0.12
+            total_mult = np.maximum(total_mult, mult)
 
-            p3d = pygame.surfarray.pixels3d(surf)
-            p3d[..., 0] = np.clip(ray_color[0] * mult, 0, 255).astype(np.uint8)
-            p3d[..., 1] = np.clip(ray_color[1] * mult, 0, 255).astype(np.uint8)
-            p3d[..., 2] = np.clip(ray_color[2] * mult, 0, 255).astype(np.uint8)
-            del p3d
+        p3d = pygame.surfarray.pixels3d(surf)
+        p3d[..., 0] = np.clip(ray_color[0] * total_mult, 0, 255).astype(np.uint8)
+        p3d[..., 1] = np.clip(ray_color[1] * total_mult, 0, 255).astype(np.uint8)
+        p3d[..., 2] = np.clip(ray_color[2] * total_mult, 0, 255).astype(np.uint8)
+        del p3d
 
-            disp = pygame.display.get_surface()
-            if disp:
-                surf = surf.convert()
-            self._god_ray_surfs.append(surf)
+        disp = pygame.display.get_surface()
+        if disp:
+            surf = surf.convert()
+        self._unified_god_rays = surf
+        self._god_ray_surfs = [surf, surf, surf]
 
     def _init_floating_dust_pool(self):
         """Initializes a 45-particle fixed object pool for Silksong floating embers/dust motes."""
@@ -338,6 +338,7 @@ class LightingEngine:
         disp = pygame.display.get_surface()
         if disp:
             self._static_ao_map = self._static_ao_map.convert()
+        self._unified_post_mask = self._static_ao_map
 
     def update(self, dt: float):
         self.time += dt
@@ -384,82 +385,57 @@ class LightingEngine:
             surface.blits(ao_batch)
 
     def draw_god_rays(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
-        """Draws pre-rendered volumetric diagonal God Rays with seamless BLEND_RGB_ADD."""
-        if not self._god_ray_surfs:
+        """Draws pre-rendered volumetric diagonal God Rays in a single high-performance BLEND_RGB_ADD blit."""
+        if getattr(self, "_unified_god_rays", None) is None:
             return
-
         cam_x = camera_offset.x
-        sw = surface.get_width()
-        
-        # Diagonal beam placement across viewport with subtle parallax
-        offsets_x = [
-            int((-cam_x * 0.12 + 20) % (sw + 300)) - 180,
-            int((-cam_x * 0.15 + 230) % (sw + 300)) - 180,
-            int((-cam_x * 0.10 + 440) % (sw + 300)) - 180
-        ]
-
-        for i, ray_surf in enumerate(self._god_ray_surfs):
-            surface.blit(ray_surf, (offsets_x[i], 0), special_flags=pygame.BLEND_RGB_ADD)
+        offset_x = int((-cam_x * 0.12) % 640) - 160
+        surface.blit(self._unified_god_rays, (offset_x, 0), special_flags=pygame.BLEND_RGB_ADD)
 
     def draw_point_lights(self, surface: pygame.Surface, lights: list[LightSource], camera_offset: pygame.math.Vector2, hero_pos: Optional[Tuple[float, float]] = None):
         """
-        Draws dynamic 2D lighting using Multiplicative Lightmap + Ambient Occlusion + Silksong Hero Glow.
-        Prevents burning out and overexposing diffuse textures while creating rich, atmospheric depth.
+        Draws dynamic 2D lighting using fused Static Post-Mask + Half-Resolution Dynamic Lightmap.
+        Zero allocation per frame, 1/4 the pixel operations, saving massive CPU bandwidth.
         """
         gw = surface.get_width()
         gh = surface.get_height()
         cam_x, cam_y = camera_offset.x, camera_offset.y
 
-        # 1. Allocate / resize Lightmap buffer if surface dimensions changed
-        if getattr(self, "_lightmap_surf", None) is None or self._lightmap_surf.get_size() != (gw, gh):
-            self._lightmap_surf = pygame.Surface((gw, gh))
-            self.configure_stage_ao(self.theme, self.floor_y)
+        # 1. Multiplicative Static Ambient Pass (Crevice AO + Vignette + Color Grading)
+        post_mask = getattr(self, "_unified_post_mask", None) or self._static_ao_map
+        if post_mask is not None:
+            surface.blit(post_mask, (0, 0), special_flags=pygame.BLEND_MULT)
 
-        # 2. Reset lightmap with pre-computed Static AO Map & Color Grading
-        if self._static_ao_map is not None:
-            self._lightmap_surf.blit(self._static_ao_map, (0, 0))
-        else:
-            self._lightmap_surf.fill((185, 195, 215))
+        # 2. Check if dynamic lights exist
+        if not lights:
+            return
 
-        # 3. Silksong Hero Glow & Rim Light (Player stands out naturally in combat)
-        if hero_pos is not None:
-            hx, hy = hero_pos
-            shx = int(hx - cam_x - 80)
-            shy = int(hy - cam_y - 80)
-            if -80 <= shx <= gw + 80 and -80 <= shy <= gh + 80:
-                self._lightmap_surf.blit(self._hero_glow_surf, (shx, shy), special_flags=pygame.BLEND_ADD)
-                # Delicate inner rim light
-                self._lightmap_surf.blit(self._hero_rim_surf, (int(hx - cam_x - 36), int(hy - cam_y - 36)), special_flags=pygame.BLEND_ADD)
+        # Half-resolution accumulation buffer (320x180)
+        hw = gw // 2
+        hh = gh // 2
+        if getattr(self, "_half_light_surf", None) is None or self._half_light_surf.get_size() != (hw, hh):
+            self._half_light_surf = pygame.Surface((hw, hh))
+            self._scaled_dynamic_lights = pygame.Surface((gw, gh))
 
-        # 4. Frustum cull and accumulate dynamic point lights onto lightmap with BLEND_ADD
+        self._half_light_surf.fill((0, 0, 0))
+
+        # 3. Dynamic point lights on half-resolution buffer (lanterns, spells, projectiles)
         culled_count = 0
-        emissive_cores = []
         for l in lights:
-            rad = int(l.radius)
-            screen_x = int(l.x - cam_x - rad)
-            screen_y = int(l.y - cam_y - rad)
-            
-            # Fast offscreen culling
-            if -rad * 2 <= screen_x <= gw and -rad * 2 <= screen_y <= gh:
+            rad = max(4, int(l.radius // 2))
+            sx = int((l.x - cam_x) / 2.0 - rad)
+            sy = int((l.y - cam_y) / 2.0 - rad)
+            if -rad * 2 <= sx <= hw and -rad * 2 <= sy <= hh:
                 intensity = getattr(l, "intensity", 1.0)
-                light_surf = self.get_radial_light_surface(rad, l.color, intensity * 0.65)
-                self._lightmap_surf.blit(light_surf, (screen_x, screen_y), special_flags=pygame.BLEND_ADD)
-                
-                # Register lantern core for subtle specular emissive highlight
-                if intensity > 0.45:
-                    emissive_cores.append((screen_x + rad, screen_y + rad, l.color))
-
+                light_surf = self.get_radial_light_surface(rad, l.color, intensity * 0.60)
+                self._half_light_surf.blit(light_surf, (sx, sy), special_flags=pygame.BLEND_ADD)
                 culled_count += 1
                 if culled_count >= 16:
                     break
 
-        # 5. Multiply Lightmap over the scene diffuse (scene * lightmap)
-        surface.blit(self._lightmap_surf, (0, 0), special_flags=pygame.BLEND_MULT)
-
-        # 6. Soft additive cores on lantern bulbs
-        for cx, cy, col in emissive_cores:
-            core_surf = self.get_radial_light_surface(10, col, 0.10)
-            surface.blit(core_surf, (cx - 10, cy - 10), special_flags=pygame.BLEND_ADD)
+        # 4. Fast upscale & additive blend over scene
+        pygame.transform.scale(self._half_light_surf, (gw, gh), self._scaled_dynamic_lights)
+        surface.blit(self._scaled_dynamic_lights, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
 
     def draw_additive_glows(self, surface: pygame.Surface, emissives: list, camera_offset: pygame.math.Vector2):
         """Draws ultra-fast additive bloom pass for projectiles, slashes, and collectibles via BLEND_RGB_ADD."""
@@ -562,6 +538,7 @@ class LightingEngine:
                 half_w, half_h,
                 hlx, hly, hradius, half_occluders, half_cam,
                 soft_rays=soft_rays,
+                shadow_alpha=70,
                 target_surface=half_mask
             )
 

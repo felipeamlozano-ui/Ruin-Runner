@@ -138,15 +138,16 @@ class MainMenuScene(Scene):
         HollowCrestRenderer.draw_master_title_crest(surface, cx, 68, width=260)
         
         # 5. Top Left Soul Orbs Indicator (clean & discrete)
+        from engine.text_cache import get_cached_text
         orbs_count = SAVE.get_orbs()
         f_orbs = HollowFonts.get(11)
-        orbs_surf = f_orbs.render(f"ORBES: {orbs_count}", True, (170, 205, 240))
+        orbs_surf = get_cached_text(f_orbs, f"ORBES: {orbs_count}", (170, 205, 240))
         surface.blit(orbs_surf, (22, 14))
         
         # Dev Mode Badge (if active)
         if SETTINGS.DEV_MODE:
             f_dev = HollowFonts.get(10, italic=True)
-            d_surf = f_dev.render("[MODO DEV: BOSS RUSH ATIVO]", True, (245, 150, 75))
+            d_surf = get_cached_text(f_dev, "[MODO DEV: BOSS RUSH ATIVO]", (245, 150, 75))
             surface.blit(d_surf, d_surf.get_rect(center=(cx, 88)))
         
         # 6. Central Menu Options Deck
@@ -154,11 +155,11 @@ class MainMenuScene(Scene):
         
         # 7. Discrete Hollow Knight Footer
         f_footer = HollowFonts.get(9)
-        v_surf = f_footer.render("v3.2.0 • RUIN RUNNER", True, (80, 90, 110))
+        v_surf = get_cached_text(f_footer, "v3.2.0 • RUIN RUNNER", (80, 90, 110))
         surface.blit(v_surf, (22, sh - 18))
         
-        hint_surf = f_footer.render("[W/S ou SETAS NAVEGAR]   [ENTER/Z CONFIRMAR]", True, (95, 105, 125))
+        hint_surf = get_cached_text(f_footer, "[W/S ou SETAS NAVEGAR]   [ENTER/Z CONFIRMAR]", (95, 105, 125))
         surface.blit(hint_surf, hint_surf.get_rect(center=(cx, sh - 18)))
         
-        c_surf = f_footer.render("TEAM RUIN", True, (80, 90, 110))
+        c_surf = get_cached_text(f_footer, "TEAM RUIN", (80, 90, 110))
         surface.blit(c_surf, (sw - c_surf.get_width() - 22, sh - 18))

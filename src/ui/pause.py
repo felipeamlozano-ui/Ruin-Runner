@@ -55,8 +55,9 @@ class PauseMenu:
         # 3. Top Flourish, Title & Section Divider
         HollowCrestRenderer.draw_top_flourish(surface, cx, plaque_rect.top + 16, width=120, alpha=210)
         
+        from engine.text_cache import get_cached_text
         title_font = HollowFonts.get(18, bold=True)
-        title_surf = title_font.render("PAUSA", True, HollowColors.TEXT_TITLE)
+        title_surf = get_cached_text(title_font, "PAUSA", HollowColors.TEXT_TITLE)
         surface.blit(title_surf, title_surf.get_rect(center=(cx, plaque_rect.top + 34)))
         
         HollowCrestRenderer.draw_section_divider(surface, cx, plaque_rect.top + 52, width=240, alpha=200)
@@ -66,6 +67,6 @@ class PauseMenu:
         
         # 5. Bottom Hint
         hint_str = "[W/S] Navegar   •   [ENTER] Confirmar   •   [ESC] Voltar"
-        hint_surf = self.font_hint.render(hint_str, True, HollowColors.TEXT_MUTED)
+        hint_surf = get_cached_text(self.font_hint, hint_str, HollowColors.TEXT_MUTED)
         surface.blit(hint_surf, hint_surf.get_rect(center=(cx, plaque_rect.bottom - 16)))
 

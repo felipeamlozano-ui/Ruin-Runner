@@ -406,9 +406,9 @@ class HollowCrestRenderer:
             col = text_color or (255, 255, 255)
         else:
             pygame.draw.rect(surface, (45, 52, 65), rect, 1)
-            col = text_color or (170, 180, 195)
-            
-        txt_surf = font.render(text, True, col)
+            col = text_color or HollowColors.TEXT_NORMAL
+        from engine.text_cache import get_cached_text
+        txt_surf = get_cached_text(font, text, col)
         surface.blit(txt_surf, txt_surf.get_rect(center=rect.center))
 
 
@@ -420,9 +420,10 @@ class HollowText:
     @staticmethod
     def render_title_with_glow(surface: pygame.Surface, text: str, cx: float, cy: float, size: int = 34, letter_spacing: int = 4):
         """Renders crisp serif title with subtle soft shadow."""
+        from engine.text_cache import get_cached_text
         font = HollowFonts.get(size, bold=True)
-        glyphs_shadow = [font.render(c, True, (0, 0, 0)) for c in text]
-        glyphs_core = [font.render(c, True, (250, 250, 255)) for c in text]
+        glyphs_shadow = [get_cached_text(font, c, (0, 0, 0)) for c in text]
+        glyphs_core = [get_cached_text(font, c, (250, 250, 255)) for c in text]
         
         total_w = sum(g.get_width() for g in glyphs_core) + letter_spacing * (len(text) - 1)
         start_x = cx - total_w / 2.0
