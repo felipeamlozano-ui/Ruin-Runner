@@ -97,9 +97,13 @@ class Settings:
             self.STATIC_AO = False
             self.CONTACT_AO = False
             self.FOREGROUND_SILHOUETTE = False
+            self.SHADOWS_2D = "Desativado"
+            self.FOG_ENABLED = False
+            self.WEATHER_ENABLED = False
             self.VIGNETTE_ENABLED = True
             self.GAME_FEEL_REACTIVE = False
             self.QUALITY_PRESET = "Low (Desempenho Extremo)"
+            tier = 3
         elif preset_key == "medium":
             self.CLOUDS_COUNT = 8
             self.MIST_LAYERS = 1
@@ -111,9 +115,13 @@ class Settings:
             self.STATIC_AO = True
             self.CONTACT_AO = False
             self.FOREGROUND_SILHOUETTE = True
+            self.SHADOWS_2D = "Blob"
+            self.FOG_ENABLED = True
+            self.WEATHER_ENABLED = True
             self.VIGNETTE_ENABLED = True
             self.GAME_FEEL_REACTIVE = False
             self.QUALITY_PRESET = "Medium (Equilibrado)"
+            tier = 2
         elif preset_key == "high":
             self.CLOUDS_COUNT = 14
             self.MIST_LAYERS = 3
@@ -125,9 +133,13 @@ class Settings:
             self.STATIC_AO = True
             self.CONTACT_AO = True
             self.FOREGROUND_SILHOUETTE = True
+            self.SHADOWS_2D = "Suaves"
+            self.FOG_ENABLED = True
+            self.WEATHER_ENABLED = True
             self.VIGNETTE_ENABLED = True
             self.GAME_FEEL_REACTIVE = True
             self.QUALITY_PRESET = "High (Cinematográfico)"
+            tier = 1
         elif preset_key == "ultra":
             self.CLOUDS_COUNT = 20
             self.MIST_LAYERS = 3
@@ -139,9 +151,19 @@ class Settings:
             self.STATIC_AO = True
             self.CONTACT_AO = True
             self.FOREGROUND_SILHOUETTE = True
+            self.SHADOWS_2D = "Suaves"
+            self.FOG_ENABLED = True
+            self.WEATHER_ENABLED = True
             self.VIGNETTE_ENABLED = True
             self.GAME_FEEL_REACTIVE = True
             self.QUALITY_PRESET = "Ultra (Silksong Max)"
+            tier = 0
+            
+        try:
+            from engine.v3.core.adaptive_quality import ADAPTIVE_QUALITY
+            ADAPTIVE_QUALITY.set_manual_tier(tier)
+        except Exception:
+            pass
 
     def save_settings(self, file_path: str = None):
         """Persists configurable settings to disk."""

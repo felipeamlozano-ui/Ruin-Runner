@@ -313,6 +313,7 @@ class Player:
         self.celestial_barrier_cooldown = 0.0
         # New character passives & mechanics state
         self.parry_window_timer = 0.0
+        self.attack_buffer_timer = 0.0
         self.solar_fusion_stacks = 0
         self.solar_fusion_timer = 0.0
         self.death_mark_hits = {}
@@ -1041,8 +1042,10 @@ class Player:
                     self.velocity.y = 0
                     return
                 
-        # Dash [Q]
+        # Dash / Dodge [Q] - Can cancel late attack recovery into evasive dodge
         if self.input.is_action_just_pressed("DASH"):
+            if self.is_attacking and self.attack_cooldown <= 0.18:
+                self.is_attacking = False
             if self.dash():
                 return
             
@@ -1067,14 +1070,21 @@ class Player:
                     from entities.ultimate_aoe_vfx import UltimateAoE_VFX
                     self.aoe_vfx = UltimateAoE_VFX(self.rect.centerx, self.rect.bottom, self.aoe_radius, self.profile.id)
                     
-        # Blocking / Guard / Special Mobility [Shift]
+        # Blocking / Guard / Timed Parry [Shift]
         shift_skill = self.profile.skills.get("shift", None)
         shift_cost = shift_skill.cost_value if shift_skill else 3
         is_mage = (self.archetype in ("mage", "healer", "support"))
         can_block = (self.mana > 0) if is_mage else (self.stamina > 0)
 
-        # Bespoke [Shift] triggers on initial press for mobile archetypes:
+        # Timed Parry Trigger on fresh press (0.28s responsive window)
         if self.input.is_action_just_pressed("DEFEND") and not self.is_drinking_potion:
+            self.parry_window_timer = 0.28
+            # Responsive Parry: Cancel late attack recovery into parry stance!
+            if self.is_attacking and self.attack_cooldown <= 0.15:
+                self.is_attacking = False
+
+        # Bespoke [Shift] triggers on initial press for mobile archetypes in PvE only
+        if self.input.is_action_just_pressed("DEFEND") and not self.is_drinking_potion and not getattr(self, "is_duel_mode", False):
             # Wizard: Passo de Cinzas (Blink de Brasas)
             if self.character_id == "wizard" and self.mana >= 12:
                 self.mana -= 12
@@ -1110,8 +1120,8 @@ class Player:
                 return
         
         if self.input.is_action_pressed("DEFEND") and can_block and not self.is_drinking_potion:
-            if not self.is_blocking:
-                self.parry_window_timer = 0.20
+            if not self.is_blocking and self.parry_window_timer <= 0:
+                self.parry_window_timer = 0.28
             self.is_blocking = True
             if is_mage:
                 self.mana = max(0.0, self.mana - shift_cost * dt)
@@ -1165,8 +1175,15 @@ class Player:
                 self.is_attacking = False
                 self.is_casting_magic = False
                 
-        # Ground Attack [J] - 0.25s snappy attack cooldown via delta time
-        if self.input.is_action_just_pressed("ATTACK") and not self.is_attacking and not self.is_blocking and not self.is_drinking_potion and self.attack_cooldown <= 0:
+        # Ground / Aerial Attack [J] - Input buffer and Brawlhalla-style forward lunge momentum
+        if self.input.is_action_just_pressed("ATTACK"):
+            self.attack_buffer_timer = 0.16
+        elif hasattr(self, "attack_buffer_timer") and self.attack_buffer_timer > 0:
+            self.attack_buffer_timer = max(0.0, self.attack_buffer_timer - dt)
+
+        should_attack = (getattr(self, "attack_buffer_timer", 0.0) > 0) and not self.is_attacking and not self.is_blocking and not self.is_drinking_potion and self.attack_cooldown <= 0
+        if should_attack:
+            self.attack_buffer_timer = 0.0
             j_skill = self.profile.skills.get("j", None)
             if j_skill:
                 is_mp = (j_skill.cost_type == "MP")
@@ -1179,8 +1196,16 @@ class Player:
                         self.stamina_regen_delay = 0.5
                     self.is_attacking = True
                     self.attack_hit_enemies.clear()
-                    self.attack_cooldown = 0.25
+                    self.attack_cooldown = 0.24
                     self._begin_attack_anim()
+                    
+                    # Forward kinetic lunge on attack startup
+                    dir_mult = 1.0 if self.facing_right else -1.0
+                    if self.on_ground:
+                        self.velocity.x = 135.0 * dir_mult
+                    else:
+                        self.velocity.x = 90.0 * dir_mult
+                        self.velocity.y = min(self.velocity.y, 30.0) # Slight air float for aerial combos
                     
                     # Ranged archetypes shoot basic projectile on [J]
                     if self.archetype in ("mage", "healer", "archer", "support", "ninja"):
@@ -1246,7 +1271,7 @@ class Player:
         self.dash_timer = self.dash_duration
         self.dash_cooldown = 0.35
         self.invulnerable = True
-        self.invulnerability_timer = self.dash_duration + 0.06
+        self.invulnerability_timer = self.dash_duration + 0.08
         self._pending_shots.clear()
         self.magic_sigil_timer = 0.0
         self.is_attacking = False
@@ -1255,9 +1280,19 @@ class Player:
         if getattr(self, "character_id", "") == "samurai" or getattr(self, "passive_id", "") == "samurai_perfect_focus":
             self.attack_cooldown = 0.0
             
-        dir_mult = 1.0 if self.facing_right else -1.0
+        # Directional dash: follow held direction or facing
+        axis = self.input.get_axis() if hasattr(self, "input") else None
+        if axis and axis.x != 0:
+            dir_mult = 1.0 if axis.x > 0 else -1.0
+            self.facing_right = (dir_mult > 0)
+        else:
+            dir_mult = 1.0 if self.facing_right else -1.0
+
         self.velocity.x = self.dash_speed * dir_mult
-        self.velocity.y = 0.0
+        if not self.on_ground:
+            self.velocity.y = min(self.velocity.y, -30.0) # Aerial dodge boost
+        else:
+            self.velocity.y = 0.0
         self.anim_manager.play("dash", force_reset=True)
         return True
 

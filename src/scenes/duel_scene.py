@@ -40,6 +40,7 @@ from engine.v3.weather.clouds import CloudsManager
 from engine.v3.weather.mist import MistManager
 from entities.player import Player
 from ui.hollow_ui import HollowFonts, HollowCrestRenderer
+from ui.hud import HUD
 
 DUEL_HP_MULTIPLIER = 6.0
 DUEL_MAX_MANA_CAP = 80.0
@@ -139,6 +140,11 @@ class DuelScene(Scene):
         # Hitbox tracking for fair 1v1 melee
         self.p1_attack_connected = False
         self.p2_attack_connected = False
+
+        # Beautiful Glassmorphic HUDs identical to adventure and boss modes
+        self.hud1 = HUD(self.player1, stage_title=None, player_index=0)
+        self.hud2 = HUD(self.player2, stage_title=None, player_index=1)
+        self.show_command_map = True
 
         # Projectiles list
         self.projectiles: List[Any] = []
@@ -264,6 +270,12 @@ class DuelScene(Scene):
 
         self.p1_ghost_hp = float(self.player1.health)
         self.p2_ghost_hp = float(self.player2.health)
+        if hasattr(self, "hud1"):
+            self.hud1.ghost_hp = float(self.player1.health)
+            self.hud1._load_skill_icons()
+        if hasattr(self, "hud2"):
+            self.hud2.ghost_hp = float(self.player2.health)
+            self.hud2._load_skill_icons()
         self.projectiles.clear()
         self.floating_texts.clear()
         self.p1_attack_connected = False
@@ -281,6 +293,8 @@ class DuelScene(Scene):
                     from scenes.main_menu import MainMenuScene
                     self.scene_manager.change_scene(MainMenuScene(self.scene_manager))
                     return
+                if event.key in (pygame.K_TAB, pygame.K_h, pygame.K_F1):
+                    self.show_command_map = not self.show_command_map
                 if self.state == "MATCH_OVER" and event.key in (pygame.K_RETURN, pygame.K_SPACE):
                     from scenes.duel_character_select_scene import DuelCharacterSelectScene
                     self.scene_manager.change_scene(DuelCharacterSelectScene(self.scene_manager))
@@ -423,8 +437,14 @@ class DuelScene(Scene):
             raw_dmg = caster.profile.skills["e"].damage if hasattr(caster, "profile") and "e" in caster.profile.skills else 25.0
             dist = pygame.math.Vector2(target.rect.center).distance_to(pygame.math.Vector2(caster.rect.center))
             if dist <= caster.aoe_radius and not target.is_dead:
+                # 0. Evasion / Dodge AoE (I-Frames during Dash)
+                if getattr(target, "is_dashing", False) or getattr(target, "invulnerable", False):
+                    self.add_duel_score(target_idx, 15, "★ ESQUIVA ÁREA!", target.rect.centerx, target.rect.top - 20, (120, 230, 255))
+                    return
+
                 # 1. Perfect Parry AoE
-                if target.is_blocking and target.parry_window_timer > 0:
+                is_parry = (target.is_blocking and target.parry_window_timer > 0) or (hasattr(target, "input") and target.input.is_action_just_pressed("DEFEND"))
+                if is_parry:
                     target.stamina = min(target.max_stamina, target.stamina + 25.0)
                     target.mana = min(target.max_mana, target.mana + 15.0)
                     self.add_duel_score(target_idx, 35, "★ PARRY TEMPESTADE!", target.rect.centerx, target.rect.top - 20, (255, 230, 90))
@@ -483,19 +503,24 @@ class DuelScene(Scene):
                 elif proj.rect.colliderect(self.player1.rect):
                     target = self.player1
 
-            if target and not target.is_dead and not target.is_dashing and not target.is_casting_ultimate:
+            if target and not target.is_dead and not target.is_casting_ultimate:
+                # 0. Evasion / Dodge Projectile
+                if getattr(target, "is_dashing", False) or getattr(target, "invulnerable", False):
+                    continue
+
                 if target not in proj.hit_entities and proj.rect.colliderect(target.rect):
                     proj.hit_entities.add(target)
                     damage = min(40.0, float(getattr(proj, "damage", 25.0)))
 
                     # 1. PERFECT PARRY / DEFLECTION
-                    if target.is_blocking and target.parry_window_timer > 0:
+                    is_parry = (target.is_blocking and target.parry_window_timer > 0) or (hasattr(target, "input") and target.input.is_action_just_pressed("DEFEND"))
+                    if is_parry:
                         # Deflect projectile back to owner!
                         proj.owner = target
                         proj.hit_entities.clear()
                         if hasattr(proj, "velocity"):
-                            proj.velocity.x = -proj.velocity.x * 1.35
-                        setattr(proj, "damage", damage * 1.25)
+                            proj.velocity.x = -proj.velocity.x * 1.40
+                        setattr(proj, "damage", damage * 1.30)
 
                         target.stamina = min(target.max_stamina, target.stamina + 20.0)
                         target.mana = min(target.max_mana, target.mana + 15.0)
@@ -607,9 +632,22 @@ class DuelScene(Scene):
             attacker.mana = min(attacker.max_mana, attacker.mana + 4)
 
         # ─────────────────────────────────────────────────────────────
-        # CASE 1: PERFECT PARRY! (Defender pressed DEFEND within 0.22s)
+        # CASE 0: PERFECT EVASION (ESQUIVA / DODGE!)
         # ─────────────────────────────────────────────────────────────
-        if defender.is_blocking and defender.parry_window_timer > 0:
+        if getattr(defender, "is_dashing", False) or getattr(defender, "invulnerable", False):
+            # 100% damage avoided, attacker whiffed
+            mid_x = (attacker.rect.centerx + defender.rect.centerx) // 2
+            GAME_FEEL.emit_dust(defender.rect.centerx, defender.rect.bottom, "footstep")
+            self.add_duel_score(defender_idx, 20, "★ ESQUIVA PERFEITA!", defender.rect.centerx, defender.rect.top - 20, (120, 230, 255))
+            self.floating_texts.append(FloatingCombatText(defender.rect.centerx, defender.rect.top - 15, "ESQUIVA!", (130, 220, 255)))
+            defender.velocity.x += 80.0 * (1 if defender.facing_right else -1)
+            return
+
+        # ─────────────────────────────────────────────────────────────
+        # CASE 1: PERFECT PARRY! (Defender pressed DEFEND within 0.28s)
+        # ─────────────────────────────────────────────────────────────
+        is_parry = (defender.is_blocking and defender.parry_window_timer > 0) or (hasattr(defender, "input") and defender.input.is_action_just_pressed("DEFEND"))
+        if is_parry:
             # 100% damage nullified
             defender.stamina = min(defender.max_stamina, defender.stamina + 25.0)
             defender.mana = min(defender.max_mana, defender.mana + 15.0)
@@ -617,16 +655,16 @@ class DuelScene(Scene):
 
             # Attacker is staggered and punished!
             attacker.is_attacking = False
-            attacker.attack_cooldown = 0.35
-            attacker.hurt_timer = 0.40
-            attacker.velocity.x = -190.0 * attack_dir
+            attacker.attack_cooldown = 0.40
+            attacker.hurt_timer = 0.45
+            attacker.velocity.x = -220.0 * attack_dir
             attacker.combo_count = 0
             attacker.combo_timer = 0.0
 
             # VFX & Game Feel
-            GAME_FEEL.emit_slash_arc(defender.rect.centerx, defender.rect.centery, radius=34, color=(255, 235, 90))
-            GAME_FEEL.trigger_hit_stop(attacker, duration_ms=75.0, shake_px=4.5, direction=-attack_dir)
-            self.camera.shake(9.0, 0.30)
+            GAME_FEEL.emit_slash_arc(defender.rect.centerx, defender.rect.centery, radius=36, color=(255, 235, 90))
+            GAME_FEEL.trigger_hit_stop(attacker, duration_ms=80.0, shake_px=5.0, direction=-attack_dir)
+            self.camera.shake(10.0, 0.32)
 
             # Scoring
             self.add_duel_score(defender_idx, 35, "★ PARRY!", defender.rect.centerx, defender.rect.top - 20, (255, 220, 70))
@@ -720,15 +758,15 @@ class DuelScene(Scene):
 
         # Brawlhalla-Style Knockback scaling based on missing health:
         missing_hp_pct = max(0.0, 1.0 - (defender.health / max(1, defender.max_health)))
-        scaled_kb_x = (200.0 + missing_hp_pct * 260.0) * attack_dir
-        scaled_kb_y = -(120.0 + missing_hp_pct * 110.0)
+        scaled_kb_x = (220.0 + missing_hp_pct * 300.0) * attack_dir
+        scaled_kb_y = -(130.0 + missing_hp_pct * 140.0)
         defender.velocity.x = scaled_kb_x
         defender.velocity.y = scaled_kb_y
         defender.on_ground = False
 
-        GAME_FEEL.trigger_hit_stop(defender, duration_ms=50.0 + missing_hp_pct * 30.0, shake_px=3.5, direction=attack_dir)
-        GAME_FEEL.emit_slash_arc(defender.rect.centerx, defender.rect.centery, radius=28, color=(255, 230, 160))
-        self.camera.shake(6.0 + missing_hp_pct * 6.0, 0.22)
+        GAME_FEEL.trigger_hit_stop(defender, duration_ms=55.0 + missing_hp_pct * 35.0, shake_px=4.0, direction=attack_dir)
+        GAME_FEEL.emit_slash_arc(defender.rect.centerx, defender.rect.centery, radius=30, color=(255, 230, 160))
+        self.camera.shake(7.0 + missing_hp_pct * 8.0, 0.25)
 
     def draw(self, surface: pygame.Surface) -> None:
         sw, sh = self.width, self.height
@@ -816,117 +854,88 @@ class DuelScene(Scene):
         self._draw_banners(surface)
 
     def _draw_fighting_hud(self, surface: pygame.Surface):
-        """Draws professional symmetrical fighting HUD with Health, Posture, Mana, and Mastery Scores."""
+        """Draws official glassmorphic HUDs identical to other modes plus central Duel Round Timer, Orbs, and Command Map."""
         sw = self.width
         cx = sw // 2
-        bar_w = 210
-        bar_h = 14
 
+        # 1. Render Official Polished Glassmorphic HUDs (HP with ghost lag, MP with ready glow, SP with dash pips, and Skill Hotbars)
+        self.hud1.draw(surface)
+        self.hud2.draw(surface)
+
+        # 2. Central Round Info (Round 99s Timer, Win Orbs, Score readouts)
         f_hud = HollowFonts.get(10, bold=True)
-        f_sub = HollowFonts.get(8)
-
-        # --- PLAYER 1 HUD (LEFT) ---
-        p1_x = 24
-        p1_y = 16
-
-        # Background slot
-        pygame.draw.rect(surface, (20, 24, 32), (p1_x, p1_y, bar_w, bar_h))
-        # Ghost Health (white catchup)
-        p1_ghost_pct = max(0.0, min(1.0, self.p1_ghost_hp / max(1, self.player1.max_health)))
-        pygame.draw.rect(surface, (240, 240, 240), (p1_x, p1_y, int(bar_w * p1_ghost_pct), bar_h))
-        # Current Health (Green -> Orange -> Red)
-        p1_hp_pct = max(0.0, min(1.0, self.player1.health / max(1, self.player1.max_health)))
-        hp_col = (70, 225, 90) if p1_hp_pct > 0.45 else ((245, 175, 45) if p1_hp_pct > 0.2 else (235, 65, 65))
-        pygame.draw.rect(surface, hp_col, (p1_x, p1_y, int(bar_w * p1_hp_pct), bar_h))
-        pygame.draw.rect(surface, (200, 210, 230), (p1_x, p1_y, bar_w, bar_h), width=2)
-
-        # Health Numbers (e.g. 540 / 600)
-        t_hp1 = f_sub.render(f"{int(self.player1.health)} / {int(self.player1.max_health)}", True, (240, 245, 255))
-        surface.blit(t_hp1, (p1_x + 6, p1_y + 2))
-
-        # P1 Stamina / Posture Bar (Cyan -> Orange when critical)
-        p1_sp_pct = max(0.0, min(1.0, self.player1.stamina / max(1, self.player1.max_stamina)))
-        sp_col = (80, 210, 245) if p1_sp_pct > 0.3 else (255, 130, 40)
-        pygame.draw.rect(surface, (20, 24, 32), (p1_x, p1_y + 16, 140, 5))
-        pygame.draw.rect(surface, sp_col, (p1_x, p1_y + 16, int(140 * p1_sp_pct), 5))
-        pygame.draw.rect(surface, (120, 140, 170), (p1_x, p1_y + 16, 140, 5), width=1)
-
-        # P1 Mana Bar (Violet/Purple)
-        p1_mp_pct = max(0.0, min(1.0, self.player1.mana / max(1, self.player1.max_mana)))
-        pygame.draw.rect(surface, (20, 24, 32), (p1_x, p1_y + 23, 110, 4))
-        pygame.draw.rect(surface, (185, 105, 255), (p1_x, p1_y + 23, int(110 * p1_mp_pct), 4))
-        pygame.draw.rect(surface, (140, 90, 200), (p1_x, p1_y + 23, 110, 4), width=1)
-
-        # P1 Name, Score & Round Win Orbs
-        t_p1 = f_hud.render(f"P1: {self.p1_char.upper()}   PTS: {self.p1_score}", True, (245, 230, 140))
-        surface.blit(t_p1, (p1_x, p1_y - 12))
-        for i in range(2):
-            won = self.p1_rounds_won > i
-            col = (255, 215, 60) if won else (50, 55, 70)
-            pygame.draw.circle(surface, col, (p1_x + 155 + i * 14, p1_y + 19), 5)
-            pygame.draw.circle(surface, (180, 190, 210), (p1_x + 155 + i * 14, p1_y + 19), 5, width=1)
-
-        # P1 Active Combo Badge
-        if getattr(self.player1, "combo_count", 0) >= 2:
-            t_combo = f_hud.render(f"{self.player1.combo_count}x COMBO!", True, (255, 215, 60))
-            surface.blit(t_combo, (p1_x + bar_w + 10, p1_y + 2))
-
-        # --- PLAYER 2 HUD (RIGHT - MIRRORED) ---
-        p2_x = sw - 24 - bar_w
-        p2_y = 16
-
-        # Background slot
-        pygame.draw.rect(surface, (20, 24, 32), (p2_x, p2_y, bar_w, bar_h))
-        # Ghost Health
-        p2_ghost_pct = max(0.0, min(1.0, self.p2_ghost_hp / max(1, self.player2.max_health)))
-        gw_w = int(bar_w * p2_ghost_pct)
-        pygame.draw.rect(surface, (240, 240, 240), (p2_x + (bar_w - gw_w), p2_y, gw_w, bar_h))
-        # Current Health
-        p2_hp_pct = max(0.0, min(1.0, self.player2.health / max(1, self.player2.max_health)))
-        hp2_col = (70, 225, 90) if p2_hp_pct > 0.45 else ((245, 175, 45) if p2_hp_pct > 0.2 else (235, 65, 65))
-        cur_w2 = int(bar_w * p2_hp_pct)
-        pygame.draw.rect(surface, hp2_col, (p2_x + (bar_w - cur_w2), p2_y, cur_w2, bar_h))
-        pygame.draw.rect(surface, (200, 210, 230), (p2_x, p2_y, bar_w, bar_h), width=2)
-
-        # Health Numbers P2
-        t_hp2 = f_sub.render(f"{int(self.player2.health)} / {int(self.player2.max_health)}", True, (240, 245, 255))
-        surface.blit(t_hp2, (p2_x + bar_w - t_hp2.get_width() - 6, p2_y + 2))
-
-        # P2 Stamina / Posture Bar
-        p2_sp_pct = max(0.0, min(1.0, self.player2.stamina / max(1, self.player2.max_stamina)))
-        sp2_col = (80, 210, 245) if p2_sp_pct > 0.3 else (255, 130, 40)
-        sp2_w = int(140 * p2_sp_pct)
-        pygame.draw.rect(surface, (20, 24, 32), (p2_x + (bar_w - 140), p2_y + 16, 140, 5))
-        pygame.draw.rect(surface, sp2_col, (p2_x + (bar_w - sp2_w), p2_y + 16, sp2_w, 5))
-        pygame.draw.rect(surface, (120, 140, 170), (p2_x + (bar_w - 140), p2_y + 16, 140, 5), width=1)
-
-        # P2 Mana Bar
-        p2_mp_pct = max(0.0, min(1.0, self.player2.mana / max(1, self.player2.max_mana)))
-        mp2_w = int(110 * p2_mp_pct)
-        pygame.draw.rect(surface, (20, 24, 32), (p2_x + (bar_w - 110), p2_y + 23, 110, 4))
-        pygame.draw.rect(surface, (185, 105, 255), (p2_x + (bar_w - mp2_w), p2_y + 23, mp2_w, 4))
-        pygame.draw.rect(surface, (140, 90, 200), (p2_x + (bar_w - 110), p2_y + 23, 110, 4), width=1)
-
-        # P2 Name, Score & Round Win Orbs
-        t_p2 = f_hud.render(f"PTS: {self.p2_score}   P2: {self.p2_char.upper()}", True, (130, 205, 255))
-        surface.blit(t_p2, (p2_x + bar_w - t_p2.get_width(), p2_y - 12))
-        for i in range(2):
-            won = self.p2_rounds_won > i
-            col = (255, 215, 60) if won else (50, 55, 70)
-            pygame.draw.circle(surface, col, (p2_x + 35 - i * 14, p2_y + 19), 5)
-            pygame.draw.circle(surface, (180, 190, 210), (p2_x + 35 - i * 14, p2_y + 19), 5, width=1)
-
-        # P2 Active Combo Badge
-        if getattr(self.player2, "combo_count", 0) >= 2:
-            t_combo2 = f_hud.render(f"{self.player2.combo_count}x COMBO!", True, (255, 215, 60))
-            surface.blit(t_combo2, (p2_x - t_combo2.get_width() - 10, p2_y + 2))
-
-        # --- CENTER ROUND TIMER ---
         f_timer = HollowFonts.get(22, bold=True)
+        f_sub = HollowFonts.get(8, bold=True)
+
+        # Center Round 99s Timer with dramatic clock styling
         time_int = int(math.ceil(self.round_time))
         t_col = (255, 230, 120) if time_int > 10 else (255, 75, 75)
+        timer_box = pygame.Rect(cx - 30, 8, 60, 28)
+        pygame.draw.rect(surface, (14, 17, 26, 225), timer_box, border_radius=4)
+        pygame.draw.rect(surface, (135, 115, 60), timer_box, 1, border_radius=4)
         timer_surf = f_timer.render(f"{time_int:02d}", True, t_col)
-        surface.blit(timer_surf, timer_surf.get_rect(center=(cx, p1_y + 10)))
+        surface.blit(timer_surf, timer_surf.get_rect(center=(cx, 21)))
+
+        # Round label
+        lbl_rnd = f_sub.render(f"ROUND {self.round_number}", True, (215, 220, 235))
+        surface.blit(lbl_rnd, lbl_rnd.get_rect(center=(cx, 40)))
+
+        # Round Win Orbs (P1 on left of timer, P2 on right of timer)
+        for i in range(2):
+            p1_won = self.p1_rounds_won > i
+            col1 = (255, 215, 60) if p1_won else (45, 50, 65)
+            pygame.draw.circle(surface, col1, (cx - 44 - i * 14, 22), 5)
+            pygame.draw.circle(surface, (180, 190, 210), (cx - 44 - i * 14, 22), 5, width=1)
+
+            p2_won = self.p2_rounds_won > i
+            col2 = (130, 210, 255) if p2_won else (45, 50, 65)
+            pygame.draw.circle(surface, col2, (cx + 44 + i * 14, 22), 5)
+            pygame.draw.circle(surface, (180, 190, 210), (cx + 44 + i * 14, 22), 5, width=1)
+
+        # Mastery Points readouts beside timer
+        pts_p1 = f_sub.render(f"{self.p1_score} PTS", True, (245, 220, 120))
+        surface.blit(pts_p1, pts_p1.get_rect(center=(cx - 96, 22)))
+
+        pts_p2 = f_sub.render(f"{self.p2_score} PTS", True, (130, 210, 255))
+        surface.blit(pts_p2, pts_p2.get_rect(center=(cx + 96, 22)))
+
+        # Dynamic Combo Badges
+        if getattr(self.player1, "combo_count", 0) >= 2:
+            t_combo = f_hud.render(f"{self.player1.combo_count}x COMBO!", True, (255, 215, 60))
+            surface.blit(t_combo, (160, 48))
+
+        if getattr(self.player2, "combo_count", 0) >= 2:
+            t_combo2 = f_hud.render(f"{self.player2.combo_count}x COMBO!", True, (130, 215, 255))
+            surface.blit(t_combo2, (sw - 160 - t_combo2.get_width(), 48))
+
+        # 3. Dedicated Combat Command Map (Mapa de Comandos) at Bottom-Center
+        if getattr(self, "show_command_map", True):
+            cmd_w = 276
+            cmd_h = 42
+            cmd_x = (sw - cmd_w) // 2
+            cmd_y = self.height - cmd_h - 6
+            cmd_rect = pygame.Rect(cmd_x, cmd_y, cmd_w, cmd_h)
+            
+            # Subtle glass panel
+            panel_s = pygame.Surface((cmd_w, cmd_h), pygame.SRCALPHA)
+            panel_s.fill((12, 15, 24, 225))
+            surface.blit(panel_s, (cmd_x, cmd_y))
+            pygame.draw.rect(surface, (70, 80, 105), cmd_rect, width=1, border_radius=4)
+
+            f_key = HollowFonts.get(8, bold=True)
+            f_lbl = HollowFonts.get(8)
+
+            # Header / Title
+            t_hdr = f_key.render("‹ MAPA DE COMANDOS ›", True, (255, 215, 80))
+            surface.blit(t_hdr, t_hdr.get_rect(center=(cx, cmd_y + 8)))
+
+            # P1 Controls Line (Left accent gold)
+            t_p1_keys = f_lbl.render("P1: [WASD] Mover/Pulo  [J] Atk  [K] Mag  [Q] Esq  [Shift] Parry", True, (245, 220, 130))
+            surface.blit(t_p1_keys, t_p1_keys.get_rect(center=(cx, cmd_y + 20)))
+
+            # P2 Controls Line (Right accent cyan)
+            t_p2_keys = f_lbl.render("P2: [Setas] Mover/Pulo [N1] Atk [N2] Mag [N0] Esq [N6] Parry", True, (130, 210, 255))
+            surface.blit(t_p2_keys, t_p2_keys.get_rect(center=(cx, cmd_y + 31)))
 
     def _draw_banners(self, surface: pygame.Surface):
         """Draws fighting banners during Intro, Round Over, and Match Over with Combat Mastery Scorecard."""

@@ -749,34 +749,35 @@ class LevelScene(Scene):
                 self.lighting.draw_ambient_particles_background(surface, self.camera.offset)
 
                 # 3. Sky Clouds (Rendered behind fortress towers and mountains, clipped to sky_horizon_y)
-                if getattr(self, "clouds", None) is not None:
+                if getattr(self, "clouds", None) is not None and getattr(SETTINGS, "CLOUDS_COUNT", 0) > 0 and getattr(SETTINGS, "WEATHER_ENABLED", True):
                     horizon_y = getattr(self.clouds, "sky_horizon_y", 88)
                     surface.set_clip(pygame.Rect(0, 0, sw, horizon_y))
                     self.clouds.draw(surface, (cam_x, cam_y), sw, sh)
                     surface.set_clip(None)
 
                 # 4. Distant Atmospheric Depth Fog (Between distant mountains and fortress towers)
-                if getattr(self, "mist_manager", None) is not None:
+                if getattr(self, "mist_manager", None) is not None and getattr(SETTINGS, "MIST_LAYERS", 0) > 0 and getattr(SETTINGS, "FOG_ENABLED", True):
                     self.mist_manager.draw_distant_fog(surface, cam_x, cam_y)
 
                 # 5. Midground Castle Towers & Walls (Layer 1 - In FRONT of clouds and distant fog)
                 self.parallax_renderer.draw_midground_layer(surface, cam_x, cam_y)
 
                 # 6. Foreground Bridge Walkway & Floor (Layer 2)
-                self.parallax_renderer.draw_foreground_layer(surface, cam_x, cam_y)
+                if getattr(SETTINGS, "FOREGROUND_SILHOUETTE", True):
+                    self.parallax_renderer.draw_foreground_layer(surface, cam_x, cam_y)
 
                 # 7. Dynamic Ground Mist over bridge floor at feet level (alpha 0.12-0.22, preserving shadows)
-                if getattr(self, "mist_manager", None) is not None:
+                if getattr(self, "mist_manager", None) is not None and getattr(SETTINGS, "MIST_LAYERS", 0) > 0 and getattr(SETTINGS, "FOG_ENABLED", True):
                     self.mist_manager.draw_ground_mist(surface, cam_x, cam_y)
             else:
                 self.parallax_renderer.draw(surface, cam_x, cam_y)
                 self.lighting.draw_ambient_particles_background(surface, self.camera.offset)
-                if getattr(self, "clouds", None) is not None:
+                if getattr(self, "clouds", None) is not None and getattr(SETTINGS, "CLOUDS_COUNT", 0) > 0 and getattr(SETTINGS, "WEATHER_ENABLED", True):
                     horizon_y = getattr(self.clouds, "sky_horizon_y", 88)
                     surface.set_clip(pygame.Rect(0, 0, sw, horizon_y))
                     self.clouds.draw(surface, (cam_x, cam_y), sw, sh)
                     surface.set_clip(None)
-                if getattr(self, "mist_manager", None) is not None:
+                if getattr(self, "mist_manager", None) is not None and getattr(SETTINGS, "MIST_LAYERS", 0) > 0 and getattr(SETTINGS, "FOG_ENABLED", True):
                     self.mist_manager.draw_distant_fog(surface, cam_x, cam_y)
                     self.mist_manager.draw_ground_mist(surface, cam_x, cam_y)
         elif self.theme == "forest":

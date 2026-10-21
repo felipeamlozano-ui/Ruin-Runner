@@ -651,16 +651,17 @@ class BossScene(Scene):
                 d.draw(self.arena_surf, self.camera.offset)
             
         # Draw Falling Droplets & Crumbling Debris
-        for drop in self.droplets:
-            dx = drop.x - cam_x
-            dy = drop.y - cam_y
-            if 0 <= dx <= self.arena_w and 0 <= dy <= self.arena_h:
-                pygame.draw.line(self.arena_surf, drop.color, (dx, dy), (dx, dy + 6), 2)
+        if getattr(SETTINGS, "WEATHER_ENABLED", True):
+            for drop in self.droplets:
+                dx = drop.x - cam_x
+                dy = drop.y - cam_y
+                if 0 <= dx <= self.arena_w and 0 <= dy <= self.arena_h:
+                    pygame.draw.line(self.arena_surf, drop.color, (dx, dy), (dx, dy + 6), 2)
 
-        for p in self.falling_debris:
-            px_scr = p.x - cam_x
-            if -32 <= px_scr <= self.arena_w + 32:
-                p.draw(self.arena_surf, cam_x, cam_y)
+            for p in self.falling_debris:
+                px_scr = p.x - cam_x
+                if -32 <= px_scr <= self.arena_w + 32:
+                    p.draw(self.arena_surf, cam_x, cam_y)
 
         # Draw Collectibles
         for c in self.collectibles:

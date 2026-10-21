@@ -323,6 +323,41 @@ class TestDuelMode(unittest.TestCase):
         self.assertEqual(duel.p1_stats["guard_breaks"], 1)
         self.assertGreater(duel.p1_score, 0)
 
+    def test_duel_dodge_evasion_mechanics(self):
+        """Verifies Dash/Dodge invulnerability cleanly evades melee strikes."""
+        duel = DuelScene(self.sm, p1_char="shaia", p2_char="lunaria", arena_id="terrae_1")
+        duel.update(1.9) # Enter FIGHT state
+
+        p1 = duel.player1
+        p2 = duel.player2
+        p2.is_dashing = True
+        p2_hp_before = p2.health
+        p1.pos.x = p2.pos.x - 20
+
+        # P1 strikes while P2 is dodging
+        duel._resolve_strike(attacker=p1, defender=p2, attacker_idx=0, defender_idx=1)
+
+        # P2 takes 0 damage and earns perfect dodge score
+        self.assertEqual(p2.health, p2_hp_before)
+        self.assertGreater(duel.p2_score, 0)
+
+    def test_duel_command_map_and_huds(self):
+        """Verifies standard HUD integration and Command Map presence in DuelScene."""
+        duel = DuelScene(self.sm, p1_char="shaia", p2_char="lunaria", arena_id="terrae_1")
+        self.assertIsNotNone(duel.hud1)
+        self.assertIsNotNone(duel.hud2)
+        self.assertTrue(duel.show_command_map)
+
+        # Toggle Command Map
+        duel.handle_events([pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_TAB})])
+        self.assertFalse(duel.show_command_map)
+        duel.handle_events([pygame.event.Event(pygame.KEYDOWN, {"key": pygame.K_TAB})])
+        self.assertTrue(duel.show_command_map)
+
+        # Surface rendering does not crash
+        surf = pygame.Surface((640, 360))
+        duel.draw(surf)
+
 
 if __name__ == "__main__":
     unittest.main()

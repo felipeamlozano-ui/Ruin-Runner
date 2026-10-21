@@ -356,6 +356,8 @@ class LightingEngine:
 
     def draw_entity_ao(self, surface: pygame.Surface, entities: list, camera_offset: pygame.math.Vector2):
         """Draws dynamic soft ground contact occlusion stamps directly under entities' feet and obstacles."""
+        if not getattr(SETTINGS, "CONTACT_AO", True):
+            return
         cam_x, cam_y = camera_offset.x, camera_offset.y
         sw, sh = surface.get_size()
 
@@ -386,7 +388,7 @@ class LightingEngine:
 
     def draw_god_rays(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
         """Draws pre-rendered volumetric diagonal God Rays in a single high-performance BLEND_RGB_ADD blit."""
-        if getattr(self, "_unified_god_rays", None) is None:
+        if not getattr(SETTINGS, "RAYTRACING_ENABLED", True) or getattr(self, "_unified_god_rays", None) is None:
             return
         cam_x = camera_offset.x
         offset_x = int((-cam_x * 0.12) % 640) - 160
@@ -402,12 +404,13 @@ class LightingEngine:
         cam_x, cam_y = camera_offset.x, camera_offset.y
 
         # 1. Multiplicative Static Ambient Pass (Crevice AO + Vignette + Color Grading)
-        post_mask = getattr(self, "_unified_post_mask", None) or self._static_ao_map
-        if post_mask is not None:
-            surface.blit(post_mask, (0, 0), special_flags=pygame.BLEND_MULT)
+        if getattr(SETTINGS, "STATIC_AO", True):
+            post_mask = getattr(self, "_unified_post_mask", None) or self._static_ao_map
+            if post_mask is not None:
+                surface.blit(post_mask, (0, 0), special_flags=pygame.BLEND_MULT)
 
         # 2. Check if dynamic lights exist
-        if not lights:
+        if not getattr(SETTINGS, "DYNAMIC_LIGHTS", True) or not lights:
             return
 
         # Half-resolution accumulation buffer (320x180)
@@ -439,7 +442,7 @@ class LightingEngine:
 
     def draw_additive_glows(self, surface: pygame.Surface, emissives: list, camera_offset: pygame.math.Vector2):
         """Draws ultra-fast additive bloom pass for projectiles, slashes, and collectibles via BLEND_RGB_ADD."""
-        if not emissives:
+        if not emissives or not getattr(SETTINGS, "BLOOM_ENABLED", True):
             return
         cam_x, cam_y = camera_offset.x, camera_offset.y
         sw, sh = surface.get_size()
@@ -454,12 +457,15 @@ class LightingEngine:
 
     def draw_ambient_particles_background(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
         """Batch blits atmospheric dust motes situated in the background (behind player) via surface.blits()."""
+        if not getattr(SETTINGS, "AMBIENT_PARTICLES", True) or getattr(SETTINGS, "AMBIENT_PARTICLES_COUNT", 30) <= 0:
+            return
         cam_x = camera_offset.x
         sw = surface.get_width()
         vw = float(self.screen_w + 320)
+        max_p = min(self.num_dust, getattr(SETTINGS, "AMBIENT_PARTICLES_COUNT", 30))
 
         batch = []
-        for i in range(self.num_dust):
+        for i in range(max_p):
             if self.dust_layer[i] == 0:
                 sx = int(((self.dust_x[i] - cam_x * 0.40) % vw) - 160)
                 if -10 <= sx <= sw + 10:
@@ -471,12 +477,15 @@ class LightingEngine:
 
     def draw_ambient_particles_foreground(self, surface: pygame.Surface, camera_offset: pygame.math.Vector2):
         """Batch blits atmospheric dust motes situated in the foreground (in front of player) via surface.blits()."""
+        if not getattr(SETTINGS, "AMBIENT_PARTICLES", True) or getattr(SETTINGS, "AMBIENT_PARTICLES_COUNT", 30) <= 0:
+            return
         cam_x = camera_offset.x
         sw = surface.get_width()
         vw = float(self.screen_w + 320)
+        max_p = min(self.num_dust, getattr(SETTINGS, "AMBIENT_PARTICLES_COUNT", 30))
 
         batch = []
-        for i in range(self.num_dust):
+        for i in range(max_p):
             if self.dust_layer[i] == 1:
                 sx = int(((self.dust_x[i] - cam_x * 1.15) % vw) - 160)
                 if -10 <= sx <= sw + 10:

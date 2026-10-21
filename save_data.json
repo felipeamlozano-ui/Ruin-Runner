@@ -1,12 +1,12 @@
 {
   "version": 2,
   "active_slot": 2,
-  "orbs": 395,
+  "orbs": 189,
   "tutorial_completed": true,
   "skills": {
     "blade_sharpness": 1,
     "combo_finisher": 0,
-    "arcane_mastery": 2,
+    "arcane_mastery": 4,
     "aoe_resonance": 0,
     "shadow_step": 0,
     "ultimate_wrath": 0,
@@ -41,5 +41,5 @@
     "arcade_4": 9477
   },
   "selected_character": "shaia",
-  "updated_at": "2026-10-21T10:59:21.098886"
+  "updated_at": "2026-10-21T12:47:35.952916"
 }
