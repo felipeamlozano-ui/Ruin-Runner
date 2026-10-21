@@ -40,20 +40,20 @@ P1_DEFAULT_KEYBOARD: Dict[str, List[int]] = {
     InputAction.PAUSE.value: [pygame.K_ESCAPE, pygame.K_p],
 }
 
-# Default Player 2 Keyboard Controls (Arrow keys + Numpad cluster — Zero Key Conflict!)
+# Default Player 2 Keyboard Controls (Arrow keys + Numpad or Right-hand letters — Zero Key Conflict!)
 P2_DEFAULT_KEYBOARD: Dict[str, List[int]] = {
     InputAction.LEFT.value: [pygame.K_LEFT],
     InputAction.RIGHT.value: [pygame.K_RIGHT],
     InputAction.UP.value: [pygame.K_UP],
     InputAction.DOWN.value: [pygame.K_DOWN],
-    InputAction.JUMP.value: [pygame.K_UP, pygame.K_KP7],
-    InputAction.ATTACK.value: [pygame.K_KP1],
-    InputAction.SKILL.value: [pygame.K_KP2],
-    InputAction.SKILL_AOE.value: [pygame.K_KP4],
-    InputAction.DASH.value: [pygame.K_KP0],
-    InputAction.DEFEND.value: [pygame.K_KP6, pygame.K_RSHIFT],
-    InputAction.ULTIMATE.value: [pygame.K_KP5],
-    InputAction.INTERACT.value: [pygame.K_KP3],
+    InputAction.JUMP.value: [pygame.K_UP, pygame.K_KP7, pygame.K_PERIOD],
+    InputAction.ATTACK.value: [pygame.K_KP1, pygame.K_m, pygame.K_SLASH],
+    InputAction.SKILL.value: [pygame.K_KP2, pygame.K_COMMA, pygame.K_SEMICOLON],
+    InputAction.SKILL_AOE.value: [pygame.K_KP4, pygame.K_l, pygame.K_o],
+    InputAction.DASH.value: [pygame.K_KP0, pygame.K_k, pygame.K_p],
+    InputAction.DEFEND.value: [pygame.K_KP6, pygame.K_RSHIFT, pygame.K_RIGHTBRACKET],
+    InputAction.ULTIMATE.value: [pygame.K_KP5, pygame.K_RETURN, pygame.K_u],
+    InputAction.INTERACT.value: [pygame.K_KP3, pygame.K_i],
     InputAction.PAUSE.value: [pygame.K_F10],
 }
 

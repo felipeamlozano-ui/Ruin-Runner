@@ -33,8 +33,8 @@ _BEAM_CACHE: Dict[Tuple[int, int, Tuple[int, int, int]], pygame.Surface] = {}
 def get_hero_thumbnails() -> Dict[str, pygame.Surface]:
     """
     Loads and caches authentic 28x28 character portraits for all 11 roster heroes.
-    Uses frame.get_bounding_rect() to locate visible pixels (alpha > 10) and crops
-    the upper head/bust region (top 45% of character height), perfectly centered.
+    Uses smart head/bust detection (locating face/chin/shoulders while ignoring
+    stray weapon tips like bows) to ensure zero clipping across all 11 fighters.
     """
     global _THUMBNAILS_CACHE
     if _THUMBNAILS_CACHE:
@@ -63,30 +63,45 @@ def get_hero_thumbnails() -> Dict[str, pygame.Surface]:
                     if os.path.exists(c):
                         frame = pygame.image.load(c).convert_alpha()
                         break
+                crop_sz = 84
+                top_offset = 6
+                min_pixels = 12
             else:
                 p = os.path.join(prof.base_folder, "Idle.png")
                 if os.path.exists(p):
                     raw = pygame.image.load(p).convert_alpha()
                     fw, fh = prof.frame_size
                     frame = raw.subsurface((0, 0, fw, fh))
+                crop_sz = 44
+                top_offset = 4
+                min_pixels = 8
 
             if frame is not None:
-                bbox = frame.get_bounding_rect()
-                if bbox.width > 0 and bbox.height > 0:
-                    head_h = max(20, int(bbox.height * 0.45))
-                    crop_size = max(head_h, int(bbox.width * 0.70))
-                    crop_x = int(bbox.centerx - crop_size / 2)
-                    crop_y = int(bbox.top)
+                fw, fh = frame.get_size()
+                # Find true head_y by scanning rows for solid head/hair mass (ignoring thin weapon pixels)
+                head_y = None
+                for y in range(fh):
+                    cnt = sum(1 for x in range(fw) if frame.get_at((x, y))[3] > 40)
+                    if cnt >= min_pixels:
+                        head_y = y
+                        break
+                head_y = head_y if head_y is not None else int(fh * 0.35)
 
-                    crop_x = max(0, min(frame.get_width() - crop_size, crop_x))
-                    crop_y = max(0, min(frame.get_height() - crop_size, crop_y))
-                    crop_size = min(crop_size, frame.get_width() - crop_x, frame.get_height() - crop_y)
+                # Find horizontal center of head/bust region
+                y_max_sample = min(fh, head_y + crop_sz)
+                xs = [
+                    x for y in range(head_y, y_max_sample)
+                    for x in range(fw)
+                    if frame.get_at((x, y))[3] > 40
+                ]
+                center_x = int(sum(xs) / len(xs)) if xs else fw // 2
 
-                    sub = frame.subsurface((crop_x, crop_y, crop_size, crop_size))
-                    thumb = pygame.transform.smoothscale(sub, (28, 28))
-                    _THUMBNAILS_CACHE[cid] = thumb
-                else:
-                    _THUMBNAILS_CACHE[cid] = _create_fallback_icon(prof)
+                crop_x = max(0, min(fw - crop_sz, center_x - crop_sz // 2))
+                crop_y = max(0, min(fh - crop_sz, head_y - top_offset))
+
+                sub = frame.subsurface((crop_x, crop_y, crop_sz, crop_sz))
+                thumb = pygame.transform.smoothscale(sub, (28, 28))
+                _THUMBNAILS_CACHE[cid] = thumb
             else:
                 _THUMBNAILS_CACHE[cid] = _create_fallback_icon(prof)
         except Exception:
@@ -105,10 +120,10 @@ def _create_fallback_icon(prof: CharacterProfile) -> pygame.Surface:
     return surf
 
 
-def get_volumetric_light_beam(width: int = 120, height: int = 210,
+def get_volumetric_light_beam(width: int = 96, height: int = 86,
                               color: Tuple[int, int, int] = (255, 235, 175)) -> pygame.Surface:
     """
-    Returns a smooth volumetric light beam surface with vertical cosine falloff.
+    Returns a soft, anti-aliased volumetric light beam surface with Gaussian lateral falloff.
     Pre-baked and cached for zero per-frame CPU allocation.
     """
     cr, cg, cb = int(color[0]), int(color[1]), int(color[2])
@@ -120,17 +135,18 @@ def get_volumetric_light_beam(width: int = 120, height: int = 210,
     cx = width / 2.0
     for y in range(height):
         prog = y / float(height)
-        # Intensity increases towards floor then soft fades
-        alpha_y = math.sin(prog * math.pi * 0.90) * 48.0
-        cur_w = 26.0 + prog * (width - 32.0)
+        # Vertical intensity: soft fade in at top, peak near floor, gentle fade at base
+        alpha_y = math.sin(prog * math.pi * 0.95) * 52.0
+        cur_w = 28.0 + prog * (width - 32.0)
         half_w = cur_w / 2.0
         x_start = max(0, int(cx - half_w))
         x_end = min(width, int(cx + half_w))
 
         for x in range(x_start, x_end):
             dist_norm = abs(x - cx) / half_w
-            alpha_x = math.cos(dist_norm * math.pi * 0.5)
-            a = int(alpha_y * alpha_x)
+            # Gaussian / cosine anti-aliased falloff to eliminate jagged edges
+            alpha_x = math.exp(-2.8 * (dist_norm ** 2)) * math.cos(dist_norm * math.pi * 0.5)
+            a = int(alpha_y * max(0.0, alpha_x))
             if a > 0:
                 surf.set_at((x, y), (cr, cg, cb, min(255, a)))
 
@@ -142,22 +158,22 @@ def draw_pedestal_with_beam(surface: pygame.Surface, pedestal_pos: pygame.math.V
                             color_theme: Tuple[int, int, int], lighting: Optional[LightingEngine] = None):
     """
     Renders an ancient dais with:
-    1. Soft vertical God Ray beam (BLEND_RGB_ADD)
+    1. Soft vertical God Ray beam (BLEND_RGB_ADD) contained cleanly inside card bounds
     2. Radial Halo glow on pedestal base (BLEND_RGB_ADD)
     3. Ground Contact AO shadow under hero feet
     4. Hollow Knight filigree ancient stone pedestal
     """
     px, py = int(pedestal_pos.x), int(pedestal_pos.y)
 
-    # 1. Soft Volumetric God Ray Light Beam
-    beam_w = 120
-    beam_h = 200
+    # 1. Soft Volumetric God Ray Light Beam (bounded to pedestal height, no spillover)
+    beam_w = 96
+    beam_h = 84
     beam_surf = get_volumetric_light_beam(beam_w, beam_h, color_theme)
-    surface.blit(beam_surf, (px - beam_w // 2, py - beam_h + 10), special_flags=pygame.BLEND_RGB_ADD)
+    surface.blit(beam_surf, (px - beam_w // 2, py - beam_h + 8), special_flags=pygame.BLEND_RGB_ADD)
 
     # 2. Radial Base Halo
-    halo_surf = LightingEngine.get_radial_light_surface(radius=38, color=color_theme, intensity=0.45)
-    surface.blit(halo_surf, (px - 38, py - 18), special_flags=pygame.BLEND_RGB_ADD)
+    halo_surf = LightingEngine.get_radial_light_surface(radius=36, color=color_theme, intensity=0.45)
+    surface.blit(halo_surf, (px - 36, py - 18), special_flags=pygame.BLEND_RGB_ADD)
 
     # 3. Ground Contact AO Shadow (anchoring hero feet)
     if lighting and hasattr(lighting, "_ao_stamp_med"):
@@ -360,7 +376,7 @@ def draw_symmetrical_hero_card(
     pygame.draw.line(surface, (45, 52, 68), (rect.x + 8, grid_div_y), (rect.right - 8, grid_div_y), 1)
 
     card_w = 44
-    card_h = 30
+    card_h = 28
     gap_x = 4
     start_gx = rect.x + 9
     start_gy = grid_div_y + 4
@@ -386,19 +402,19 @@ def draw_symmetrical_hero_card(
 
         t_img = thumbnails.get(cid)
         if t_img:
-            # Scaled 22x22 inside button
-            scaled_t = pygame.transform.smoothscale(t_img, (22, 22))
-            surface.blit(scaled_t, (c_rect.x + 2, c_rect.y + (card_h - 22) // 2))
+            # Clean 20x20 thumbnail with round-edge mask
+            scaled_t = pygame.transform.smoothscale(t_img, (20, 20))
+            surface.blit(scaled_t, (c_rect.x + 3, c_rect.y + 4))
 
         # Hero short abbreviation
         sname = short_names.get(cid, cid[:4].upper())
-        sn_surf = f_badge.render(sname, True, tag_col if is_sel else (135, 145, 165))
-        surface.blit(sn_surf, (c_rect.x + 25, c_rect.y + 5))
+        sn_surf = f_badge.render(sname, True, tag_col if is_sel else (145, 155, 175))
+        surface.blit(sn_surf, (c_rect.x + 25, c_rect.y + 4))
 
-        # Cursor badge indicator
+        # Cursor badge indicator (subtle indicator in lower-right, no face overlap)
         if is_sel:
             p_tag = "P1" if player_idx == 0 else "P2"
             pt_surf = f_badge.render(p_tag, True, (10, 10, 15))
             pt_w = pt_surf.get_width() + 4
-            pygame.draw.rect(surface, tag_col, (c_rect.right - pt_w - 1, c_rect.bottom - 10, pt_w, 9), border_radius=1)
-            surface.blit(pt_surf, (c_rect.right - pt_w + 1, c_rect.bottom - 10))
+            pygame.draw.rect(surface, tag_col, (c_rect.right - pt_w - 2, c_rect.bottom - 10, pt_w, 9), border_radius=1)
+            surface.blit(pt_surf, (c_rect.right - pt_w, c_rect.bottom - 10))

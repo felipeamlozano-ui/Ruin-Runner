@@ -31,6 +31,7 @@ def test_projectile_single_hit_damage():
     print("\n=== Test 2: Multi-Frame Boss Poise Shield Hit (No Multi-Hit Multiplication) ===")
     sm = SceneManager()
     boss_sc = BossScene(sm)
+    boss_sc.dialogue_box = None
     boss = boss_sc.boss
     initial_shield = boss.shield
     assert initial_shield == 1000, f"Expected 1000 shield, got {initial_shield}"

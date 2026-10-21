@@ -1,0 +1,63 @@
+# Ruin Runner Engine & V3 Shaders — Complete Line Map (`ruin_runner/src/engine/`)
+- `ruin_runner/src/engine/animation.py`(153L): Animation(6-51)[__init__:8-15,update:17-32]; AnimationManager(53-92)[__init__:55-57,update:77-79]; load_animation_folder:94-106; load_spritesheet:110-153
+- `ruin_runner/src/engine/camera.py`(42L): Camera(7-41)[__init__:13-23,update:31-35]
+- `ruin_runner/src/engine/collision.py`(44L): AABB(4-14)[__init__:6-7]; resolve_collision_y:29-44
+- `ruin_runner/src/engine/event_bus.py`(26L): EventBus(3-23)[__init__:6-7]
+- `ruin_runner/src/engine/game.py`(163L): Game(21-162)[__init__:25-63,apply_display_settings:80-108,_handle_events:120-138,_draw:144-162]
+- `ruin_runner/src/engine/game_feel.py`(339L): DustParticle(20-60)[__init__:24-34,spawn:36-46,update:48-60]; SlashArc(63-94)[__init__:67-76,spawn:78-87,update:89-94]; TransientLight(97-126)[__init__:101-109,spawn:111-119,update:121-126]; GameFeelManager(129-337)[__init__:132-143,trigger_hit_stop:152-164,get_entity_shake_offset:171-180,emit_dust:182-214,emit_slash_arc:216-224,register_point_light:226-232,update:259-286,draw_dust:288-304,draw_slash_arcs:306-328,get_active_point_lights:330-337]
+- `ruin_runner/src/engine/game_state.py`(18L): GameStateManager(3-14)[__init__:6-7]
+- `ruin_runner/src/engine/input_manager.py`(254L): PlayerInput(20-177)[__init__:22-41,clear:46-52,_normalize_action:80-86,is_action_pressed:88-113,is_action_just_pressed:115-130,is_action_just_released:132-147,get_axis:149-177]; InputManager(180-252)[__init__:182-185,init:187-204,update:213-215,process_event:217-231,reset_defaults:246-252]
+- `ruin_runner/src/engine/lighting.py`(608L): LightSource(8-17)[__init__:10-17]; AmbientParticle(19-81)[__init__:21-58,update:60-77,draw:79-81]; LightingEngine(90-607)[__init__:103-152,get_radial_light_surface:155-184,_prebake_contact_ao:186-211,_prebake_god_rays:213-256,_init_floating_dust_pool:258-292,configure_stage_ao:294-341,update:343-355,draw_entity_ao:357-385,draw_god_rays:387-393,draw_point_lights:395-438,draw_additive_glows:440-453,draw_ambient_particles_background:455-470,draw_ambient_particles_foreground:472-487,draw_shadows:494-547,draw_baked_lightmap:549-560,_build_smooth_vignette:569-598,draw_vignette:600-607]
+- `ruin_runner/src/engine/resource_manager.py`(93L): ResourceManager(5-90)[__init__:8-14,get_scaled_image:67-84]
+- `ruin_runner/src/engine/save_manager.py`(512L): SaveManager(82-509)[__init__:90-105,_atomic_write_json:116-144,_safe_load_json:146-172,_deep_update:174-180,_migrate_schema:182-197,save:208-214,list_slots:222-258,load_slot:260-292,_save_active_slot_data:294-301,new_game:303-335,delete_slot:337-355,unlock_world:399-406,complete_stage:408-421,set_event_completed:430-436,get_checkpoint:444-454,add_orbs:468-474,spend_orbs:476-484,set_skill_level:490-498]
+- `ruin_runner/src/engine/scene_manager.py`(37L): Scene(4-12)[update:8-9,draw:11-12]; SceneManager(14-37)[__init__:17-18,update:31-33,draw:35-37]
+- `ruin_runner/src/engine/score_system.py`(128L): ScoreSystem(21-128)[__init__:24-36,update:65-71,calculate_final_score:73-128]
+- `ruin_runner/src/engine/stage_manager.py`(826L): StageConfig(15-42); ParallaxRenderer(45-382)[__init__:48-51,_synthesize_seamless_tile:53-105,_load_and_prebake:107-142,_prebake_foreground_silhouette:144-203,_apply_perspective_stone_floor:205-302,_draw_single_layer:309-319,draw_sky_layer:321-327,draw_midground_layer:329-335,draw_foreground_layer:337-343,draw_foreground_silhouette:345-367,draw:369-382]; StageManager(801-824)[__init__:803-805,load_stage:810-821]
+- `ruin_runner/src/engine/system_optimizer.py`(213L): init_render_backend:25-37; create_hardware_display:40-67; init_system_clock_and_priority:70-83; freeze_gc_for_gameplay:92-94; collect_garbage_transition:97-102; _EngineWorkerPool(106-122)[__init__:108-113]; TexturePool(128-154); VectorizedParticleSystem(158-213)[__init__:161-171,set_count:173-192,update:194-207]
+- `ruin_runner/src/engine/text_cache.py`(95L): get_cached_text:16-38; render_wrapped_text:55-89
+- `ruin_runner/src/engine/timer.py`(19L): Timer(3-19)[__init__:6-9]
+- `ruin_runner/src/engine/vulkan_backend.py`(350L): VulkanRenderBackend(106-338)[__init__:109-122,initialize:124-192,resize:194-203,trigger_shockwave:205-221,_ensure_texture:223-243,render_frame:245-338]; is_vulkan_available:341-349
+- `ruin_runner/src/engine/v3/ai/neural_ai.py`(177L): NeuralTacticalAI(13-177)[__init__:29-57,build_feature_vector:59-117,decide_action:119-139,report_combat_outcome:141-177]
+- `ruin_runner/src/engine/v3/camera/camera_v3.py`(261L): CameraV3(18-261)[__init__:27-71,update:89-121,update_coop:123-199,draw_coop_overlay:201-223,_draw_edge_chevron:225-232,offset:235-247]
+- `ruin_runner/src/engine/v3/core/adaptive_quality.py`(107L): QualityProfile(11-19); AdaptiveQualityGovernor(28-104)[__init__:40-53,update:55-76]
+- `ruin_runner/src/engine/v3/core/jit_backend.py`(56L): jit_compile:28-42
+- `ruin_runner/src/engine/v3/core/memory_manager.py`(107L): MemoryManager(12-104)[__init__:25-38,get_memory_stats:63-104]
+- `ruin_runner/src/engine/v3/core/pipeline.py`(188L): RenderContext(30-41); MasterRenderPipeline(43-188)[__init__:47-73,execute:75-188]
+- `ruin_runner/src/engine/v3/core/profiler.py`(317L): PhaseTimer(16-30)[__init__:19-22]; Profiler(32-315)[__init__:45-110,begin_frame:158-211,render_overlay:213-315]
+- `ruin_runner/src/engine/v3/core/surface_pool.py`(80L): SurfacePool(9-76)[__init__:21-28,acquire:30-48]
+- `ruin_runner/src/engine/v3/core/threading_worker.py`(84L): AsyncTask(11-19)[__init__:12-19]; ThreadWorkerPool(21-81)[__init__:33-47]
+- `ruin_runner/src/engine/v3/ecs/components.py`(152L): TransformComponent(11-16); PhysicsComponent(19-27); AnimationComponent(30-36); HealthComponent(39-42); ManaComponent(45-48); StaminaComponent(51-54); LightSourceComponent(57-63); ShadowCasterComponent(66-69); ParticleEmitterComponent(72-77); HitboxComponent(80-87); HurtboxComponent(90-95); ColliderComponent(98-104); CameraTargetComponent(107-111); ProjectileComponent(114-121); WeaponComponent(124-129); StateMachineComponent(132-135); EnemyAIComponent(138-145); LootDropComponent(148-152)
+- `ruin_runner/src/engine/v3/ecs/systems.py`(140L): PhysicsSystem(20-34)[update:22-34]; AnimationSystem(37-46)[update:39-46]; ProjectileSystem(49-64)[update:51-64]; CombatHitboxSystem(67-98)[update:69-98]; EnemyAISystem(101-114)[update:103-114]; ClassicEntityBridge(117-140)
+- `ruin_runner/src/engine/v3/ecs/world.py`(99L): ECSWorld(10-99)[__init__:14-19,query:60-90,update:96-99]
+- `ruin_runner/src/engine/v3/geometry/marching_squares.py`(86L): MarchingSquares(9-86)[extract_contours:14-86]
+- `ruin_runner/src/engine/v3/geometry/procedural_fx.py`(193L): ProceduralWater(13-95)[__init__:17-32,update:41-67,render:69-95]; ProceduralLava(98-133)[__init__:102-107,update:109-110,render:112-133]; VerletRope(136-193)[__init__:140-147,update:149-184]
+- `ruin_runner/src/engine/v3/geometry/sdf_2d.py`(46L)
+- `ruin_runner/src/engine/v3/geometry/spline_renderer.py`(117L): SplineRenderer(10-117)[evaluate_cubic_bezier:15-31,generate_catmull_rom_spline:34-72,build_ribbon_mesh:75-117]
+- `ruin_runner/src/engine/v3/lighting/ambient_occlusion.py`(101L): AmbientOcclusion2D(12-101)[__init__:16-18,bake_corner_occlusion:20-69,render_dynamic_entity_ao:71-101]
+- `ruin_runner/src/engine/v3/lighting/fake_rtx.py`(148L): FakeRTXEngine(32-148)[__init__:36-43,march_ray_sdf:45-90,calculate_fake_indirect_bounce:92-128,render_reflection_probe:130-148]
+- `ruin_runner/src/engine/v3/lighting/materials.py`(160L): MaterialType(18-29); Material2D(32-42); get_material:159-160
+- `ruin_runner/src/engine/v3/lighting/normal_maps.py`(172L): shade_sprite_pixels_jit:15-76; NormalMapLighting(79-172)[generate_procedural_normal_map:86-125,render_shaded_sprite:128-172]
+- `ruin_runner/src/engine/v3/lighting/radiance_cache.py`(70L): StaticLight(10-16)[__init__:11-16]; RadianceCache(18-70)[__init__:22-27,bake_static_radiance:38-61]
+- `ruin_runner/src/engine/v3/lighting/raycasting2d.py`(161L): ray_segment_intersect_jit:14-31; LightRayCaster(34-161)[__init__:38-39,compute_visibility_polygon:41-113,render_light_cone:115-161]
+- `ruin_runner/src/engine/v3/lighting/shadows.py`(126L): ShadowRenderer(12-126)[__init__:16-17,project_shadow_polygon:19-53,render_shadow_mask:55-126]
+- `ruin_runner/src/engine/v3/lighting/volumetric.py`(122L): VolumetricLightingEngine(15-122)[__init__:20-27,update:43-44,render_god_rays:46-93,render_volumetric_fog:95-122]
+- `ruin_runner/src/engine/v3/native/native_bridge.py`(708L): _init_native:19-188; has_native:192-193; native_compute_visibility_rays:195-224; native_integrate_particles:226-246; native_rcas_sharpen:248-262; native_tsr_reproject_and_validate:264-292; native_neural_forward:294-320; native_neural_adapt:322-341; native_pixel_aa_sharp_bilinear:343-359; native_compute_soft_shadow_mask:361-379; native_integrate_particles_parallel:381-428; native_broadphase_spatial_hash:430-469; native_grid_astar_pathfind:471-491; native_compute_2d_raycast_shadows:494-564; native_update_wind_vortex_ribbons:567-632; native_generate_volumetric_light_rays_aa:635-680; native_bake_corner_ambient_occlusion:683-707
+- `ruin_runner/src/engine/v3/native/ruin_native.c`(954L)
+- `ruin_runner/src/engine/v3/particles/hit_effects.py`(142L): Spark(13-21)[__init__:14-21]; Shockwave(23-31)[__init__:24-31]; HitEffectsManager(33-142)[__init__:37-43,update:72-104,render:106-142]
+- `ruin_runner/src/engine/v3/particles/particle_engine.py`(241L): update_particles_jit:32-89; ParticleEngine(92-241)[__init__:96-109,spawn:111-137,spawn_burst:139-185,update:187-216,render:219-241]
+- `ruin_runner/src/engine/v3/particles/trail_renderer.py`(86L): TrailNode(15-20)[__init__:16-20]; TrailRenderer(22-86)[__init__:26-30,update:37-41,render:46-86]
+- `ruin_runner/src/engine/v3/particles/vfx_profile.py`(221L): VFXPriority(16-20); VFX_LOD(22-26); SkillVFXProfile(29-63)[get_effective_particle_count:46-56]; VFXBudgetManager(167-219)[__init__:172-179,get_lod:181-190,evaluate_frame_pacing:199-219]
+- `ruin_runner/src/engine/v3/planets/planet_renderer.py`(195L): PixelPlanetRenderer(21-195)[__init__:26-33,_get_or_bake_frames:36-176,update:178-179,draw:181-195]
+- `ruin_runner/src/engine/v3/postfx/bloom.py`(126L): BloomMaterial(18-23); BloomEngine(25-126)[__init__:30-43,extract_bright_pass:50-72,apply_bloom:74-126]
+- `ruin_runner/src/engine/v3/postfx/color_grading.py`(127L): ColorGradingEngine(25-127)[__init__:42-53,generate_lut:64-113]
+- `ruin_runner/src/engine/v3/postfx/post_processor.py`(131L): PostProcessor(17-131)[__init__:21-44,apply_film_grain:69-86,apply_distortion_ripple:109-131]
+- `ruin_runner/src/engine/v3/postfx/screen_effects.py`(208L): QualityPreset(20-34); ScreenSpaceEffects(151-206)[__init__:153-162,update:169-173,apply_chromatic_aberration:175-191,apply_motion_blur:193-206]
+- `ruin_runner/src/engine/v3/spatial/chunk_renderer.py`(114L): Chunk(12-51)[__init__:14-26,bake:32-47]; ChunkRenderer(54-114)[__init__:58-61,render:89-114]
+- `ruin_runner/src/engine/v3/spatial/quadtree.py`(113L): QuadTree(8-85)[__init__:12-20,insert:38-59,query_range:61-77]; SpatialChunkCache(88-113)[__init__:92-94]
+- `ruin_runner/src/engine/v3/upscaling/antialiasing.py`(55L): AntiAliasingEngine(13-55)[__init__:19-20,apply:22-55]
+- `ruin_runner/src/engine/v3/upscaling/fsr2d.py`(51L): FSR2D(13-51)[__init__:18-27]
+- `ruin_runner/src/engine/v3/upscaling/ruin_upscaler.py`(302L): rcas_sharpen_jit:53-99; tsr_reproject_and_validate_jit:102-176; RuinTemporalUpscaler(179-302)[__init__:185-211,set_preset:213-222,update_dynamic_resolution:224-245,get_camera_subpixel_jitter:247-253,mark_reactive_rect:255-261,upscale:263-302]
+- `ruin_runner/src/engine/v3/upscaling/tsr.py`(104L): tsr_accumulate_with_color_clamp_jit:25-66; TemporalSuperResolution(69-104)[__init__:73-78,resolve:88-104]
+- `ruin_runner/src/engine/v3/weather/clouds.py`(308L): Cloud(18-30)[__init__:21-30]; CloudsManager(33-304)[__init__:40-71,_load_assets:73-207,_spawn_clouds:209-247,update:249-267,draw:269-304]
+- `ruin_runner/src/engine/v3/weather/mist.py`(222L): MistManager(13-222)[__init__:20-51,_prebake_surfaces:53-159,_prebake_procedural_fallback:161-182,update:184-189,_draw_tileable_slice:191-204]
+- `ruin_runner/src/engine/v3/weather/weather_engine.py`(127L): WeatherEngine(28-127)[__init__:32-41,set_stage_preset:43-70,update:72-117]

@@ -452,9 +452,15 @@ class LevelScene(Scene):
             self.pause_menu.update()
             return
             
+        is_ult_active = (self.player and getattr(self.player, "is_casting_ultimate", False)) or (self.player2 and getattr(self.player2, "is_casting_ultimate", False))
+        is_time_stopped = is_ult_active and any(getattr(p, "ultimate_freeze_timer", 0.0) > 0.0 for p in [self.player, self.player2] if p)
+
         self.lighting.update(dt)
-        if getattr(self, "clouds", None) is not None:
-            self.clouds.update(dt)
+        if not is_time_stopped:
+            if getattr(self, "clouds", None) is not None:
+                self.clouds.update(dt)
+            if getattr(self, "mist_manager", None) is not None:
+                self.mist_manager.update(dt)
         if getattr(self, "score_system", None) is not None:
             self.score_system.update(dt)
         
@@ -510,60 +516,63 @@ class LevelScene(Scene):
                         if dist <= cur_p.aoe_radius:
                             p.take_damage(999, is_skill=True)
 
-        # 5. Enemies AI & Collision with Players
-        for e in self.enemies:
-            # Target closest living player
-            target = self.player
-            if self.player2 and not self.player2.is_dead:
-                if self.player.is_dead:
-                    target = self.player2
-                else:
-                    d1 = abs(self.player.rect.centerx - e.rect.centerx)
-                    d2 = abs(self.player2.rect.centerx - e.rect.centerx)
-                    target = self.player if d1 <= d2 else self.player2
+        # 5. Enemies AI & Collision with Players (Bypassed & 100% Frozen during Ultimate Time-Stop)
+        if not is_time_stopped:
+            for e in self.enemies:
+                # Target closest living player
+                target = self.player
+                if self.player2 and not self.player2.is_dead:
+                    if self.player.is_dead:
+                        target = self.player2
+                    else:
+                        d1 = abs(self.player.rect.centerx - e.rect.centerx)
+                        d2 = abs(self.player2.rect.centerx - e.rect.centerx)
+                        target = self.player if d1 <= d2 else self.player2
 
-            e.update(dt, solid_rects, target)
-            if hasattr(e, "projectiles"):
-                while e.projectiles:
-                    self.projectiles.append(e.projectiles.pop(0))
-                    
-            if not e.is_dead:
-                # Players attack enemy
-                for cur_p in active_players:
-                    cur_atk = cur_p.get_attack_hitbox()
-                    if cur_atk and cur_atk.colliderect(e.rect) and e not in cur_p.attack_hit_enemies:
-                        cur_p.attack_hit_enemies.add(e)
-                        atk_dmg = cur_p.profile.skills.get("j").damage if hasattr(cur_p, "profile") and "j" in cur_p.profile.skills else 15
-                        e.take_damage(atk_dmg)
-                        # Shaia passive: Heal 1 HP and 2 MP on hit
-                        if getattr(cur_p, "character_id", "") == "shaia" or getattr(cur_p, "passive_id", "") == "shaia_battle_thirst":
-                            cur_p.health = min(cur_p.max_health, cur_p.health + 1)
-                            cur_p.mana = min(cur_p.max_mana, cur_p.mana + 2)
-                
-                # Enemy attack hitbox damage on living players
-                hit_any = False
-                if hasattr(e, "get_attack_hitbox"):
-                    e_atk_rect = e.get_attack_hitbox()
-                    if e_atk_rect:
-                        for cur_p in active_players:
-                            if not cur_p.is_dashing and not cur_p.is_casting_ultimate and not cur_p.is_dead and e_atk_rect.colliderect(cur_p.rect):
-                                atk_dmg = getattr(e, "attack_damage", 4)
-                                cur_p.take_damage(atk_dmg)
-                                hit_any = True
-                                
-                # Enemy body touch damage
-                if not hit_any:
-                    for cur_p in active_players:
-                        if not cur_p.is_dashing and not cur_p.is_casting_ultimate and not cur_p.is_dead and e.rect.colliderect(cur_p.rect):
-                            touch_dmg = getattr(e, "touch_damage", 2)
-                            cur_p.take_damage(touch_dmg)
-                            
-        # Prune fully despawned enemies after death sequence (fade-out + bone particles) completes
-        self.enemies = [e for e in self.enemies if not getattr(e, "is_death_complete", False)]
+                e.update(dt, solid_rects, target)
+                if hasattr(e, "projectiles"):
+                    while e.projectiles:
+                        self.projectiles.append(e.projectiles.pop(0))
                         
-        # 6. Update Projectiles
+                if not e.is_dead:
+                    # Players attack enemy
+                    for cur_p in active_players:
+                        cur_atk = cur_p.get_attack_hitbox()
+                        if cur_atk and cur_atk.colliderect(e.rect) and e not in cur_p.attack_hit_enemies:
+                            cur_p.attack_hit_enemies.add(e)
+                            atk_dmg = cur_p.profile.skills.get("j").damage if hasattr(cur_p, "profile") and "j" in cur_p.profile.skills else 15
+                            e.take_damage(atk_dmg)
+                            # Shaia passive: Heal 1 HP and 2 MP on hit
+                            if getattr(cur_p, "character_id", "") == "shaia" or getattr(cur_p, "passive_id", "") == "shaia_battle_thirst":
+                                cur_p.health = min(cur_p.max_health, cur_p.health + 1)
+                                cur_p.mana = min(cur_p.max_mana, cur_p.mana + 2)
+                    
+                    # Enemy attack hitbox damage on living players
+                    hit_any = False
+                    if hasattr(e, "get_attack_hitbox"):
+                        e_atk_rect = e.get_attack_hitbox()
+                        if e_atk_rect:
+                            for cur_p in active_players:
+                                if not cur_p.is_dashing and not cur_p.is_casting_ultimate and not cur_p.is_dead and e_atk_rect.colliderect(cur_p.rect):
+                                    atk_dmg = getattr(e, "attack_damage", 4)
+                                    cur_p.take_damage(atk_dmg)
+                                    hit_any = True
+                                    
+                    # Enemy body touch damage
+                    if not hit_any:
+                        for cur_p in active_players:
+                            if not cur_p.is_dashing and not cur_p.is_casting_ultimate and not cur_p.is_dead and e.rect.colliderect(cur_p.rect):
+                                touch_dmg = getattr(e, "touch_damage", 2)
+                                cur_p.take_damage(touch_dmg)
+                                
+            # Prune fully despawned enemies after death sequence (fade-out + bone particles) completes
+            self.enemies = [e for e in self.enemies if not getattr(e, "is_death_complete", False)]
+                        
+        # 6. Update Projectiles (Enemy projectiles frozen in mid-air during Time-Stop)
         friendly_fire = getattr(SETTINGS, "FRIENDLY_FIRE", False)
         for proj in self.projectiles[:]:
+            if is_time_stopped and getattr(proj, "is_enemy", False):
+                continue # Frozen in mid-air during 1.0s Ultimate Time-Stop
             proj.update(dt, solid_rects)
             if not proj.active:
                 self.projectiles.remove(proj)
@@ -651,10 +660,11 @@ class LevelScene(Scene):
             self.camera.update(self.player.rect, dt)
 
         # 9b. Dynamic Sky Weather, Lighting & Ground Mist Updates
-        if getattr(self, "clouds", None) is not None:
-            self.clouds.update(dt)
-        if getattr(self, "mist_manager", None) is not None:
-            self.mist_manager.update(dt)
+        if not is_time_stopped:
+            if getattr(self, "clouds", None) is not None:
+                self.clouds.update(dt)
+            if getattr(self, "mist_manager", None) is not None:
+                self.mist_manager.update(dt)
         if getattr(self, "lighting", None) is not None:
             self.lighting.update(dt)
 
@@ -727,10 +737,7 @@ class LevelScene(Scene):
     def draw(self, surface: pygame.Surface) -> None:
         surface.fill(UI_BACKGROUND)
         sw, sh = surface.get_size()
-        cam_x, cam_y = self.camera.offset.x, self.camera.offset.y
-        vl, vr = cam_x - 32, cam_x + sw + 32
-        vt, vb = cam_y - 32, cam_y + sh + 32
-        
+    def _render_background_layers(self, surface: pygame.Surface, cam_x: float, cam_y: float, sw: int, sh: int) -> None:
         # --- SILKSONG 2D DEPTH RENDERING PIPELINE ---
         # 1. Distant Base Sky & Mountains
         if getattr(self, "parallax_renderer", None) is not None:
@@ -811,7 +818,27 @@ class LevelScene(Scene):
                 if self.right_overlay:
                     surface.blit(self.right_overlay, (self.map_width - 128 - cam_x, 0 - cam_y))
             self.lighting.draw_ambient_particles_background(surface, self.camera.offset)
-            
+
+    def draw(self, surface: pygame.Surface) -> None:
+        surface.fill(UI_BACKGROUND)
+        sw, sh = surface.get_size()
+        cam_x, cam_y = self.camera.offset.x, self.camera.offset.y
+        vl, vr = cam_x - 32, cam_x + sw + 32
+        vt, vb = cam_y - 32, cam_y + sh + 32
+        
+        is_ult_active = (self.player and getattr(self.player, "is_casting_ultimate", False)) or (self.player2 and getattr(self.player2, "is_casting_ultimate", False))
+        is_time_stopped = is_ult_active and any(getattr(p, "ultimate_freeze_timer", 0.0) > 0.0 for p in [self.player, self.player2] if p)
+
+        # Frozen Backdrop Cache: Snapshot background once during Time-Stop and single-blit for 60 FPS
+        if is_time_stopped:
+            if getattr(self, "_frozen_backdrop_texture", None) is None or self._frozen_backdrop_texture.get_size() != (sw, sh):
+                self._frozen_backdrop_texture = pygame.Surface((sw, sh))
+                self._render_background_layers(self._frozen_backdrop_texture, cam_x, cam_y, sw, sh)
+            surface.blit(self._frozen_backdrop_texture, (0, 0))
+        else:
+            self._frozen_backdrop_texture = None
+            self._render_background_layers(surface, cam_x, cam_y, sw, sh)
+
         # Draw Traps & Checkpoints (Culled)
         if self.checkpoint.rect.right >= vl and self.checkpoint.rect.left <= vr:
             self.checkpoint.draw(surface, self.camera.offset)
@@ -871,6 +898,19 @@ class LevelScene(Scene):
         emissives = []
         vl_light, vr_light = cam_x - 80, cam_x + sw + 80
         vt_light, vb_light = cam_y - 80, cam_y + sh + 80
+
+        # Ultimate primary ray emitter (Ray Traced dynamic lighting)
+        active_ult_players = [p for p in [self.player, self.player2] if p and getattr(p, "is_casting_ultimate", False)]
+        for ult_p in active_ult_players:
+            ctrl = getattr(ult_p, "ultimate_controller", None)
+            active_inst = getattr(ctrl, "active_ultimate", None)
+            if active_inst and getattr(active_inst, "active", False):
+                ux = getattr(active_inst, "cx", ult_p.rect.centerx)
+                uy = getattr(active_inst, "cy", ult_p.rect.centery)
+                from entities.ultimate_system import ULTIMATE_THEME_CONFIG
+                ucfg = ULTIMATE_THEME_CONFIG.get(active_inst.__class__.__name__, {"theme": (255, 215, 80)})
+                lights.append(LightSource(ux, uy, 450, ucfg["theme"], 1.25, True))
+                emissives.append((ux, uy, 75, (255, 255, 255), 0.90))
 
         # Catacombs Stage Wall Lanterns (Atmospheric blue/cyan pillars illumination)
         if self.theme == "dungeon":
@@ -943,6 +983,18 @@ class LevelScene(Scene):
                         (pr.left, pr.bottom, pr.left, pr.top),     # Left edge (bottom to top)
                         (pr.right, pr.top, pr.right, pr.bottom)    # Right edge (top to bottom)
                     ])
+
+        # In Time-Stop, frozen enemies also cast dramatic 2D ray-traced shadows from the Ultimate
+        if is_time_stopped:
+            for e in self.enemies:
+                if not getattr(e, "is_dead", False) and not getattr(e, "is_death_complete", False):
+                    er = e.rect
+                    if er.right >= vl_light and er.left <= vr_light:
+                        occluders.extend([
+                            (er.left, er.top, er.right, er.top),
+                            (er.left, er.bottom, er.left, er.top),
+                            (er.right, er.top, er.right, er.bottom)
+                        ])
                     
         # 13. Silksong Volumetric Diagonal God Rays (Slanted sunbeams / ethereal shafts with BLEND_RGB_ADD)
         self.lighting.draw_god_rays(surface, self.camera.offset)
@@ -973,6 +1025,12 @@ class LevelScene(Scene):
         # Ruin Engine V3.0 PostFX: HDR World Bloom (Applied to game world BEFORE HUD/UI)
         if SETTINGS.RUIN_ENGINE_V3 and SETTINGS.BLOOM_ENABLED and ADAPTIVE_QUALITY.profile.bloom_passes > 0:
             self.bloom_engine.apply_bloom(surface, threshold=0.94, intensity=0.06)
+
+        # Draw Ultimate Screen-Space VFX (Impact frames, Sakuga overlays)
+        for ult_p in active_ult_players:
+            ctrl = getattr(ult_p, "ultimate_controller", None)
+            if ctrl:
+                ctrl.draw_screen(surface)
             
         # Draw HUDs (P1 on left, P2 on right) - hidden during dialogue intros
         if not (self.dialogue_box and not self.dialogue_box.is_finished):

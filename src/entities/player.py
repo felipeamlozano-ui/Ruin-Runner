@@ -316,6 +316,8 @@ class Player:
         self.solar_fusion_stacks = 0
         self.solar_fusion_timer = 0.0
         self.death_mark_hits = {}
+        self.is_duel_mode = False
+        self.guard_break_timer = 0.0
         
         # AoE Nova Skill
         self.is_casting_aoe = False
@@ -923,6 +925,8 @@ class Player:
         # Character-specific mana regeneration (Lunaria doubles it when standing still for >= 2.0s)
         # Note: Do not regenerate mana while actively blocking with mana shield
         mana_mult = 2.0 if (self.passive_id == "lunaria_arcane_resonance" and self.still_timer >= 2.0) else 1.0
+        if getattr(self, "is_duel_mode", False):
+            mana_mult *= 0.25 # Much slower passive mana regen in duel mode to restrict spam
         if self.mana < self.max_mana and not (self.is_blocking and self.archetype == "mage"):
             self.mana = min(self.max_mana, self.mana + self.mana_regen * mana_mult * dt)
             
@@ -955,6 +959,8 @@ class Player:
                 self.shield_anim.update(dt)
         elif self.is_attacking:
             self.anim_manager.play(self.attack_anim_name)
+        elif getattr(self, "guard_break_timer", 0.0) > 0 and self.anim_manager.has_animation("hurt"):
+            self.anim_manager.play("hurt")
         elif self.hurt_timer > 0 and self.anim_manager.has_animation("hurt"):
             self.anim_manager.play("hurt")
         elif not self.on_ground:
@@ -971,6 +977,13 @@ class Player:
             self.anim_manager.play("idle")
             
     def _handle_input(self, dt: float):
+        if getattr(self, "guard_break_timer", 0.0) > 0:
+            self.guard_break_timer = max(0.0, self.guard_break_timer - dt)
+            self.velocity.x *= FRICTION
+            self.is_blocking = False
+            self.is_attacking = False
+            return
+
         if self.is_dead or self.is_downed:
             self.velocity.x *= FRICTION
             return
@@ -1460,8 +1473,24 @@ class Player:
         self.is_attacking = False
         self.is_casting_magic = False
             
+        # In Duel Mode: cap single-burst damage from skills/ultimates so players never die in 1 skill
+        if getattr(self, "is_duel_mode", False):
+            amount = min(95, amount)
+
         # 1. Blocking: absorbs 100% damage while holding Shift
         if self.is_blocking:
+            if getattr(self, "is_duel_mode", False):
+                # In Duel Mode, blocking handles parry, chip damage and posture drain
+                if getattr(self, "parry_window_timer", 0.0) > 0:
+                    return # Perfect parry nullifies 100% damage
+                chip = max(1, int(amount * 0.12))
+                self.stamina = max(0.0, self.stamina - min(35.0, amount * 0.45))
+                if self.stamina <= 0:
+                    self.guard_break_timer = 1.3
+                    self.is_blocking = False
+                self.health = max(0, self.health - chip)
+                return
+
             # Galahad (Knight) Passive: Paladin Retribution
             if self.passive_id == "knight_paladin_retribution" and self.parry_window_timer > 0:
                 self.stamina = min(self.max_stamina, self.stamina + 15.0)

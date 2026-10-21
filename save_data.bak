@@ -1,12 +1,12 @@
 {
   "version": 2,
   "active_slot": 2,
-  "orbs": 85,
-  "tutorial_completed": true,
+  "orbs": 620,
+  "tutorial_completed": false,
   "skills": {
     "blade_sharpness": 1,
     "combo_finisher": 0,
-    "arcane_mastery": 2,
+    "arcane_mastery": 0,
     "aoe_resonance": 0,
     "shadow_step": 0,
     "ultimate_wrath": 0,
@@ -34,12 +34,12 @@
     "aetheria_1": 9540,
     "aetheria_2": 9473,
     "terrae_2": 9277,
-    "terrae_3": 9474,
+    "terrae_3": 9581,
     "arcade_1": 9649,
     "arcade_2": 9517,
-    "arcade_3": 9580,
+    "arcade_3": 9586,
     "arcade_4": 9477
   },
   "selected_character": "shaia",
-  "updated_at": "2026-10-20T16:36:48.127193"
+  "updated_at": "2026-10-21T10:59:01.803752"
 }

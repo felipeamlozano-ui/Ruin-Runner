@@ -179,6 +179,7 @@ class TestGameFeelEngine(unittest.TestCase):
 
     def setUp(self):
         SETTINGS.GAME_FEEL_REACTIVE = True
+        SETTINGS.DYNAMIC_LIGHTS = True
 
     def test_hit_stop_and_shake(self):
         dummy_entity = object()
@@ -196,6 +197,8 @@ class TestGameFeelEngine(unittest.TestCase):
         self.assertFalse(GAME_FEEL.is_in_hit_stop(dummy_entity))
 
     def test_dust_pooling(self):
+        for p in GAME_FEEL.dust_pool:
+            p.active = False
         initial_active = sum(1 for p in GAME_FEEL.dust_pool if p.active)
         GAME_FEEL.emit_dust(100, 200, dust_type="landing")
         active_after = sum(1 for p in GAME_FEEL.dust_pool if p.active)
@@ -273,6 +276,52 @@ class TestDuelMode(unittest.TestCase):
         duel.update(0.1)
         self.assertEqual(duel.state, "ROUND_OVER")
         self.assertEqual(duel.p1_rounds_won, 1)
+
+    def test_duel_health_multiplier_and_restricted_mana(self):
+        """Verifies multiplied HP pool and restricted starting mana in Duel Mode."""
+        duel = DuelScene(self.sm, p1_char="shaia", p2_char="lunaria", arena_id="terrae_1")
+        # Base HP for Shaia is 100, Lunaria is 80. Multiplied 6x:
+        self.assertGreaterEqual(duel.player1.max_health, 600)
+        self.assertGreaterEqual(duel.player2.max_health, 480)
+        self.assertEqual(duel.player1.health, duel.player1.max_health)
+
+        # Mana should be restricted (capped at 80, starts at 20)
+        self.assertLessEqual(duel.player1.max_mana, 80.0)
+        self.assertEqual(duel.player1.mana, 20.0)
+        self.assertLess(duel.player1.mana_regen, duel.player1.profile.mana_regen)
+
+    def test_duel_parry_and_guard_break_mechanics(self):
+        """Verifies Perfect Parry nullifies damage and staggers, and Guard Break stuns on stamina depletion."""
+        duel = DuelScene(self.sm, p1_char="shaia", p2_char="lunaria", arena_id="terrae_1")
+        duel.update(1.9) # Enter FIGHT state
+
+        p1 = duel.player1
+        p2 = duel.player2
+
+        # 1. Test Perfect Parry: P2 blocks with active parry window
+        p2.is_blocking = True
+        p2.parry_window_timer = 0.20
+        p2_hp_before = p2.health
+        p1.pos.x = p2.pos.x - 20
+        duel._resolve_strike(attacker=p1, defender=p2, attacker_idx=0, defender_idx=1)
+
+        # P2 took 0 damage and gained parry score
+        self.assertEqual(p2.health, p2_hp_before)
+        self.assertGreater(duel.p2_score, 0)
+        self.assertEqual(duel.p2_stats["parries"], 1)
+        # Attacker P1 was staggered
+        self.assertGreater(p1.hurt_timer, 0.0)
+
+        # 2. Test Guard Break: P2 blocks with 0 stamina
+        p2.is_blocking = True
+        p2.parry_window_timer = 0.0
+        p2.stamina = 0.0
+        duel._resolve_strike(attacker=p1, defender=p2, attacker_idx=0, defender_idx=1)
+
+        # P2 guard broken
+        self.assertGreater(p2.guard_break_timer, 0.0)
+        self.assertEqual(duel.p1_stats["guard_breaks"], 1)
+        self.assertGreater(duel.p1_score, 0)
 
 
 if __name__ == "__main__":

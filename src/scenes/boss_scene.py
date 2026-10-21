@@ -294,6 +294,9 @@ class BossScene(Scene):
         self.scene_time += dt
         self.lighting.update(dt)
 
+        is_ult_active = (self.player and getattr(self.player, "is_casting_ultimate", False)) or (self.player2 and getattr(self.player2, "is_casting_ultimate", False))
+        is_time_stopped = is_ult_active and any(getattr(p, "ultimate_freeze_timer", 0.0) > 0.0 for p in [self.player, self.player2] if p)
+
         # Arena Lock: Solid floor and lateral screen bounds trapping entities in visible area
         solid_rects = [
             pygame.FRect(-100, self.FLOOR_BOTTOM_Y, self.map_width + 200, 80), # Solid Floor (Y=FLOOR_BOTTOM_Y)
@@ -328,114 +331,122 @@ class BossScene(Scene):
         if self.synergy_system and self.player2:
             self.synergy_system.update(self.player, self.player2, self.enemies, dt)
         
-        # 3. Dynamic Arena Phase Transition & Screen Shake (Item 8)
         boss_phase = self.boss.current_phase
-        if boss_phase != self.active_arena_phase:
-            self.active_arena_phase = boss_phase
-            self.camera.shake(11.0, 1.6)
-            self._spawn_ceiling_collapse(45)
+        if not is_time_stopped:
+            # 3. Dynamic Arena Phase Transition & Screen Shake (Item 8)
+            if boss_phase != self.active_arena_phase:
+                self.active_arena_phase = boss_phase
+                self.camera.shake(11.0, 1.6)
+                self._spawn_ceiling_collapse(45)
 
-        # 4. Dynamic Ceiling Droplets & Ripples (Item 9)
-        self.last_drop_spawn += dt
-        if self.last_drop_spawn >= 0.45:
-            self.last_drop_spawn = 0.0
-            drop_x = random.uniform(150, self.map_width - 150)
-            drop_col = (180, 60, 255) if boss_phase == 3 else ((255, 60, 40) if boss_phase >= 4 else (120, 190, 255))
-            self.droplets.append(WaterDroplet(drop_x, y=0.0, color=drop_col))
+            # 4. Dynamic Ceiling Droplets & Ripples (Item 9)
+            self.last_drop_spawn += dt
+            if self.last_drop_spawn >= 0.45:
+                self.last_drop_spawn = 0.0
+                drop_x = random.uniform(150, self.map_width - 150)
+                drop_col = (180, 60, 255) if boss_phase == 3 else ((255, 60, 40) if boss_phase >= 4 else (120, 190, 255))
+                self.droplets.append(WaterDroplet(drop_x, y=0.0, color=drop_col))
 
-        for d in self.droplets[:]:
-            if not d.update(dt, floor_y=float(self.FLOOR_BOTTOM_Y)):
-                self.droplets.remove(d)
-                self.ripples.append(WaterRipple(d.x, y=float(self.FLOOR_BOTTOM_Y), color=d.color))
+            for d in self.droplets[:]:
+                if not d.update(dt, floor_y=float(self.FLOOR_BOTTOM_Y)):
+                    self.droplets.remove(d)
+                    self.ripples.append(WaterRipple(d.x, y=float(self.FLOOR_BOTTOM_Y), color=d.color))
 
-        self.ripples = [r for r in self.ripples if r.update(dt)]
-        self.falling_debris = [p for p in self.falling_debris if p.update(dt)]
+            self.ripples = [r for r in self.ripples if r.update(dt)]
+            self.falling_debris = [p for p in self.falling_debris if p.update(dt)]
 
-        # Update props & handle item drops
-        for p in self.props[:]:
-            p.update(dt)
-            if not p.active:
-                if hasattr(p, "dropped_item") and p.dropped_item:
-                    self.collectibles.append(Collectible(p.dropped_item[0], p.dropped_item[1], "potion", is_dropped=True))
-                    p.dropped_item = None
-                self.props.remove(p)
+            # Update props & handle item drops
+            for p in self.props[:]:
+                p.update(dt)
+                if not p.active:
+                    if hasattr(p, "dropped_item") and p.dropped_item:
+                        self.collectibles.append(Collectible(p.dropped_item[0], p.dropped_item[1], "potion", is_dropped=True))
+                        p.dropped_item = None
+                    self.props.remove(p)
 
-        # Check if boss dropped healing potion
-        while self.boss.potions_to_spawn:
-            px, py = self.boss.potions_to_spawn.pop(0)
-            self.collectibles.append(Collectible(px, py, "potion", is_dropped=True))
-            
-        # Check if boss wants to spawn minions
-        while self.boss.minions_to_spawn:
-            m_type, mx = self.boss.minions_to_spawn.pop(0)
-            spawn_x = max(120, min(self.map_width - 150, mx))
-            spawn_y = self.FLOOR_BOTTOM_Y - 45
-            if m_type == "mage":
-                self.enemies.append(MageSkeleton(spawn_x, spawn_y))
-            elif m_type in ("spearman", "boar"):
-                self.enemies.append(SkeletonSpearman(spawn_x, spawn_y))
-            elif m_type == "archer":
-                self.enemies.append(SkeletonArcher(spawn_x, spawn_y))
-            else:
-                self.enemies.append(SkeletonWarrior(spawn_x, spawn_y))
-        
-        # Check Victory
-        is_anim_done = self.boss.anim_manager.is_finished("dead") or self.boss.anim_manager.is_finished("death") or getattr(self.boss, "state", "") == "DEATH"
-        if self.boss.is_dead and is_anim_done:
-            self.victory = True
-            self.victory_timer += dt
-            if self.victory_timer > 5.0 or INPUT.is_action_just_pressed("ATTACK") or INPUT.is_action_just_pressed("JUMP"):
-                from scenes.main_menu import MainMenuScene
-                self.scene_manager.change_scene(MainMenuScene(self.scene_manager))
-                return
-            
-        for e in self.enemies:
-            target = self.player
-            if self.player2 and not self.player2.is_dead:
-                if self.player.is_dead:
-                    target = self.player2
+            # Check if boss dropped healing potion
+            while self.boss.potions_to_spawn:
+                px, py = self.boss.potions_to_spawn.pop(0)
+                self.collectibles.append(Collectible(px, py, "potion", is_dropped=True))
+                
+            # Check if boss wants to spawn minions
+            while self.boss.minions_to_spawn:
+                m_type, mx = self.boss.minions_to_spawn.pop(0)
+                spawn_x = max(120, min(self.map_width - 150, mx))
+                spawn_y = self.FLOOR_BOTTOM_Y - 45
+                if m_type == "mage":
+                    self.enemies.append(MageSkeleton(spawn_x, spawn_y))
+                elif m_type in ("spearman", "boar"):
+                    self.enemies.append(SkeletonSpearman(spawn_x, spawn_y))
+                elif m_type == "archer":
+                    self.enemies.append(SkeletonArcher(spawn_x, spawn_y))
                 else:
-                    d1 = abs(self.player.rect.centerx - e.rect.centerx)
-                    d2 = abs(self.player2.rect.centerx - e.rect.centerx)
-                    target = self.player if d1 <= d2 else self.player2
-
-            if e == self.boss:
-                e.update(dt, solid_rects, target, self.camera)
-                # Enforce Boss arena bounds across full combat arena
-                if e.rect.left < 35:
-                    e.rect.left = 35
-                    if hasattr(e, "pos"):
-                        e.pos.x = float(e.rect.x)
-                    e.velocity.x = 0
-                elif e.rect.right > self.map_width - 35:
-                    e.rect.right = self.map_width - 35
-                    if hasattr(e, "pos"):
-                        e.pos.x = float(e.rect.x)
-                    e.velocity.x = 0
-                if not getattr(e, "is_floating", False):
-                    if e.rect.bottom > self.FLOOR_BOTTOM_Y:
-                        e.rect.bottom = self.FLOOR_BOTTOM_Y
-                        if hasattr(e, "pos"):
-                            e.pos.y = float(e.rect.y)
-                        e.velocity.y = 0
-                        e.on_ground = True
-            else:
-                e.update(dt, solid_rects, target)
-            if hasattr(e, "projectiles"):
-                while e.projectiles:
-                    self.projectiles.append(e.projectiles.pop(0))
+                    self.enemies.append(SkeletonWarrior(spawn_x, spawn_y))
             
-            # Combat Logic (Melee / Body)
-            for cur_p in active_players:
-                if not cur_p.is_dashing and not cur_p.is_casting_ultimate and not cur_p.is_dead and not e.is_dead:
-                    attack_hitbox = getattr(e, "get_attack_hitbox", lambda: None)()
-                    if attack_hitbox and attack_hitbox.colliderect(cur_p.rect):
-                        atk_dmg = getattr(e, "attack_damage", 35 if e == self.boss else 4)
-                        cur_p.take_damage(atk_dmg)
-                    elif e.rect.colliderect(cur_p.rect):
-                        touch_dmg = getattr(e, "touch_damage", 0 if e == self.boss else 2)
-                        if touch_dmg > 0:
-                            cur_p.take_damage(touch_dmg)
+            # Check Victory
+            is_anim_done = self.boss.anim_manager.is_finished("dead") or self.boss.anim_manager.is_finished("death") or getattr(self.boss, "state", "") == "DEATH"
+            if self.boss.is_dead and is_anim_done:
+                self.victory = True
+                self.victory_timer += dt
+                if self.victory_timer > 5.0 or INPUT.is_action_just_pressed("ATTACK") or INPUT.is_action_just_pressed("JUMP"):
+                    from scenes.main_menu import MainMenuScene
+                    self.scene_manager.change_scene(MainMenuScene(self.scene_manager))
+                    return
+                
+            for e in self.enemies:
+                target = self.player
+                if self.player2 and not self.player2.is_dead:
+                    if self.player.is_dead:
+                        target = self.player2
+                    else:
+                        d1 = abs(self.player.rect.centerx - e.rect.centerx)
+                        d2 = abs(self.player2.rect.centerx - e.rect.centerx)
+                        target = self.player if d1 <= d2 else self.player2
+
+                if e == self.boss:
+                    e.update(dt, solid_rects, target, self.camera)
+                    # Enforce Boss arena bounds across full combat arena
+                    if e.rect.left < 35:
+                        e.rect.left = 35
+                        if hasattr(e, "pos"):
+                            e.pos.x = float(e.rect.x)
+                        e.velocity.x = 0
+                    elif e.rect.right > self.map_width - 35:
+                        e.rect.right = self.map_width - 35
+                        if hasattr(e, "pos"):
+                            e.pos.x = float(e.rect.x)
+                        e.velocity.x = 0
+                    if not getattr(e, "is_floating", False):
+                        if e.rect.bottom > self.FLOOR_BOTTOM_Y:
+                            e.rect.bottom = self.FLOOR_BOTTOM_Y
+                            if hasattr(e, "pos"):
+                                e.pos.y = float(e.rect.y)
+                            e.velocity.y = 0
+                            e.on_ground = True
+                else:
+                    e.update(dt, solid_rects, target)
+                if hasattr(e, "projectiles"):
+                    while e.projectiles:
+                        self.projectiles.append(e.projectiles.pop(0))
+
+                # Combat Logic (Melee / Body)
+                for cur_p in active_players:
+                    if not cur_p.is_dashing and not cur_p.is_casting_ultimate and not cur_p.is_dead and not e.is_dead:
+                        attack_hitbox = getattr(e, "get_attack_hitbox", lambda: None)()
+                        if attack_hitbox and attack_hitbox.colliderect(cur_p.rect):
+                            atk_dmg = getattr(e, "attack_damage", 35 if e == self.boss else 4)
+                            cur_p.take_damage(atk_dmg)
+                        elif e.rect.colliderect(cur_p.rect):
+                            touch_dmg = getattr(e, "touch_damage", 0 if e == self.boss else 2)
+                            if touch_dmg > 0:
+                                cur_p.take_damage(touch_dmg)
+        else:
+            # Subsystem Freeze: Enemies and boss are 100% frozen in time
+            for e in self.enemies:
+                if hasattr(e, "velocity"):
+                    e.velocity.x = 0
+                    e.velocity.y = 0
+                setattr(e, "is_frozen", True)
                 
         # Prune fully despawned minions after death sequence (fade-out + bone particles) completes
         self.enemies = [e for e in self.enemies if e == self.boss or not getattr(e, "is_death_complete", False)]
@@ -462,6 +473,8 @@ class BossScene(Scene):
         # Update projectiles
         friendly_fire = getattr(SETTINGS, "FRIENDLY_FIRE", False)
         for proj in self.projectiles[:]:
+            if is_time_stopped and getattr(proj, "is_enemy", False):
+                continue  # Freeze enemy projectiles in mid-air during Time-Stop
             proj.update(dt, solid_rects)
             if not proj.active:
                 self.projectiles.remove(proj)
@@ -590,27 +603,40 @@ class BossScene(Scene):
                 pygame.draw.polygon(surface, col_banner, pts)
                 pygame.draw.lines(surface, col_gold, True, pts, 1)
 
+    def _render_background_layers(self, surface: pygame.Surface, cam_x: float, cam_y: float, boss_phase: int):
+        if boss_phase == 1:
+            surface.blit(self.bg_phase1, (-cam_x, -cam_y))
+        elif boss_phase == 2:
+            surface.blit(self.bg_phase2, (-cam_x, -cam_y))
+        elif boss_phase == 3:
+            surface.blit(self.bg_phase3, (-cam_x, -cam_y))
+        else:
+            surface.blit(self.bg_phase4, (-cam_x, -cam_y))
+
+        # Draw Swaying Royal Banners
+        self._draw_swaying_banners(surface, cam_x, cam_y)
+
+        # Draw Water Ripples on Ground
+        for r in self.ripples:
+            r.draw(surface, cam_x, cam_y)
+
     def draw(self, surface: pygame.Surface):
         self.arena_surf.fill((15, 15, 20))
         cam_x, cam_y = self.camera.offset.x, self.camera.offset.y
-        
-        # 1. Select and blit active Arena Phase Background
         boss_phase = self.boss.current_phase
-        if boss_phase == 1:
-            self.arena_surf.blit(self.bg_phase1, (-cam_x, -cam_y))
-        elif boss_phase == 2:
-            self.arena_surf.blit(self.bg_phase2, (-cam_x, -cam_y))
-        elif boss_phase == 3:
-            self.arena_surf.blit(self.bg_phase3, (-cam_x, -cam_y))
+
+        is_ult_active = (self.player and getattr(self.player, "is_casting_ultimate", False)) or (self.player2 and getattr(self.player2, "is_casting_ultimate", False))
+        is_time_stopped = is_ult_active and any(getattr(p, "ultimate_freeze_timer", 0.0) > 0.0 for p in [self.player, self.player2] if p)
+
+        # Frozen Backdrop Cache: Snapshot background once during Time-Stop and single-blit for 60 FPS
+        if is_time_stopped:
+            if getattr(self, "_frozen_backdrop_texture", None) is None or self._frozen_backdrop_texture.get_size() != self.arena_surf.get_size():
+                self._frozen_backdrop_texture = pygame.Surface(self.arena_surf.get_size())
+                self._render_background_layers(self._frozen_backdrop_texture, cam_x, cam_y, boss_phase)
+            self.arena_surf.blit(self._frozen_backdrop_texture, (0, 0))
         else:
-            self.arena_surf.blit(self.bg_phase4, (-cam_x, -cam_y))
-
-        # 2. Draw Swaying Royal Banners
-        self._draw_swaying_banners(self.arena_surf, cam_x, cam_y)
-
-        # 3. Draw Water Ripples on Ground
-        for r in self.ripples:
-            r.draw(self.arena_surf, cam_x, cam_y)
+            self._frozen_backdrop_texture = None
+            self._render_background_layers(self.arena_surf, cam_x, cam_y, boss_phase)
 
         # 4. Y-Sort entities (Players, Boss, Minions, Environmental Rocks & Props)
         drawables = [p for p in [self.player, self.player2] if p] + self.props + getattr(self, "environmental_rocks", []) + [e for e in self.enemies if not getattr(e, "is_death_complete", False)]
@@ -648,8 +674,21 @@ class BossScene(Scene):
                 p.draw(self.arena_surf, self.camera.offset)
 
             
-        # 5. Dynamic Point Lights (Wall Torches, Projectiles, Boss Aura)
+        # 5. Dynamic Point Lights (Wall Torches, Projectiles, Boss Aura, Ultimate Primary Ray Emitter)
         lights = []
+        
+        # Ultimate primary ray emitter (Ray Traced dynamic lighting)
+        for ult_p in [self.player, self.player2]:
+            if ult_p and getattr(ult_p, "is_casting_ultimate", False):
+                ctrl = getattr(ult_p, "ultimate_controller", None)
+                active_inst = getattr(ctrl, "active_ultimate", None)
+                if active_inst and getattr(active_inst, "active", False):
+                    ux = getattr(active_inst, "cx", ult_p.rect.centerx)
+                    uy = getattr(active_inst, "cy", ult_p.rect.centery)
+                    from entities.ultimate_system import ULTIMATE_THEME_CONFIG
+                    ucfg = ULTIMATE_THEME_CONFIG.get(active_inst.__class__.__name__, {"theme": (255, 215, 80)})
+                    lights.append(LightSource(ux, uy, 450, ucfg["theme"], 1.25, True))
+
         torch_color = (135, 195, 245) if boss_phase == 1 else ((255, 180, 80) if boss_phase == 2 else ((190, 100, 245) if boss_phase == 3 else (255, 80, 40)))
         for px in self.pillar_x_coords:
             flicker = math.sin(self.scene_time * 5.5 + px) * 4.0

@@ -22,17 +22,20 @@ class ShadowRenderer:
         ly: float,
         p1: Tuple[float, float],
         p2: Tuple[float, float],
-        length_override: Optional[float] = None
+        length_override: Optional[float] = None,
+        clamp_downward: bool = False
     ) -> List[Tuple[float, float]]:
         """
         Extrudes a 2D line segment away from light (lx, ly) into a 4-point shadow fin quad.
-        Grounded 2D constraint: shadows from obstacles on the ground are cast horizontally
-        and downward onto the floor plane, never backwards/skywards into the ceiling.
+        Preserves true mathematical collinearity:
+            (p_proj - p) x (p - l) == 0.
+        Guarantees non-self-intersecting convex quad [p1, p2, p2_proj, p1_proj]
+        across all light quadrants (above, below, left, right, grazing edges).
         """
         length = length_override or self.shadow_length
 
         dx1 = p1[0] - lx
-        dy1 = max(0.0, p1[1] - ly)
+        dy1 = max(0.0, p1[1] - ly) if clamp_downward else (p1[1] - ly)
         len1 = math.hypot(dx1, dy1)
         if len1 > 1e-4:
             p1_proj = (p1[0] + (dx1 / len1) * length, p1[1] + (dy1 / len1) * length)
@@ -40,7 +43,7 @@ class ShadowRenderer:
             p1_proj = (p1[0], p1[1] + length)
 
         dx2 = p2[0] - lx
-        dy2 = max(0.0, p2[1] - ly)
+        dy2 = max(0.0, p2[1] - ly) if clamp_downward else (p2[1] - ly)
         len2 = math.hypot(dx2, dy2)
         if len2 > 1e-4:
             p2_proj = (p2[0] + (dx2 / len2) * length, p2[1] + (dy2 / len2) * length)

@@ -459,8 +459,8 @@ class CharacterSelectScene(Scene):
         col = index % 6
         row = index // 6
         cx = base_x + col * 48
-        cy = grid_y + row * 33
-        return pygame.FRect(cx, cy, 44, 30)
+        cy = grid_y + row * 31
+        return pygame.FRect(cx, cy, 44, 28)
 
     def _trigger_dojo_move(self, key: str):
         self.active_test_key = key

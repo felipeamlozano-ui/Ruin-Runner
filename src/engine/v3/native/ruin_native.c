@@ -668,5 +668,287 @@ EXPORT int c_grid_astar_pathfind(
     return path_len;
 }
 
+/**
+ * 2D Raycast Dynamic Shadows from Ultimate Core.
+ * Extrudes occluder edges away from (lx, ly) with true collinearity and backface culling.
+ */
+EXPORT int c_compute_2d_raycast_shadows(
+    float lx, float ly, float radius, float shadow_length,
+    const float* occluders, int num_occluders,
+    float* out_quads, int max_quads
+) {
+    if (!occluders || !out_quads || max_quads <= 0 || num_occluders <= 0) {
+        return 0;
+    }
 
+    int quad_count = 0;
+    float rad_sq = radius * radius;
 
+    for (int i = 0; i < num_occluders && quad_count < max_quads; ++i) {
+        float x1 = occluders[i * 4 + 0];
+        float y1 = occluders[i * 4 + 1];
+        float x2 = occluders[i * 4 + 2];
+        float y2 = occluders[i * 4 + 3];
+
+        float mid_x = (x1 + x2) * 0.5f;
+        float mid_y = (y1 + y2) * 0.5f;
+
+        float to_lx = lx - mid_x;
+        float to_ly = ly - mid_y;
+        float dist_sq = to_lx * to_lx + to_ly * to_ly;
+
+        if (dist_sq > rad_sq || dist_sq < 1e-4f) {
+            continue;
+        }
+
+        float edge_dx = x2 - x1;
+        float edge_dy = y2 - y1;
+        float normal_x = -edge_dy;
+        float normal_y = edge_dx;
+
+        float dot = normal_x * to_lx + normal_y * to_ly;
+        if (dot >= 0.0f) {
+            continue; // Backface culling
+        }
+
+        float dist = sqrtf(dist_sq);
+        float remaining = radius - dist;
+        float eff_len = shadow_length < remaining * 1.25f ? shadow_length : remaining * 1.25f;
+
+        float dx1 = x1 - lx;
+        float dy1 = y1 - ly;
+        float len1 = sqrtf(dx1 * dx1 + dy1 * dy1);
+        float p1proj_x = (len1 > 1e-4f) ? (x1 + (dx1 / len1) * eff_len) : x1;
+        float p1proj_y = (len1 > 1e-4f) ? (y1 + (dy1 / len1) * eff_len) : (y1 + eff_len);
+
+        float dx2 = x2 - lx;
+        float dy2 = y2 - ly;
+        float len2 = sqrtf(dx2 * dx2 + dy2 * dy2);
+        float p2proj_x = (len2 > 1e-4f) ? (x2 + (dx2 / len2) * eff_len) : x2;
+        float p2proj_y = (len2 > 1e-4f) ? (y2 + (dy2 / len2) * eff_len) : (y2 + eff_len);
+
+        int q_base = quad_count * 8;
+        out_quads[q_base + 0] = x1;
+        out_quads[q_base + 1] = y1;
+        out_quads[q_base + 2] = x2;
+        out_quads[q_base + 3] = y2;
+        out_quads[q_base + 4] = p2proj_x;
+        out_quads[q_base + 5] = p2proj_y;
+        out_quads[q_base + 6] = p1proj_x;
+        out_quads[q_base + 7] = p1proj_y;
+
+        quad_count++;
+    }
+
+    return quad_count;
+}
+
+/**
+ * Parallel SIMD evaluation of Anime Sakuga Wind Shockwave Ribbons and Levitating Debris.
+ * Generates continuous smooth spiral spline vertices into pre-allocated memory.
+ */
+EXPORT void c_update_wind_vortex_ribbons(
+    float cx, float cy, float timer, int facing_right,
+    float* out_ribbon_pts, int num_ribbons, int pts_per_ribbon,
+    float* out_debris, int num_debris, float dt
+) {
+    if (!out_ribbon_pts || num_ribbons <= 0 || pts_per_ribbon <= 0) {
+        return;
+    }
+
+    float dir = facing_right ? 1.0f : -1.0f;
+    float time_scale = timer * 10.0f;
+
+    // 1. Wind Shockwave Ribbons
+    for (int r = 0; r < num_ribbons; ++r) {
+        float phi = time_scale + (float)r * (6.2831853f / (float)num_ribbons);
+        float base_rad = 30.0f + timer * 95.0f + (float)r * 12.0f;
+
+        for (int p = 0; p < pts_per_ribbon; ++p) {
+            float t = (float)p / (float)pts_per_ribbon;
+            float angle = phi - t * 1.85f;
+            float rad_p = base_rad * (1.0f - t * 0.45f);
+
+            // Swirl expanding backwards from strike focus
+            float ox = -dir * (t * 60.0f + (1.0f - cosf(angle)) * rad_p * 0.4f);
+            float oy = sinf(angle) * rad_p * 0.42f - t * 14.0f;
+
+            float px = cx + ox;
+            float py = cy + oy;
+
+            // Fading envelope: fast build-up, hold, smooth fade
+            float env = timer < 0.18f ? (timer / 0.18f) : (timer > 0.82f ? (1.0f - (timer - 0.82f) / 0.18f) : 1.0f);
+            float alpha = 230.0f * (1.0f - t) * env;
+            float width = 6.0f * (1.0f - t * 0.7f) * env;
+
+            int idx = (r * pts_per_ribbon + p) * 4;
+            out_ribbon_pts[idx + 0] = px;
+            out_ribbon_pts[idx + 1] = py;
+            out_ribbon_pts[idx + 2] = alpha > 0.0f ? alpha : 0.0f;
+            out_ribbon_pts[idx + 3] = width > 1.0f ? width : 1.0f;
+        }
+    }
+
+    // 2. Levitating Debris / Sparks Kinematics
+    if (out_debris && num_debris > 0) {
+        for (int k = 0; k < num_debris; ++k) {
+            int d_idx = k * 4; // x, y, alpha, size
+            float seed = (float)k * 0.381966f;
+            float k_timer = timer + seed;
+
+            float spiral_ang = k_timer * 7.5f;
+            float spiral_r = 18.0f + (float)(k % 5) * 14.0f + timer * 25.0f;
+
+            float dx = cosf(spiral_ang) * spiral_r;
+            float dy = -k_timer * 90.0f + sinf(spiral_ang * 0.5f) * 12.0f;
+
+            out_debris[d_idx + 0] = cx + dx;
+            out_debris[d_idx + 1] = cy + dy;
+
+            float d_env = timer < 0.12f ? (timer / 0.12f) : (timer > 0.85f ? (1.0f - (timer - 0.85f) / 0.15f) : 1.0f);
+            float d_alpha = 255.0f * d_env * (1.0f - (float)(k % 10) * 0.08f);
+            out_debris[d_idx + 2] = d_alpha > 0.0f ? d_alpha : 0.0f;
+            out_debris[d_idx + 3] = 2.0f + (float)(k % 4);
+        }
+    }
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * HIGH-PERFORMANCE ANTI-ALIASED VOLUMETRIC LIGHT RAYS (DEMON SLAYER AESTHETICS)
+ * Direct RGBA rasterization with continuous angular cosine falloff across beam
+ * width and smooth radial attenuation, eliminating 100% of pixel staircases.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+EXPORT void c_generate_volumetric_light_rays_aa(
+    uint8_t* out_rgba, int width, int height,
+    float cx, float cy, float radius,
+    int num_rays, float time_sec,
+    uint8_t r_col, uint8_t g_col, uint8_t b_col,
+    float base_intensity
+) {
+    if (!out_rgba || width <= 0 || height <= 0 || radius <= 0.0f) return;
+
+    float inv_rad = 1.0f / radius;
+    float ray_freq = (float)num_rays;
+    float rot_speed = time_sec * 0.85f;
+    float rad_sq = radius * radius;
+
+    for (int y = 0; y < height; ++y) {
+        float dy = (float)y - cy;
+        int row_idx = y * width * 4;
+
+        for (int x = 0; x < width; ++x) {
+            float dx = (float)x - cx;
+            float dist_sq = dx * dx + dy * dy;
+
+            if (dist_sq >= rad_sq || dist_sq < 1.0f) {
+                continue;
+            }
+
+            float dist = sqrtf(dist_sq);
+            float rad_norm = dist * inv_rad; // 0..1
+            // Cubic radial attenuation ensuring zero boundary cutoff
+            float radial_falloff = (1.0f - rad_norm) * (1.0f - rad_norm) * (1.0f - rad_norm);
+
+            float angle = atan2f(dy, dx) + rot_speed;
+            // Primary ray harmonics + secondary subtle modulation
+            float ray_val = cosf(angle * ray_freq);
+            float harmonic = sinf(angle * (ray_freq * 0.5f) + time_sec * 2.0f) * 0.18f;
+            ray_val = ray_val + harmonic;
+
+            // Needle taper: threshold increases quadratically with distance
+            float thresh = 0.18f + 0.55f * (rad_norm * rad_norm);
+            float beam = (ray_val - thresh) / (1.0f - thresh);
+            if (beam <= 0.0f) continue;
+            if (beam > 1.0f) beam = 1.0f;
+            beam = beam * beam * (3.0f - 2.0f * beam); // Cubic smoothstep
+
+            float total_alpha = beam * radial_falloff * base_intensity * 255.0f;
+            if (total_alpha > 255.0f) total_alpha = 255.0f;
+            if (total_alpha < 0.0f) continue;
+
+            uint8_t a = (uint8_t)total_alpha;
+            if (a > 0) {
+                // Incandescent white-hot needle core blending into golden mantle
+                float core_t = beam * (1.0f - rad_norm * 0.5f);
+                float r = (float)r_col + (255.0f - (float)r_col) * core_t;
+                float g = (float)g_col + (255.0f - (float)g_col) * (core_t * 0.75f);
+                float b = (float)b_col + (255.0f - (float)b_col) * (core_t * 0.40f);
+
+                // Pre-multiply alpha for additive blending
+                float alpha_norm = (float)a / 255.0f;
+                int px_idx = row_idx + x * 4;
+                out_rgba[px_idx + 0] = (uint8_t)(fminf(255.0f, r * alpha_norm));
+                out_rgba[px_idx + 1] = (uint8_t)(fminf(255.0f, g * alpha_norm));
+                out_rgba[px_idx + 2] = (uint8_t)(fminf(255.0f, b * alpha_norm));
+                out_rgba[px_idx + 3] = a;
+            }
+        }
+    }
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * FAST 2D CORNER CREVICE AMBIENT OCCLUSION BAKER (NATIVE C)
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+EXPORT void c_bake_corner_ambient_occlusion(
+    uint8_t* out_rgba, int width, int height,
+    const uint8_t* solid_grid, int grid_w, int grid_h, int tile_sz,
+    int ao_radius
+) {
+    if (!out_rgba || !solid_grid || width <= 0 || height <= 0) return;
+
+    memset(out_rgba, 255, width * height * 4);
+
+    for (int gy = 0; gy < grid_h; ++gy) {
+        for (int gx = 0; gx < grid_w; ++gx) {
+            int g_idx = gy * grid_w + gx;
+            if (!solid_grid[g_idx]) continue;
+
+            int px = gx * tile_sz;
+            int py = gy * tile_sz;
+
+            // Top edge crevice
+            if (gy > 0 && !solid_grid[(gy - 1) * grid_w + gx]) {
+                for (int step = 0; step < ao_radius; ++step) {
+                    int target_y = py - step;
+                    if (target_y < 0) continue;
+                    float factor = (float)step / (float)ao_radius;
+                    uint8_t val = (uint8_t)(255 - (int)(55.0f * (1.0f - factor)));
+                    for (int tx = 0; tx < tile_sz; ++tx) {
+                        int cur_x = px + tx;
+                        if (cur_x >= width) break;
+                        int idx = (target_y * width + cur_x) * 4;
+                        if (val < out_rgba[idx]) {
+                            out_rgba[idx + 0] = val;
+                            out_rgba[idx + 1] = val;
+                            out_rgba[idx + 2] = val;
+                        }
+                    }
+                }
+            }
+
+            // Bottom edge (under platform)
+            if (gy < grid_h - 1 && !solid_grid[(gy + 1) * grid_w + gx]) {
+                for (int step = 0; step < ao_radius; ++step) {
+                    int target_y = py + tile_sz + step;
+                    if (target_y >= height) continue;
+                    float factor = (float)step / (float)ao_radius;
+                    uint8_t val = (uint8_t)(255 - (int)(75.0f * (1.0f - factor)));
+                    for (int tx = 0; tx < tile_sz; ++tx) {
+                        int cur_x = px + tx;
+                        if (cur_x >= width) break;
+                        int idx = (target_y * width + cur_x) * 4;
+                        if (val < out_rgba[idx]) {
+                            out_rgba[idx + 0] = val;
+                            out_rgba[idx + 1] = val;
+                            out_rgba[idx + 2] = val;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
